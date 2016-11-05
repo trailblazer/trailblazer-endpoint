@@ -146,4 +146,11 @@ class SongsControllerTest < ActionController::TestCase
     assert_equal %{}, response.body
     assert_equal "/songs/9", response.header["Location"]
   end
+
+  # custom 999
+  test "custom 999" do
+    post :create_with_custom_handlers, params: { id: 1, title: "AVH" }
+    assert_equal 999, response.status
+    assert_equal %{{"id":9,"title":"AVH"}}, response.body
+  end
 end
