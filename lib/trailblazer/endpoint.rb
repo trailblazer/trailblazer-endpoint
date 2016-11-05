@@ -5,6 +5,9 @@ module Trailblazer
     # this is totally WIP as we need to find best practices.
     # also, i want this to be easily extendable.
     Matcher = Dry::Matcher.new(
+      present: Dry::Matcher::Case.new(
+        match:   ->(result) { result.success? && result["present"] },
+        resolve: ->(result) { result }),
       success: Dry::Matcher::Case.new(
         match:   ->(result) { result.success? },
         resolve: ->(result) { result }),
@@ -50,8 +53,9 @@ module Trailblazer
           ->(m) do
             m.not_found       { |result| controller.head 404 }
             m.unauthenticated { |result| controller.head 401 }
-            m.created         { |result| controller.head 201, "Location: /song/#{result["model"].id}", result["representer.serializer.class"].new(result["model"]).to_json }
-            m.success         { |result| controller.head 200 }
+            m.present         { |result| controller.render json: result["representer.serializer.class"].new(result['model']), status: 200 }
+            m.created         { |result| controller.head 201, location: "/song/#{result["model"].id}" }#, result["representer.serializer.class"].new(result["model"]).to_json
+            m.success         { |result| controller.render json: result["representer.serializer.class"].new(result['model']), status: 200 }
             m.invalid         { |result| controller.render json: result["representer.errors.class"].new(result['result.contract'].errors), status: 422 }
           end
         end

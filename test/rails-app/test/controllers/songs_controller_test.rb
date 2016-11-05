@@ -6,7 +6,7 @@ end # FIXME
 
 
 Song = Struct.new(:id, :title, :length) do
-  def self.find_by(id:1); id=="0" ? nil : "bla" end
+  def self.find_by(id:1); id=="0" ? nil : new(id, "A Song") end
 end
 
 require "trailblazer"
@@ -79,7 +79,7 @@ class Create < Trailblazer::Operation
 
   def process(params)
     validate(params) do |f|
-      f.sync
+      self["contract"].sync
       self["model"].id = 9
     end
   end
@@ -87,6 +87,20 @@ end
 
 class Update < Create
   action :find_by
+end
+
+# TODO: test present.
+class Show < Trailblazer::Operation
+  include Policy::Guard
+  policy ->(*) { self["user.current"] == ::Module }
+
+  extend Representer::DSL
+  representer :serializer, Serializer
+
+  include Model
+  model Song, :find_by
+
+  self.> ->(input, options) { options["present"] = true }, before: "operation.result"
 end
 
 class SongsControllerTest < ActionController::TestCase
@@ -108,5 +122,28 @@ class SongsControllerTest < ActionController::TestCase
     post :create, params: { id: 1 }
     assert_equal 422, response.status
     assert_equal %{{\"messages\":{\"title\":[\"must be set\"]}}}, response.body
+  end
+
+  # 201
+  test "create 201" do
+    post :create, params: { id: 1, title: "AVH" }
+    assert_equal 201, response.status
+    assert_equal %{}, response.body
+    assert_equal "/song/9", response.header["Location"]
+  end
+
+  # 200 present
+  test "show 200" do
+    get :show, params: { id: 1 }
+    assert_equal 200, response.status
+    assert_equal %{{"id":"1","title":"A Song"}}, response.body
+  end
+
+  # 201 update
+  test "update 200" do
+    post :update_with_user, params: { id: 1, title: "AVH" }
+    assert_equal 200, response.status
+    assert_equal %{}, response.body
+    assert_equal "/song/1", response.header["Location"]
   end
 end

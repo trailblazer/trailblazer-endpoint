@@ -94,6 +94,7 @@ class EndpointTest < Minitest::Spec
   class Update < Create
     action :find_by
   end
+
   # 404
   it do
     result = Update.( id: nil, song: '{"id": 9, "title": "Encores", "length": 999 }', "user.current" => ::Module )
