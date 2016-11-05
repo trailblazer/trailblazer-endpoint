@@ -5,5 +5,9 @@ gemspec
 
 gem "multi_json"
 
-gem "dry-matcher"
 gem "minitest-line"
+
+gem "trailblazer", path: "../trailblazer"
+gem "reform"
+gem "trailblazer-rails"
+gem "trailblazer-operation", path: "../operation"
