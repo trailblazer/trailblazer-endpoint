@@ -8,8 +8,6 @@ gem "multi_json"
 gem "minitest-line"
 
 gem "trailblazer", path: "../trailblazer"
-gem "reform"
-gem "trailblazer-rails"
 gem "trailblazer-operation", path: "../operation"
 
-gem "rails", "~>5.0.0"
+gem "dry-validation"

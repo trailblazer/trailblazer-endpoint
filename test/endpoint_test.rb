@@ -3,7 +3,7 @@ require "test_helper"
 require "reform"
 require "trailblazer"
 require "trailblazer/operation/model"
-require "reform/form/active_model/validations"
+require "reform/form/dry"
 require "trailblazer/operation/contract"
 require "trailblazer/operation/representer"
 require "trailblazer/operation/guard"
@@ -54,8 +54,10 @@ class EndpointTest < Minitest::Spec
       property :title
       property :length
 
-      include Reform::Form::ActiveModel::Validations
-      validates :title, presence: true
+      include Reform::Form::Dry
+      validation :default do
+        required(:title).filled
+      end
     end
 
     def process(params)
@@ -70,7 +72,7 @@ class EndpointTest < Minitest::Spec
   let (:_data) { [] }
   def head(*args); _data << [:head, *args] end
 
-  let(:handlers) { Trailblazer::Endpoint::Handlers::Rails.new(self).() }
+  let(:handlers) { Trailblazer::Endpoint::Handlers::Rails.new(self, path: "/songs").() }
 
   # not authenticated, 401
   it do
@@ -88,7 +90,7 @@ class EndpointTest < Minitest::Spec
     # puts "@@@@@ #{result.inspect}"
 
     Trailblazer::Endpoint.new.(handlers, result)
-    _data.inspect.must_equal '[[:head, 201, "Location: /song/9", "{\"id\":9,\"title\":\"Encores\"}"]]'
+    _data.inspect.must_equal '[[:head, 201, {:location=>"/songs/9"}]]'
   end
 
   class Update < Create
