@@ -12,9 +12,8 @@ require "trailblazer/endpoint/rails"
 
 class EndpointTest < Minitest::Spec
   Song = Struct.new(:id, :title, :length) do
-    def self.find_by(id:nil); id.nil? ? nil : "bla" end
+    def self.find_by(id:nil); id.nil? ? nil : new(id) end
   end
-
 
   require "representable/json"
   class Serializer < Representable::Decorator
@@ -32,6 +31,27 @@ class EndpointTest < Minitest::Spec
   class Deserializer < Representable::Decorator
     include Representable::JSON
     property :title
+  end
+
+  let (:my_handlers) {
+    ->(m) do
+      m.present { |result| _data << result["representer.serializer.class"].new(result["model"]).to_json }
+    end
+  }
+
+  #---
+  # present
+  class Show < Trailblazer::Operation
+    extend Representer::DSL
+    include Model
+    model Song, :find_by
+    representer :serializer, Serializer
+  end
+
+  # if you pass in "present"=>true as a dependency, the Endpoint will understand it's a present cycle.
+  it do
+    Trailblazer::Endpoint.new.(my_handlers, Show.({ id: 1 }, { "present" => true }))
+    _data.must_equal ['{"id":1}']
   end
 
 
