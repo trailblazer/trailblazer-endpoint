@@ -144,6 +144,6 @@ class SongsControllerTest < ActionController::TestCase
     post :update_with_user, params: { id: 1, title: "AVH" }
     assert_equal 200, response.status
     assert_equal %{}, response.body
-    assert_equal "/song/1", response.header["Location"]
+    assert_equal "/song/9", response.header["Location"]
   end
 end
