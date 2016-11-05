@@ -8,6 +8,7 @@ require "trailblazer/operation/contract"
 require "trailblazer/operation/representer"
 require "trailblazer/operation/guard"
 require "trailblazer/endpoint"
+require "trailblazer/endpoint/rails"
 
 class EndpointTest < Minitest::Spec
   Song = Struct.new(:id, :title, :length) do
