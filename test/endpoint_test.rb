@@ -50,7 +50,17 @@ class EndpointTest < Minitest::Spec
 
   # if you pass in "present"=>true as a dependency, the Endpoint will understand it's a present cycle.
   it do
-    Trailblazer::Endpoint.new.(my_handlers, Show.({ id: 1 }, { "present" => true }))
+    Trailblazer::Endpoint.new.(Show.({ id: 1 }, { "present" => true }), my_handlers)
+    _data.must_equal ['{"id":1}']
+  end
+
+  # passing handlers directly to Endpoint#call.
+  it do
+    result = Show.({ id: 1 }, { "present" => true })
+    Trailblazer::Endpoint.new.(result) do |m|
+      m.present { |result| _data << result["representer.serializer.class"].new(result["model"]).to_json }
+    end
+
     _data.must_equal ['{"id":1}']
   end
 
@@ -100,7 +110,7 @@ class EndpointTest < Minitest::Spec
     result = Create.( { id: 1 }, "user.current" => false )
     # puts "@@@@@ #{result.inspect}"
 
-    Trailblazer::Endpoint.new.(handlers, result)
+    Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal %{[[:head, 401]]}
   end
 
@@ -110,7 +120,7 @@ class EndpointTest < Minitest::Spec
     result = Create.( '{"id": 9, "title": "Encores", "length": 999 }', "user.current" => ::Module )
     # puts "@@@@@ #{result.inspect}"
 
-    Trailblazer::Endpoint.new.(handlers, result)
+    Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 201, {:location=>"/songs/9"}]]'
   end
 
@@ -122,7 +132,7 @@ class EndpointTest < Minitest::Spec
   it do
     result = Update.( id: nil, song: '{"id": 9, "title": "Encores", "length": 999 }', "user.current" => ::Module )
 
-    Trailblazer::Endpoint.new.(handlers, result)
+    Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 404]]'
   end
 
@@ -132,7 +142,7 @@ class EndpointTest < Minitest::Spec
   it do
     result = Create.('{ "title": "" }', "user.current" => ::Module)
     # puts "@@@@@ #{result.inspect}"
-    Trailblazer::Endpoint.new.(handlers, result)
+    Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 422, "{\"messages\":{\"title\":[\"can\'t be blank\"]}}"]]'
   end
 

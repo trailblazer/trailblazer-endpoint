@@ -5,7 +5,7 @@ module Trailblazer
     # this is totally WIP as we need to find best practices.
     # also, i want this to be easily extendable.
     Matcher = Dry::Matcher.new(
-      present: Dry::Matcher::Case.new(
+      present: Dry::Matcher::Case.new( # DISCUSS: the "present" flag needs some discussion.
         match:   ->(result) { result.success? && result["present"] },
         resolve: ->(result) { result }),
       success: Dry::Matcher::Case.new(
@@ -26,12 +26,12 @@ module Trailblazer
         resolve: ->(result) { result })
     )
 
-    def self.call(handlers, operation_class, *args, &block)
+    def self.call(operation_class, handlers, *args, &block)
       result = operation_class.(*args)
-      new.(handlers, result, &block)
+      new.(result, handlers, &block)
     end
 
-    def call(handlers, result, &block)
+    def call(result, handlers=nil, &block)
       matcher.(result, &block) and return if block_given? # evaluate user blocks first.
       matcher.(result, &handlers)     # then, generic Rails handlers in controller context.
     end
@@ -46,7 +46,7 @@ module Trailblazer
       # end
       def endpoint(operation_class, options={}, &block)
         handlers = Handlers::Rails.new(self, options).()
-        Endpoint.(handlers, operation_class, *options[:args], &block)
+        Endpoint.(operation_class, handlers, *options[:args], &block)
       end
     end
   end
