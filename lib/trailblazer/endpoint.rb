@@ -52,7 +52,7 @@ module Trailblazer
             m.unauthenticated { |result| controller.head 401 }
             m.created         { |result| controller.head 201, "Location: /song/#{result["model"].id}", result["representer.serializer.class"].new(result["model"]).to_json }
             m.success         { |result| controller.head 200 }
-            m.invalid         { |result| controller.head 422, result["representer.errors.class"].new(result['result.contract'].errors).to_json }
+            m.invalid         { |result| controller.render json: result["representer.errors.class"].new(result['result.contract'].errors), status: 422 }
           end
         end
       end

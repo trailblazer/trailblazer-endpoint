@@ -11,3 +11,5 @@ gem "trailblazer", path: "../trailblazer"
 gem "reform"
 gem "trailblazer-rails"
 gem "trailblazer-operation", path: "../operation"
+
+gem "rails", "~>5.0.0"
