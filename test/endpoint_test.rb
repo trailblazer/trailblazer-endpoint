@@ -2,11 +2,7 @@ require "test_helper"
 
 require "reform"
 require "trailblazer"
-require "trailblazer/operation/model"
 require "reform/form/dry"
-require "trailblazer/operation/contract"
-require "trailblazer/operation/representer"
-require "trailblazer/operation/guard"
 require "trailblazer/endpoint"
 require "trailblazer/endpoint/rails"
 
@@ -43,8 +39,7 @@ class EndpointTest < Minitest::Spec
   # present
   class Show < Trailblazer::Operation
     extend Representer::DSL
-    include Model
-    model Song, :find_by
+    step Model( Song, :find_by )
     representer :serializer, Serializer
   end
 
@@ -66,8 +61,7 @@ class EndpointTest < Minitest::Spec
 
 
   class Create < Trailblazer::Operation
-    include Policy::Guard
-    policy ->(*) { self["user.current"] == ::Module }
+    step Policy::Guard ->(options) { options["user.current"] == ::Module }
 
     extend Representer::DSL
     representer :serializer, Serializer
@@ -76,11 +70,8 @@ class EndpointTest < Minitest::Spec
     # self["representer.serializer.class"] = Representer
     # self["representer.deserializer.class"] = Deserializer
 
-    include Model
-    model Song, :create
 
-    include Contract::Step
-    include Representer::Deserializer::JSON
+    extend Contract::DSL
     contract do
       property :title
       property :length
@@ -91,12 +82,11 @@ class EndpointTest < Minitest::Spec
       end
     end
 
-    def process(params)
-      validate(params) do |f|
-        f.sync
-        self["model"].id = 9
-      end
-    end
+    step Model( Song, :new )
+    step Contract::Build()
+    step Contract::Validate( representer: self["representer.deserializer.class"] )
+    step Persist( method: :sync )
+    step ->(options) { options["model"].id = 9 }
   end
 
   let (:controller) { self }
@@ -104,7 +94,9 @@ class EndpointTest < Minitest::Spec
   def head(*args); _data << [:head, *args] end
 
   let(:handlers) { Trailblazer::Endpoint::Handlers::Rails.new(self, path: "/songs").() }
-
+  def render(options)
+    _data << options
+  end
   # not authenticated, 401
   it do
     result = Create.( { id: 1 }, "user.current" => false )
@@ -117,7 +109,7 @@ class EndpointTest < Minitest::Spec
   # created
   # length is ignored as it's not defined in the deserializer.
   it do
-    result = Create.( '{"id": 9, "title": "Encores", "length": 999 }', "user.current" => ::Module )
+    result = Create.( {}, "user.current" => ::Module, "document" => '{"id": 9, "title": "Encores", "length": 999 }' )
     # puts "@@@@@ #{result.inspect}"
 
     Trailblazer::Endpoint.new.(result, handlers)
@@ -125,12 +117,12 @@ class EndpointTest < Minitest::Spec
   end
 
   class Update < Create
-    action :find_by
+    self.~ Model( :find_by )
   end
 
   # 404
   it do
-    result = Update.( id: nil, song: '{"id": 9, "title": "Encores", "length": 999 }', "user.current" => ::Module )
+    result = Update.({ id: nil }, "user.current" => ::Module, "document" => '{"id": 9, "title": "Encores", "length": 999 }' )
 
     Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 404]]'
@@ -140,10 +132,9 @@ class EndpointTest < Minitest::Spec
   # validation failure 422
   # success
   it do
-    result = Create.('{ "title": "" }', "user.current" => ::Module)
-    # puts "@@@@@ #{result.inspect}"
+    result = Create.({}, "user.current" => ::Module, "document" => '{ "title": "" }')
     Trailblazer::Endpoint.new.(result, handlers)
-    _data.inspect.must_equal '[[:head, 422, "{\"messages\":{\"title\":[\"can\'t be blank\"]}}"]]'
+    _data.inspect.must_equal '[{:json=>"{\\"messages\\":{\\"title\\":[\\"must be filled\\"]}}", :status=>422}]'
   end
 
 
@@ -166,7 +157,7 @@ class EndpointTest < Minitest::Spec
   it do
     invoked = nil
 
-    endpoint(Update, { id: nil }) do |res|
+    endpoint( Update, { id: nil }, args: {"user.current" => ::Module} ) do |res|
       res.invalid { invoked = "my invalid!" }
     end
 

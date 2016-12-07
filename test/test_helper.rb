@@ -1,3 +1,3 @@
 require "minitest/autorun"
-require "trailblazer/operation"
+require "trailblazer"
 require "trailblazer/endpoint"

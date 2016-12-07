@@ -1,19 +1,11 @@
 PATH
-  remote: ../operation
-  specs:
-    trailblazer-operation (2.0.0)
-      declarative
-      pipetree (>= 0.0.2, < 0.1.0)
-      uber (>= 0.0.15)
-
-PATH
   remote: ../trailblazer
   specs:
-    trailblazer (2.0.0)
+    trailblazer (2.0.0.beta1)
       declarative
-      reform (>= 2.0.0, < 3.0.0)
+      reform (>= 2.2.0, < 3.0.0)
       trailblazer-operation
-      uber (>= 0.0.15)
+      uber (>= 0.1.0, < 0.2.0)
 
 PATH
   remote: .
@@ -65,16 +57,20 @@ GEM
     minitest-line (0.6.3)
       minitest (~> 5.0)
     multi_json (1.12.1)
-    pipetree (0.0.3)
+    pipetree (0.0.4)
     rake (11.3.0)
-    reform (2.2.1)
+    reform (2.2.3)
       disposable (>= 0.3.0, < 0.4.0)
       representable (>= 2.4.0, < 3.1.0)
-      uber (~> 0.0.11)
-    representable (3.0.0)
+      uber (>= 0.0.15, < 0.2.0)
+    representable (3.0.2)
       declarative (~> 0.0.5)
-      uber (~> 0.0.15)
-    uber (0.0.15)
+      uber (>= 0.0.15, < 0.2.0)
+    trailblazer-operation (0.0.6)
+      declarative
+      pipetree (>= 0.0.4, < 0.1.0)
+      uber (>= 0.1.0, < 0.2.0)
+    uber (0.1.0)
 
 PLATFORMS
   ruby
@@ -88,7 +84,6 @@ DEPENDENCIES
   rake
   trailblazer!
   trailblazer-endpoint!
-  trailblazer-operation!
 
 BUNDLED WITH
    1.12.5
