@@ -19,10 +19,13 @@ module Trailblazer
         resolve: ->(result) { result }),
       # TODO: we could add unauthorized here.
       unauthenticated: Dry::Matcher::Case.new(
-        match:   ->(result) { result.failure? && result["result.policy.default"].failure? }, # FIXME: we might need a &. here ;)
+        match:   ->(result) { result.failure? && result["result.policy.default"] && result["result.policy.default"].failure? },
         resolve: ->(result) { result }),
       invalid: Dry::Matcher::Case.new(
         match:   ->(result) { result.failure? && result["result.contract.default"] && result["result.contract.default"].failure? },
+        resolve: ->(result) { result }),
+      failure: Dry::Matcher::Case.new(
+        match:   ->(result) { result.failure? },
         resolve: ->(result) { result })
     )
 
