@@ -1,11 +1,10 @@
 PATH
   remote: ../trailblazer
   specs:
-    trailblazer (2.0.0.beta1)
+    trailblazer (2.0.6)
       declarative
       reform (>= 2.2.0, < 3.0.0)
-      trailblazer-operation
-      uber (>= 0.1.0, < 0.2.0)
+      trailblazer-operation (>= 0.0.12, < 0.1.0)
 
 PATH
   remote: .
@@ -17,12 +16,16 @@ GEM
   remote: https://rubygems.org/
   specs:
     concurrent-ruby (1.0.2)
-    declarative (0.0.8)
-      uber (>= 0.0.15)
-    disposable (0.3.2)
-      declarative (>= 0.0.8, < 1.0.0)
+    declarative (0.0.9)
+    declarative-builder (0.1.0)
+      declarative-option (< 0.2.0)
+    declarative-option (0.1.0)
+    disposable (0.4.3)
+      declarative (>= 0.0.9, < 1.0.0)
+      declarative-builder (< 0.2.0)
+      declarative-option (< 0.2.0)
       representable (>= 2.4.0, <= 3.1.0)
-      uber
+      uber (< 0.2.0)
     dry-configurable (0.3.0)
       concurrent-ruby (~> 1.0)
     dry-container (0.5.0)
@@ -57,19 +60,19 @@ GEM
     minitest-line (0.6.3)
       minitest (~> 5.0)
     multi_json (1.12.1)
-    pipetree (0.0.4)
+    pipetree (0.1.1)
     rake (11.3.0)
-    reform (2.2.3)
-      disposable (>= 0.3.0, < 0.4.0)
+    reform (2.2.4)
+      disposable (>= 0.4.1)
       representable (>= 2.4.0, < 3.1.0)
-      uber (>= 0.0.15, < 0.2.0)
-    representable (3.0.2)
-      declarative (~> 0.0.5)
-      uber (>= 0.0.15, < 0.2.0)
-    trailblazer-operation (0.0.6)
+    representable (3.0.4)
+      declarative (< 0.1.0)
+      declarative-option (< 0.2.0)
+      uber (< 0.2.0)
+    trailblazer-operation (0.0.13)
       declarative
-      pipetree (>= 0.0.4, < 0.1.0)
-      uber (>= 0.1.0, < 0.2.0)
+      pipetree (>= 0.1.1, < 0.2.0)
+      uber
     uber (0.1.0)
 
 PLATFORMS
@@ -86,4 +89,4 @@ DEPENDENCIES
   trailblazer-endpoint!
 
 BUNDLED WITH
-   1.12.5
+   1.14.6

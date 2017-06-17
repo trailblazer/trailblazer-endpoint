@@ -1,4 +1,4 @@
-require "test_helper"
+require "./test_helper"
 
 require "reform"
 require "trailblazer"
@@ -85,7 +85,6 @@ class EndpointTest < Minitest::Spec
     step Model( Song, :new )
     step Contract::Build()
     step Contract::Validate( representer: self["representer.deserializer.class"] )
-    step Persist( method: :sync )
     step ->(options) { options["model"].id = 9 }
   end
 
@@ -100,7 +99,6 @@ class EndpointTest < Minitest::Spec
   # not authenticated, 401
   it do
     result = Create.( { id: 1 }, "user.current" => false )
-    # puts "@@@@@ #{result.inspect}"
 
     Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal %{[[:head, 401]]}
@@ -110,14 +108,13 @@ class EndpointTest < Minitest::Spec
   # length is ignored as it's not defined in the deserializer.
   it do
     result = Create.( {}, "user.current" => ::Module, "document" => '{"id": 9, "title": "Encores", "length": 999 }' )
-    # puts "@@@@@ #{result.inspect}"
 
     Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 201, {:location=>"/songs/9"}]]'
   end
 
-  class Update < Create
-    self.~ Model( :find_by )
+  class Update < Trailblazer::Operation
+    step Model( Song, :find_by )
   end
 
   # 404
@@ -126,6 +123,22 @@ class EndpointTest < Minitest::Spec
 
     Trailblazer::Endpoint.new.(result, handlers)
     _data.inspect.must_equal '[[:head, 404]]'
+  end
+
+  class Verified < Trailblazer::Operation
+    step :verified
+
+    def verified(options, params:, **)
+      false
+    end
+  end
+
+  # failure case when you don't have any contract or policies, but operation failed
+  it do
+    result = Verified.({}, "user.current" => ::Module )
+
+    Trailblazer::Endpoint.new.(result, handlers)
+    _data.inspect.must_equal "[{:json=>{:error=>\"unknown error\"}, :status=>422}]"
   end
 
   #---
@@ -154,10 +167,12 @@ class EndpointTest < Minitest::Spec
   end
 
   # generic handler because user handler doesn't match.
+  # TODO: fix this, it's fail because we expect user handlers to be run if they were passed
+  # need to figure out how to run generic Rails handlers if there was no correct user handler
   it do
     invoked = nil
 
-    endpoint( Update, { id: nil }, args: {"user.current" => ::Module} ) do |res|
+    endpoint(Update, args: [{ id: nil }, {"user.current" => ::Module}]) do |res|
       res.invalid { invoked = "my invalid!" }
     end
 
@@ -167,7 +182,7 @@ class EndpointTest < Minitest::Spec
 
   # only generic handler
   it do
-    endpoint(Update, { id: nil })
+    endpoint(Update, args: [{ id: nil }, {"user.current" => ::Module}] )
     _data.must_equal [[:head, 404]]
   end
 end
