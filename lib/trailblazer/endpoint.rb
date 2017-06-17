@@ -19,10 +19,13 @@ module Trailblazer
         resolve: ->(result) { result }),
       # TODO: we could add unauthorized here.
       unauthenticated: Dry::Matcher::Case.new(
-        match:   ->(result) { result.failure? && result["result.policy.default"].failure? }, # FIXME: we might need a &. here ;)
+        match:   ->(result) { result.failure? && result["result.policy.default"] && result["result.policy.default"].failure? },
         resolve: ->(result) { result }),
       invalid: Dry::Matcher::Case.new(
         match:   ->(result) { result.failure? && result["result.contract.default"] && result["result.contract.default"].failure? },
+        resolve: ->(result) { result }),
+      failure: Dry::Matcher::Case.new(
+        match:   ->(result) { result.failure? },
         resolve: ->(result) { result })
     )
 
@@ -35,6 +38,7 @@ module Trailblazer
     def call(result, handlers=nil, &block)
       matcher.(result, &block) and return if block_given? # evaluate user blocks first.
       matcher.(result, &handlers)     # then, generic Rails handlers in controller context.
+      rescue Dry::Matcher::NonExhaustiveMatchError # tmp solution, need to figure our how to handle NonExhaustiveMatchError errors
     end
 
     def matcher
