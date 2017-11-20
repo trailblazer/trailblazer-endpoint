@@ -10,7 +10,6 @@ PATH
   remote: .
   specs:
     trailblazer-endpoint (0.0.1)
-      dry-matcher
 
 GEM
   remote: https://rubygems.org/
@@ -38,7 +37,6 @@ GEM
       dry-container (~> 0.2, >= 0.2.6)
       dry-core (~> 0.1)
       dry-equalizer (~> 0.2)
-    dry-matcher (0.5.0)
     dry-types (0.9.0)
       concurrent-ruby (~> 1.0)
       dry-configurable (~> 0.1)

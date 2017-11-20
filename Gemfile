@@ -1,13 +1,10 @@
-source 'https://rubygems.org'
+source "https://rubygems.org"
 
 # Specify your gem's dependencies in trailblazer.gemspec
 gemspec
 
-gem "multi_json"
-
+gem "dry-validation"
 gem "minitest-line"
-
+gem "multi_json"
 gem "trailblazer", path: "../trailblazer"
 # gem "trailblazer-operation", path: "../operation"
-
-gem "dry-validation"
