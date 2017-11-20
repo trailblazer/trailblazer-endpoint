@@ -6,8 +6,6 @@ require "reform/form/dry"
 require "trailblazer/endpoint"
 require "trailblazer/endpoint/rails"
 
-require "byebug"
-
 class EndpointTest < Minitest::Spec
   # NOTE: Consider moving all this code to a separate class as
   # it is relevant for the test but it is boilerplate for testing
