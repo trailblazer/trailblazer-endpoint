@@ -1,0 +1,29 @@
+AllCops:
+  TargetRubyVersion: 2.3.1
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+  SupportedStyles:
+    - single_quotes
+    - double_quotes
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/BlockLength:
+  CountComments: false  # count full line comments?
+  Max: 25
+  ExcludedMethods: [feature, describe, shared_examples_for]
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Documentation:
+  Enabled: false
+
+NumericLiterals:
+  Exclude:
+    - 'config/initializers/app_version.rb'
+
+LambdaCall:
+  Enabled: false
