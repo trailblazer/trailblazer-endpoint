@@ -93,7 +93,7 @@ class EndpointTest < Minitest::Spec
         "document" => '{"id": 9, "title": "Encores", "length": 999 }'
       )
       response = Trailblazer::Endpoint.(result)
-      response[:data].to_s.must_equal({}.to_s)
+      response[:data].must_equal({})
       response[:status].must_equal :unauthorized
     end
 
