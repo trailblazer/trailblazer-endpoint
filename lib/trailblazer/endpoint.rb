@@ -28,21 +28,20 @@ module Trailblazer
           }
         end
       },
-      invalid: {
-        # rule: ->(result) { result.failure? && result["result.contract.default"]&.failure? },
-        rule: ->(result) { result.failure? },
+      not_found: {
+        rule: ->(result) { result.failure? && result["result.model"]&.failure? },
         resolve: ->(_result, _representer) do
           {
             "data": {},
-            "status": :unprocessable_entity
+            "status": :not_found
           }
         end
       },
-      not_found: {
-        rule: ->(result) { result.failure? && result["result.model"]&.failure? },
+      contract_failure: {
+        rule: ->(result) { result.failure? && result["result.contract.default"]&.failure? },
         resolve: ->(result, _representer) do
           {
-            "data": { errors: result["result.model.errors"] },
+            "data": { messages: result["result.contract.default"]&.errors&.messages },
             "status": :unprocessable_entity
           }
         end

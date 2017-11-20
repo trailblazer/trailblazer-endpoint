@@ -66,6 +66,10 @@ class EndpointTest < Minitest::Spec
     step ->(options) { options["model"].id = 9 }
   end
 
+  class Update < Trailblazer::Operation
+    step Model(Song, :find_by)
+  end
+
   describe "default matchers" do
     it "handles create" do
       result = Create.(
@@ -91,104 +95,104 @@ class EndpointTest < Minitest::Spec
         "document" => '{"id": 9, "title": "Encores", "length": 999 }'
       )
       response = Trailblazer::Endpoint.(result)
-      response[:data].to_json.must_equal({}.to_s)
+      response[:data].to_s.must_equal({}.to_s)
       response[:status].must_equal :unauthorized
+    end
+
+    it "handles not found" do
+      result = Update.(
+        { id: nil },
+        "user.current" => ::Module,
+        "document" => '{"id": 9, "title": "Encores", "length": 999 }'
+      )
+      response = Trailblazer::Endpoint.(result)
+      response[:data].to_json.must_equal({}.to_s)
+      response[:status].must_equal :not_found
+    end
+
+    it "handles broken contracts" do
+      result = Create.(
+        {},
+        "user.current" => ::Module,
+        "document" => '{ "title": "" }'
+      )
+      response = Trailblazer::Endpoint.(result)
+      response[:data].must_equal({ messages: { title: ["must be filled"]}})
+      response[:status].must_equal :unprocessable_entity
     end
   end
 
-#   # if you pass in "present"=>true as a dependency, the Endpoint will understand it's a present cycle.
-#   it do
-#     Trailblazer::Endpoint.new.(Show.({ id: 1 }, { "present" => true }), my_handlers)
-#     _data.must_equal ['{"id":1}']
-#   end
-#
-#   # passing handlers directly to Endpoint#call.
-#   it do
-#     result = Show.({ id: 1 }, { "present" => true })
-#     Trailblazer::Endpoint.new.(result) do |m|
-#       m.present { |result| _data << result["representer.serializer.class"].new(result["model"]).to_json }
-#     end
-#
-#     _data.must_equal ['{"id":1}']
-#   end
-#
-#   let(:controller) { self }
-#   let(:_data) { [] }
-#   def head(*args)
-#     _data << [:head, *args]
-#   end
-#
-#   let(:handlers) { Trailblazer::Endpoint::Handlers::Rails.new(self, path: "/songs").() }
-#   def render(options)
-#     _data << options
-#   end
-#   # not authenticated, 401
-#   it do
-#     result = Create.({ id: 1 }, "user.current" => false)
-#
-#     Trailblazer::Endpoint.new.(result, handlers)
-#     _data.inspect.must_equal %([[:head, 401]])
-#   end
-#
-#   # created
-#   # length is ignored as it's not defined in the deserializer.
-#   it do
-#     result = Create.({}, "user.current" => ::Module, "document" => '{"id": 9, "title": "Encores", "length": 999 }')
-#
-#     Trailblazer::Endpoint.new.(result, handlers)
-#     _data.inspect.must_equal '[[:head, 201, {:location=>"/songs/9"}]]'
-#   end
-#
-#   class Update < Create
-#     step Model(Song, :find_by)
-#   end
-#
-#   # 404
-#   it do
-#     result = Update.({ id: nil }, "user.current" => ::Module, "document" => '{"id": 9, "title": "Encores", "length": 999 }' )
-#
-#     Trailblazer::Endpoint.new.(result, handlers)
-#     _data.inspect.must_equal "[[:head, 404]]"
-#   end
-#
-#   #---
-#   # validation failure 422
-#   # success
-#   it do
-#     result = Create.({}, "user.current" => ::Module, "document" => '{ "title": "" }')
-#     Trailblazer::Endpoint.new.(result, handlers)
-#     _data.inspect.must_equal '[{:json=>"{\\"messages\\":{\\"title\\":[\\"must be filled\\"]}}", :status=>422}]'
-#   end
-#
-#   #---
-#   # Controller#endpoint
-#   # custom handler.
-#   it do
-#     invoked = nil
-#
-#     endpoint(Update, id: nil) do |res|
-#       res.not_found { invoked = "my not_found!" }
-#     end
-#
-#     invoked.must_equal "my not_found!"
-#     _data.must_equal [] # no rails code involved.
-#   end
-#
-#   # generic handler because user handler doesn't match.
-#   it do
-#     invoked = nil
-#
-#     endpoint(Update, { id: nil }, args: {"user.current" => ::Module}) do |res|
-#       res.invalid { invoked = "my invalid!" }
-#     end
-#
-#     _data.must_equal [[:head, 404]]
-#     invoked.must_equal nil
-#   end
-#
-#   # only generic handler
-#   it do
-#     endpoint(Update, id: nil)
-#     _data.must_equal [[:head, 404]]
-#   end
+  describe "overriding locally" do
+    # NOTE: Added cases will be evaluated before the defaults
+    # This allows creating special cases that would else be covered
+    # in a generic handler
+    it "allows adding new cases" do
+      result = Create.(
+        {},
+        "user.current" => ::Module,
+        "document" => '{ "title": "" }'
+      )
+      super_special = {
+        rule: ->(result) do
+          result.failure? && result["result.contract.default"]&.failure? && result["result.contract.default"]&.errors&.messages.include?(:title)
+        end,
+        resolve: ->(_result, _representer) do
+          { "data": { messages: ["status 200, ok but!"] }, "status": :ok }
+        end
+      }
+      response = Trailblazer::Endpoint.(result, nil, super_special: super_special)
+      response[:data].must_equal(messages: ["status 200, ok but!"])
+      response[:status].must_equal :ok
+    end
+
+    it "allows re-writing the rule for existing matcher" do
+      result = Create.(
+        {},
+        "user.current" => ::Module,
+        "document" => '{ "title": "" }'
+      )
+      not_found_rule = ->(result) do
+        result.failure? && result["result.contract.default"]&.failure? && result["result.contract.default"]&.errors&.messages.include?(:title)
+      end
+      response = Trailblazer::Endpoint.(result, nil, not_found: { rule: not_found_rule } )
+      response[:data].must_equal({})
+      response[:status].must_equal :not_found
+    end
+
+    it "allows re-writing the resolve for existing matcher" do
+      result = Create.(
+        {},
+        "user.current" => ::Module,
+        "document" => '{ "title": "" }'
+      )
+      contract_resolve = ->(result, _representer) do
+        {
+          "data": { messages: result["result.contract.default"]&.errors&.messages },
+          "status": :bad_request
+        }
+      end
+      response = Trailblazer::Endpoint.(result, nil, contract_failure: { resolve: contract_resolve } )
+      response[:data].must_equal({ messages: { title: ["must be filled"]}})
+      response[:status].must_equal :bad_request
+    end
+
+    it "allows re-writing the whole matcher" do
+      result = Create.(
+        {},
+        "user.current" => ::Module,
+        "document" => '{ "title": "" }'
+      )
+      new_contract_failure = {
+        rule: ->(result) do
+          result.failure?
+        end,
+        resolve: ->(_result, _representer) do
+          { "data": { messages: ["status 200, ok but!"] }, "status": :ok }
+        end
+      }
+      response = Trailblazer::Endpoint.(result, nil, contract_failure: new_contract_failure)
+      response[:data].must_equal(messages: ["status 200, ok but!"])
+      response[:status].must_equal :ok
+    end
+  end
 end
