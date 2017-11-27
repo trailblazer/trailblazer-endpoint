@@ -3,7 +3,7 @@ module Trailblazer
     DEFAULT_MATCHERS = {
       created: {
         rule: ->(result) { result.success? && result["model.action"] == :new },
-        resolve: ->(result, representer) do
+        resolve: lambda do |result, representer|
           {
             "data": representer.new(result["model"]),
             "status": :created
@@ -12,7 +12,7 @@ module Trailblazer
       },
       success: {
         rule: ->(result) { result.success? },
-        resolve: ->(result, representer) do
+        resolve: lambda do |result, representer|
           {
             "data": representer.new(result["model"]),
             "status": :ok
@@ -20,8 +20,10 @@ module Trailblazer
         end
       },
       unauthenticated: {
-        rule: ->(result) { result.failure? && result["result.policy.default"]&.failure? },
-        resolve: ->(_result, _representer) do
+        rule: lambda do |result|
+          result.failure? && result["result.policy.default"]&.failure?
+        end,
+        resolve: lambda do |_result, _representer|
           {
             "data": {},
             "status": :unauthorized
@@ -29,8 +31,10 @@ module Trailblazer
         end
       },
       not_found: {
-        rule: ->(result) { result.failure? && result["result.model"]&.failure? },
-        resolve: ->(_result, _representer) do
+        rule: lambda do |result|
+          result.failure? && result["result.model"]&.failure?
+        end,
+        resolve: lambda do |_result, _representer|
           {
             "data": {},
             "status": :not_found
@@ -38,10 +42,25 @@ module Trailblazer
         end
       },
       contract_failure: {
-        rule: ->(result) { result.failure? && result["result.contract.default"]&.failure? },
-        resolve: ->(result, _representer) do
+        rule: lambda do |result|
+          result.failure? && result["result.contract.default"]&.failure?
+        end,
+        resolve: lambda do |result, _representer|
           {
-            "data": { messages: result["result.contract.default"]&.errors&.messages },
+            "data": {
+              messages: result["result.contract.default"]&.errors&.messages
+            },
+            "status": :unprocessable_entity
+          }
+        end
+      },
+      fallback: {
+        rule: ->(_result) { true },
+        resolve: lambda do |_result, _representer|
+          {
+            "data": {
+              messages: ["Unexpected operation result"]
+            },
             "status": :unprocessable_entity
           }
         end
@@ -52,7 +71,6 @@ module Trailblazer
     # it might have a representer, else will assume the default name
     def self.call(operation_result, representer_class = nil, overrides = {})
       representer = operation_result["representer.serializer.class"] || representer_class
-      # TODO: What to do when nothing matches?
       endpoint_opts = { result: operation_result, representer: representer }
       new.(endpoint_opts, overrides)
     end
@@ -66,7 +84,9 @@ module Trailblazer
           next
         end
 
-        return resolve.(options[:result], options[:representer]) if rule.(options[:result])
+        if rule.(options[:result])
+          return resolve.(options[:result], options[:representer])
+        end
       end
       matching_rules(overrides).each do |_rule_key, rule_description|
         if rule_description[:rule].(options[:result])
