@@ -4,7 +4,7 @@ module Trailblazer
   class Endpoint
     # this is totally WIP as we need to find best practices.
     # also, i want this to be easily extendable.
-    Matcher = Dry::Matcher.new(
+    DefaultOptions = {
       present: Dry::Matcher::Case.new( # DISCUSS: the "present" flag needs some discussion.
         match:   ->(result) { result.success? && result["present"] },
         resolve: ->(result) { result }),
@@ -24,7 +24,7 @@ module Trailblazer
       invalid: Dry::Matcher::Case.new(
         match:   ->(result) { result.failure? && result["result.contract.default"] && result["result.contract.default"].failure? },
         resolve: ->(result) { result })
-    )
+    }
 
     # `call`s the operation.
     def self.call(operation_class, handlers, *args, &block)
@@ -32,13 +32,24 @@ module Trailblazer
       new.(result, handlers, &block)
     end
 
-    def call(result, handlers=nil, &block)
-      matcher.(result, &block) and return if block_given? # evaluate user blocks first.
-      matcher.(result, &handlers)     # then, generic Rails handlers in controller context.
+    def call(result, handlers=nil, **args, &block)
+      options = default_options
+      options = options.select{|k,v| args[:outcomes].include? k } if args[:outcomes]
+      options = options.merge(args[:additional_outcomes]) if args[:additional_outcomes]
+      if block_given? # evaluate user blocks first.
+        matcher(options).(result, &block) 
+        return
+      end
+
+      matcher(options).(result, &handlers)     # then, generic Rails handlers in controller context.
     end
 
-    def matcher
-      Matcher
+    def default_options
+      DefaultOptions
+    end
+
+    def matcher(options)
+      Dry::Matcher.new(options)
     end
 
     module Controller
