@@ -4,52 +4,50 @@ module Trailblazer
       created: {
         rule: ->(result) { result.success? && result["model.action"] == :new },
         resolve: lambda do |result, representer|
-          {
-            "data": representer.new(result["model"]),
-            "status": :created
-          }
+          { "data": representer.new(result[:model]), "status": :created }
+        end
+      },
+      deleted: {
+        rule: ->(result) { result.success? && result["model.action"] == :destroy },
+        resolve: lambda do |result, _representer|
+          { "data": { id: result[:model].id }, "status": :ok }
+        end
+      },
+      found: {
+        rule: ->(result) { result.success? && result["model.action"] == :find_by },
+        resolve: lambda do |result, representer|
+          { "data": representer.new(result[:model]), "status": :ok }
         end
       },
       success: {
         rule: ->(result) { result.success? },
         resolve: lambda do |result, representer|
-          {
-            "data": representer.new(result["model"]),
-            "status": :ok
-          }
+          data = if representer
+                   representer.new(result[:results])
+                 else
+                   result[:results]
+                 end
+          { "data": data, "status": :ok }
         end
       },
       unauthenticated: {
-        rule: lambda do |result|
-          result.failure? && result["result.policy.default"]&.failure?
-        end,
-        resolve: lambda do |_result, _representer|
-          {
-            "data": {},
-            "status": :unauthorized
-          }
-        end
+        rule: ->(result) { result.policy_error? },
+        resolve: ->(_result, _representer) { { "data": {}, "status": :unauthorized } }
       },
       not_found: {
-        rule: lambda do |result|
-          result.failure? && result["result.model"]&.failure?
-        end,
-        resolve: lambda do |_result, _representer|
+        rule: ->(result) { result.failure? && result["result.model"]&.failure? },
+        resolve: lambda do |result, _representer|
           {
-            "data": {},
-            "status": :not_found
+            "data": { errors: result["result.model.errors"] },
+            "status": :unprocessable_entity
           }
         end
       },
-      contract_failure: {
-        rule: lambda do |result|
-          result.failure? && result["result.contract.default"]&.failure?
-        end,
+      invalid: {
+        rule: ->(result) { result.failure? },
         resolve: lambda do |result, _representer|
           {
-            "data": {
-              messages: result["result.contract.default"]&.errors&.messages
-            },
+            "data": { errors: result.errors || result[:errors] },
             "status": :unprocessable_entity
           }
         end
@@ -57,21 +55,16 @@ module Trailblazer
       fallback: {
         rule: ->(_result) { true },
         resolve: lambda do |_result, _representer|
-          {
-            "data": {
-              messages: ["Unexpected operation result"]
-            },
-            "status": :unprocessable_entity
-          }
+          { "data": { errors: "Can't process the result" },
+            "status": :unprocessable_entity }
         end
       }
-    }
+    }.freeze
 
-    # options expects a TRB Operation result
+    # NOTE: options expects a TRB Operation result
     # it might have a representer, else will assume the default name
     def self.call(operation_result, representer_class = nil, overrides = {})
-      representer = operation_result["representer.serializer.class"] || representer_class
-      endpoint_opts = { result: operation_result, representer: representer }
+      endpoint_opts = { result: operation_result, representer: representer_class }
       new.(endpoint_opts, overrides)
     end
 
@@ -79,14 +72,13 @@ module Trailblazer
       overrides.each do |rule_key, rule_description|
         rule = rule_description[:rule] || DEFAULT_MATCHERS[rule_key][:rule]
         resolve = rule_description[:resolve] || DEFAULT_MATCHERS[rule_key][:resolve]
+
         if rule.nil? || resolve.nil?
           puts "Matcher is not properly set. #{rule_key} will be ignored"
           next
         end
 
-        if rule.(options[:result])
-          return resolve.(options[:result], options[:representer])
-        end
+        return resolve.(options[:result], options[:representer]) if rule.(options[:result])
       end
       matching_rules(overrides).each do |_rule_key, rule_description|
         if rule_description[:rule].(options[:result])
@@ -96,7 +88,7 @@ module Trailblazer
     end
 
     def matching_rules(overrides)
-      DEFAULT_MATCHERS.reject { |k, _v| overrides.keys.include? k }
+      DEFAULT_MATCHERS.except(*overrides.keys)
     end
   end
 end
