@@ -1,53 +1,117 @@
-require "dry/matcher"
-
 module Trailblazer
   class Endpoint
-    # this is totally WIP as we need to find best practices.
-    # also, i want this to be easily extendable.
-    Matcher = Dry::Matcher.new(
-      present: Dry::Matcher::Case.new( # DISCUSS: the "present" flag needs some discussion.
-        match:   ->(result) { result.success? && result["present"] },
-        resolve: ->(result) { result }),
-      success: Dry::Matcher::Case.new(
-        match:   ->(result) { result.success? },
-        resolve: ->(result) { result }),
-      created: Dry::Matcher::Case.new(
-        match:   ->(result) { result.success? && result["model.action"] == :new }, # the "model.action" doesn't mean you need Model.
-        resolve: ->(result) { result }),
-      not_found: Dry::Matcher::Case.new(
-        match:   ->(result) { result.failure? && result["result.model"] && result["result.model"].failure? },
-        resolve: ->(result) { result }),
-      # TODO: we could add unauthorized here.
-      unauthenticated: Dry::Matcher::Case.new(
-        match:   ->(result) { result.failure? && result["result.policy.default"].failure? }, # FIXME: we might need a &. here ;)
-        resolve: ->(result) { result }),
-      invalid: Dry::Matcher::Case.new(
-        match:   ->(result) { result.failure? && result["result.contract.default"] && result["result.contract.default"].failure? },
-        resolve: ->(result) { result })
-    )
+    DEFAULT_MATCHERS = {
+      created: {
+        rule: ->(result) { result.success? && result["model.action"] == :new },
+        resolve: lambda do |result, representer|
+          { "data": representer.new(result[:model]), "status": :created }
+        end
+      },
+      deleted: {
+        rule: ->(result) { result.success? && result["model.action"] == :destroy },
+        resolve: lambda do |result, _representer|
+          { "data": { id: result[:model].id }, "status": :ok }
+        end
+      },
+      found: {
+        rule: ->(result) { result.success? && result["model.action"] == :find_by },
+        resolve: lambda do |result, representer|
+          { "data": representer.new(result[:model]), "status": :ok }
+        end
+      },
+      success: {
+        rule: ->(result) { result.success? },
+        resolve: lambda do |result, representer|
+          data = if representer
+                   representer.new(result[:results])
+                 else
+                   result[:results]
+                 end
+          { "data": data, "status": :ok }
+        end
+      },
+      unauthenticated: {
+        rule: ->(result) { result.policy_error? },
+        resolve: ->(_result, _representer) { { "data": {}, "status": :unauthorized } }
+      },
+      not_found: {
+        rule: ->(result) { result.failure? && result["result.model"]&.failure? },
+        resolve: lambda do |result, _representer|
+          {
+            "data": { errors: result["result.model.errors"] },
+            "status": :unprocessable_entity
+          }
+        end
+      },
+      invalid: {
+        rule: ->(result) { result.failure? },
+        resolve: lambda do |result, _representer|
+          {
+            "data": { errors: result.errors || result[:errors] },
+            "status": :unprocessable_entity
+          }
+        end
+      },
+      fallback: {
+        rule: ->(_result) { true },
+        resolve: lambda do |_result, _representer|
+          { "data": { errors: "Can't process the result" },
+            "status": :unprocessable_entity }
+        end
+      }
+    }.freeze
 
-    # `call`s the operation.
-    def self.call(operation_class, handlers, *args, &block)
-      result = operation_class.(*args)
-      new.(result, handlers, &block)
+    # NOTE: options expects a TRB Operation result
+    # it might have a representer, else will assume the default name
+    def self.call(operation_result, representer_class = nil, overrides = {})
+      endpoint_opts = { result: operation_result, representer: representer_class }
+      new.(endpoint_opts, overrides)
     end
 
-    def call(result, handlers=nil, &block)
-      matcher.(result, &block) and return if block_given? # evaluate user blocks first.
-      matcher.(result, &handlers)     # then, generic Rails handlers in controller context.
+    def call(options, overrides)
+      overrides.each do |rule_key, rule_description|
+        rule = rule_description[:rule] || DEFAULT_MATCHERS[rule_key][:rule]
+        resolve = rule_description[:resolve] || DEFAULT_MATCHERS[rule_key][:resolve]
+
+        if rule.nil? || resolve.nil?
+          puts "Matcher is not properly set. #{rule_key} will be ignored"
+          next
+        end
+
+        return resolve.(options[:result], options[:representer]) if rule.(options[:result])
+      end
+      matching_rules(overrides).each do |_rule_key, rule_description|
+        if rule_description[:rule].(options[:result])
+          return rule_description[:resolve].(options[:result], options[:representer])
+        end
+      end
     end
 
-    def matcher
-      Matcher
+    def matching_rules(overrides)
+      DEFAULT_MATCHERS.except(*overrides.keys)
     end
+  end
 
-    module Controller
-      # endpoint(Create) do |m|
-      #   m.not_found { |result| .. }
-      # end
-      def endpoint(operation_class, options={}, &block)
-        handlers = Handlers::Rails.new(self, options).()
-        Endpoint.(operation_class, handlers, *options[:args], &block)
+  class Operation
+    class Result
+      def errors
+        return self["result.policy.failure"] if policy_error?
+        return self["contract.default"].errors.full_messages if contract_error?
+        return self["result.model.errors"] if model_error?
+
+        self[:errors]
+      end
+
+      def policy_error?
+        self["result.policy.failure"].present?
+      end
+
+      def model_error?
+        self["result.model.errors"].present?
+      end
+
+      def contract_error?
+        self["contract.default"].present?
       end
     end
   end
