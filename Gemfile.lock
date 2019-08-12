@@ -1,12 +1,4 @@
 PATH
-  remote: ../trailblazer
-  specs:
-    trailblazer (2.1.0.rc1)
-      trailblazer-macro (>= 2.1.0.rc1, < 2.2.0)
-      trailblazer-macro-contract (= 2.1.0.rc1)
-      trailblazer-operation
-
-PATH
   remote: .
   specs:
     trailblazer-endpoint (0.0.1)
@@ -14,12 +6,13 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
+    coderay (1.1.2)
     concurrent-ruby (1.0.2)
     declarative (0.0.10)
     declarative-builder (0.1.0)
       declarative-option (< 0.2.0)
     declarative-option (0.1.0)
-    disposable (0.4.4)
+    disposable (0.4.5)
       declarative (>= 0.0.9, < 1.0.0)
       declarative-builder (< 0.2.0)
       declarative-option (< 0.2.0)
@@ -53,12 +46,15 @@ GEM
       dry-equalizer (~> 0.2)
       dry-logic (~> 0.4, >= 0.4.0)
       dry-types (~> 0.9, >= 0.9.0)
-    hirb (0.7.3)
     inflecto (0.0.2)
+    method_source (0.9.2)
     minitest (5.9.1)
     minitest-line (0.6.3)
       minitest (~> 5.0)
     multi_json (1.12.1)
+    pry (0.12.2)
+      coderay (~> 1.1.0)
+      method_source (~> 0.9.0)
     rake (11.3.0)
     reform (2.2.4)
       disposable (>= 0.4.1)
@@ -67,16 +63,22 @@ GEM
       declarative (< 0.1.0)
       declarative-option (< 0.2.0)
       uber (< 0.2.0)
-    trailblazer-activity (0.7.1)
-      hirb
-      trailblazer-context
-    trailblazer-context (0.1.2)
-    trailblazer-macro (2.1.0.rc1)
-    trailblazer-macro-contract (2.1.0.rc1)
+    trailblazer (2.1.0.rc13)
+      trailblazer-macro (>= 2.1.0.rc12, < 2.2.0)
+      trailblazer-macro-contract (>= 2.1.0.rc12, < 2.2.0)
+      trailblazer-operation
+    trailblazer-activity (0.8.3)
+      trailblazer-context (>= 0.1.4)
+    trailblazer-activity-dsl-linear (0.1.7)
+      trailblazer-activity (>= 0.8.3, < 1.0.0)
+    trailblazer-context (0.1.4)
+    trailblazer-macro (2.1.0.rc13)
+      trailblazer-activity-dsl-linear (>= 0.1.6, < 0.2.0)
+      trailblazer-operation (>= 0.5.2)
+    trailblazer-macro-contract (2.1.0.rc13)
       reform (>= 2.2.0, < 3.0.0)
-    trailblazer-operation (0.4.1)
-      trailblazer-activity (>= 0.7.1, < 0.8.0)
-      trailblazer-context (>= 0.1.1, < 0.3.0)
+    trailblazer-operation (0.5.2)
+      trailblazer-activity-dsl-linear (>= 0.1.6, < 1.0.0)
     uber (0.1.0)
 
 PLATFORMS
@@ -88,9 +90,10 @@ DEPENDENCIES
   minitest
   minitest-line
   multi_json
+  pry
   rake
-  trailblazer!
+  trailblazer (= 2.1.0.rc13)
   trailblazer-endpoint!
 
 BUNDLED WITH
-   1.16.2
+   1.17.2
