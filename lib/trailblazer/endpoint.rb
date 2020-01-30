@@ -1,4 +1,5 @@
 require "dry/matcher"
+require "trailblazer/endpoint/rails"
 
 module Trailblazer
   class Endpoint

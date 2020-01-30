@@ -1,5 +1,3 @@
-require "trailblazer/endpoint"
-
 module Trailblazer::Endpoint::Handlers
   # Generic matcher handlers for a Rails API backend.
   #
@@ -15,12 +13,10 @@ module Trailblazer::Endpoint::Handlers
 
     def call
       ->(m) do
-        m.not_found       { |result| controller.head 404 }
-        m.unauthenticated { |result| controller.head 401 }
-        m.present         { |result| controller.render json: result["representer.serializer.class"].new(result['model']), status: 200 }
-        m.created         { |result| controller.head 201, location: "#{@path}/#{result["model"].id}" }#, result["representer.serializer.class"].new(result["model"]).to_json
-        m.success         { |result| controller.head 200, location: "#{@path}/#{result["model"].id}" }
-        m.invalid         { |result| controller.render json: result["representer.errors.class"].new(result['result.contract.default'].errors).to_json, status: 422 }
+        m.not_found { |res| controller.render json: 'Resource not found.', status: 404 }
+        m.unauthenticated { |res| controller.render json: 'Unauthorized.', status: 401 }
+        m.unauthorized { |res| controller.render json: 'Forbidden.', status: 403 }
+        m.invalid_params { |res| controller.render json: 'Unprocessable entity.', status: 422 }
       end
     end
   end
