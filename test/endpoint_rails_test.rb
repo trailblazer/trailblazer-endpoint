@@ -21,13 +21,14 @@ class EndpointHandlerTest < Minitest::Spec
       Output(InvalidParams, :invalid_params) => End(:invalid_params)
   end
 
-  let(:controller) do
-    temp = Class.new do
+  def build_controller(test_op)
+    c = Class.new do
       include Trailblazer::Endpoint::Controller
 
       attr_accessor :http_response
 
-      def initialize
+      def initialize(op)
+        @test_op = op
         @http_response = {}
       end
 
@@ -36,11 +37,13 @@ class EndpointHandlerTest < Minitest::Spec
       end
 
       def action_ending_in(state)
-        endpoint(TestOperation, args: [tested_state: state])
+        endpoint(@test_op, args: [tested_state: state])
       end
     end
-    temp.new
+    c.new(test_op)
   end
+
+  let(:controller) { build_controller(TestOperation) }
 
   describe ':not_found' do
     it 'returns a 404 HTTP code' do
@@ -95,6 +98,21 @@ class EndpointHandlerTest < Minitest::Spec
       controller.action_ending_in(:invalid_params)
 
       _(controller.http_response[:json]).must_equal('Unprocessable entity.')
+    end
+  end
+
+  describe 'error message overloading' do
+    class TestErrorOperation < Trailblazer::Operation
+      step ->(ctx, **) { ctx['trailblazer-endpoint.error'] = 'Very error'; false },
+        Output(:failure) => End(:not_found)
+    end
+
+    let(:controller) { build_controller(TestErrorOperation) }
+
+    it 'returns the value set in `ctx[\'trailblazer-endpoint.error\']`' do
+      controller.action_ending_in(:not_found)
+
+      _(controller.http_response[:json]).must_equal('Very error')
     end
   end
 end

@@ -13,11 +13,29 @@ module Trailblazer::Endpoint::Handlers
 
     def call
       ->(m) do
-        m.not_found { |res| controller.render json: 'Resource not found.', status: 404 }
-        m.unauthenticated { |res| controller.render json: 'Unauthorized.', status: 401 }
-        m.unauthorized { |res| controller.render json: 'Forbidden.', status: 403 }
-        m.invalid_params { |res| controller.render json: 'Unprocessable entity.', status: 422 }
+        m.not_found { |res| render_json_error(res, 404) }
+        m.unauthenticated { |res| render_json_error(res, 401) }
+        m.unauthorized { |res| render_json_error(res, 403) }
+        m.invalid_params { |res| render_json_error(res, 422) }
       end
+    end
+
+    private
+
+    def render_json_error(ctx, status)
+      err_msg = ctx['trailblazer-endpoint.error'] || default_for(status)
+      controller.render(json: err_msg, status: status)
+    end
+
+    def default_for(status_code)
+      default_msg = {
+        401 => 'Unauthorized.',
+        403 => 'Forbidden.',
+        404 => 'Resource not found.',
+        422 => 'Unprocessable entity.'
+      }
+
+      default_msg[status_code]
     end
   end
 end
