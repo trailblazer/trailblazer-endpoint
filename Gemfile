@@ -10,4 +10,4 @@ gem "minitest-line"
 gem "trailblazer"
 # gem "trailblazer-operation", path: "../operation"
 
-gem "dry-validation"
+gem "dry-validation", "~> 0.11"

@@ -16,7 +16,7 @@ module Trailblazer::Endpoint::Handlers
         m.not_found { |res| render_json_error(res, 404) }
         m.unauthenticated { |res| render_json_error(res, 401) }
         m.unauthorized { |res| render_json_error(res, 403) }
-        m.invalid_params { |res| render_json_error(res, 422) }
+        m.invalid_params { |res| render_validation_errors(res, 422) }
       end
     end
 
@@ -24,6 +24,11 @@ module Trailblazer::Endpoint::Handlers
 
     def render_json_error(ctx, status)
       err_msg = ctx['trailblazer-endpoint.error'] || default_for(status)
+      controller.render(json: err_msg, status: status)
+    end
+
+    def render_validation_errors(ctx, status)
+      err_msg = ctx['result.contract.default']&.errors&.messages || default_for(status)
       controller.render(json: err_msg, status: status)
     end
 

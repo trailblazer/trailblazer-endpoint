@@ -36,8 +36,8 @@ class EndpointHandlerTest < Minitest::Spec
         @http_response = options
       end
 
-      def action_ending_in(state)
-        endpoint(@test_op, args: [tested_state: state])
+      def action_ending_in(state, **p)
+        endpoint(@test_op, args: [tested_state: state, params: p])
       end
     end
     c.new(test_op)
@@ -88,16 +88,37 @@ class EndpointHandlerTest < Minitest::Spec
   end
 
   describe ':invalid_params' do
-    it 'returns a 422 HTTP code' do
-      controller.action_ending_in(:invalid_params)
+    describe 'when used with Reform' do
+      TestModel = Struct.new(:id, :name)
 
-      _(controller.http_response[:status]).must_equal(422)
+      class TestContract < Reform::Form
+        feature Reform::Form::Dry
+        property :name
+
+        validation do
+          required(:name).filled
+        end
+      end
+
+      class TestContractOp < Trailblazer::Operation
+        step Model(TestModel, :new)
+        step Contract::Build(constant: TestContract)
+        step Contract::Validate(), Output(:failure) => End(:invalid_params)
+      end
     end
 
-    it 'returns an error message' do
-      controller.action_ending_in(:invalid_params)
+    describe 'when used in standalone' do
+      it 'returns a 422 HTTP code' do
+        controller.action_ending_in(:invalid_params, {})
 
-      _(controller.http_response[:json]).must_equal('Unprocessable entity.')
+        _(controller.http_response[:status]).must_equal(422)
+      end
+
+      it 'returns the contract errors messages' do
+        controller.action_ending_in(:invalid_params)
+
+        _(controller.http_response[:json]).must_equal('Unprocessable entity.')
+      end
     end
   end
 

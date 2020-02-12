@@ -1,3 +1,6 @@
 require "minitest/autorun"
 require "trailblazer"
 require "trailblazer/endpoint"
+require "dry-validation"
+require "reform/form/dry"
+require "dry/validation/compat/form"
