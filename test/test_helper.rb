@@ -1,3 +1,5 @@
 require "minitest/autorun"
-require "trailblazer"
-require "trailblazer/endpoint"
+# require "trailblazer/endpoint"
+require "trailblazer/activity/dsl/linear"
+require "trailblazer/activity/testing"
+require "trailblazer/developer"
