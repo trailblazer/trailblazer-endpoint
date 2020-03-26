@@ -49,8 +49,9 @@ class EndpointTest < Minitest::Spec
 
   # Example OP with three termini
   class Create < Trailblazer::Activity::Railway
-    include T.def_steps(:validate, :save)
+    include T.def_steps(:model, :validate, :save)
 
+    step :model,    Output(:failure) => End(:not_found)
     step :validate, Output(:failure) => End(:validation_error)
     step :save
   end
@@ -83,7 +84,7 @@ class PrototypeEndpoint < Trailblazer::Activity::Railway
 
   #   step :a
   # end
-  include T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized)
+  include T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
 
   # step :authenticate, Output(:failure) => Track(:_not_authenticated)
   step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
@@ -94,6 +95,10 @@ class PrototypeEndpoint < Trailblazer::Activity::Railway
     step :handle_not_authorized
   end
 
+  step Subprocess(Create), # we have S/F/NF/VE outputs
+    Output(:not_found) => _Path(semantic: :not_found) do
+      step :handle_not_found # FIXME: don't require steps in path!
+    end
 end
 
 
@@ -120,6 +125,13 @@ end
 
     signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_authenticated>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated]}
+
+# 2. model err
+    ctx = {seq: [], model: false}
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+
+    signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_found>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
 
 exit
 
