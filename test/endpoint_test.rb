@@ -96,28 +96,76 @@ class PrototypeEndpoint < Trailblazer::Activity::Railway
   end
 
   step Subprocess(Create), # we have S/F/NF/VE outputs
+    Output(:validation_error) => Track(:failure),
     Output(:not_found) => _Path(semantic: :not_found) do
       step :handle_not_found # FIXME: don't require steps in path!
     end
+
+  # success
+  # failure
+  # not_authenticated
+  # not_authorized
+  # validation_error => failure
 end
 
+# The idea is to use the PrototypeEndpoint's outputs as some kind of protocol, outcomes that need special handling
+# can be wired here, or merged into one (e.g. 401 and failure is failure).
+# I am writing this class in the deep forests of the Algarve, hiding from the GNR.
+class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
+    def self._Path(__step)
+      # Path(end_id: "End.fail_fast") do
+      #   step __step
+      # end
+
+      step task: __step, magnetic_to: nil, Output(:success) => End("End.fail_fast"), Output(:failure) => End("End.fail_fast")
+
+      Id(__step)
+    end
+
+# Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
+  step Subprocess(PrototypeEndpoint),
+    Output(:not_authenticated)  => _Path(:redirect_to_login),
+    Output(:not_authorized)     => _Path(:render_401),
+    Output(:not_found)          => _Path(:render_404)
+    step :exec_success
+    fail :exec_or # this would be rendering the erroring form, as an example.
+
+
+
+    # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
+    # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
+    class API < Trailblazer::Activity::Railway
+      step Subprocess(PrototypeEndpoint),
+          Output(:not_authenticated)  => Id(:redirect_to_login),       # head(401), representer: Representer::Error, message: no token
+          Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
+          Output(:not_found)          => Id(:render_404)
+          step :exec_success
+          fail :exec_or
+    end
+
+end
 
   # step Invoke(), Output(:failure) => Track(:render_fail), Output(:validation_error) => ...
 
   # Invoke(Create, )
 
 
+      # for login form, etc
+     # endpoint, skip: [:authenticate]
+
 # workflow always terminates on wait events/termini => somewhere, we need to interpret that
 # OP ends on terminus
 
   it "what" do
     puts Trailblazer::Developer.render(PrototypeEndpoint)
+    puts Trailblazer::Developer.render(Protocol)
 
 # 1. authenticate works
     ctx = {seq: []}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
 
 # 1. authenticate err
     ctx = {seq: [], authenticate: false}
@@ -126,12 +174,20 @@ end
     signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_authenticated>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated]}
 
-# 2. model err
+# 2. model err 404
     ctx = {seq: [], model: false}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
 
     signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_found>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
+
+# 3. validation err
+    ctx = {seq: [], validate: false}
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+
+  # rewired to standard failure
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
 
 exit
 
