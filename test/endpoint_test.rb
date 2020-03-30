@@ -105,6 +105,7 @@ class PrototypeEndpoint < Trailblazer::Activity::Railway
   # failure
   # not_authenticated
   # not_authorized
+  # not_found
   # validation_error => failure
 end
 
@@ -134,13 +135,27 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
     # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
     # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
-    class API < Trailblazer::Activity::Railway
+    class API < Trailblazer::Activity::FastTrack
       step Subprocess(PrototypeEndpoint),
-          Output(:not_authenticated)  => Id(:redirect_to_login),       # head(401), representer: Representer::Error, message: no token
           Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
-          Output(:not_found)          => Id(:render_404)
+          Output(:not_found)          => Id(:render_404),
+          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id("End.fail_fast")) do       # head(401), representer: Representer::Error, message: no token
+            step :_401_
+          end
           step :exec_success
           fail :exec_or
+
+      # example how to add your own step to a certain path
+                        # FIXME: :after doesn't work
+      step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
+
+      def _401_(ctx, **)
+        ctx[:status] = 401
+        ctx[:representer] = "ErrorRepresenter"
+        ctx[:error_message] = "No token"
+      end
+
+      include T.def_steps(:my_401_handler)
     end
 
 end
@@ -159,6 +174,8 @@ end
   it "what" do
     puts Trailblazer::Developer.render(PrototypeEndpoint)
     puts Trailblazer::Developer.render(Protocol)
+    puts "API"
+    puts Trailblazer::Developer.render(Protocol::API)
 
 # 1. authenticate works
     ctx = {seq: []}
@@ -188,6 +205,16 @@ end
   # rewired to standard failure
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
+
+
+######### API #########
+
+# 1. authenticate err
+    ctx = {seq: [], authenticate: false}
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
 
 exit
 
