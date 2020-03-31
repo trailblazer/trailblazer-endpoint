@@ -142,17 +142,33 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
           Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id("End.fail_fast")) do       # head(401), representer: Representer::Error, message: no token
             step :_401_
           end
-          step :exec_success
+          step :config_success
           fail :exec_or
+
+          step :render_success
+          fail :render_failure
 
       # example how to add your own step to a certain path
                         # FIXME: :after doesn't work
       step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
 
+      def config_success(ctx, **)
+        ctx[:status] = 200
+        ctx[:representer] = "DiagramRepresenter"
+      end
+
+      def render_success(ctx, **)
+        ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
+      end
+# how/where would we configure each endpoint? (per action)
+  # class Endpoint
+  #   representer ...
+  #   message ...
+
       def _401_(ctx, **)
         ctx[:status] = 401
         ctx[:representer] = "ErrorRepresenter"
-        ctx[:error_message] = "No token"
+        ctx[:model] = Struct.new(:error_message).new("No token")
       end
 
       include T.def_steps(:my_401_handler)
@@ -215,6 +231,14 @@ end
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
+
+# 2. all OK
+    ctx = {seq: []}
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
+    ctx[:json].must_equal %{DiagramRepresenter.new()}
 
 exit
 
