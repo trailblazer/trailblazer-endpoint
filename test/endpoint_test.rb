@@ -143,7 +143,7 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
             step :_401_
           end
           step :config_success
-          fail :exec_or
+          # fail :exec_or
 
           step :render_success
           fail :render_failure
@@ -151,6 +151,11 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       # example how to add your own step to a certain path
                         # FIXME: :after doesn't work
       step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
+
+
+    ### framework-specific ??????
+      step :exec_success
+
 
       def config_success(ctx, **)
         ctx[:status] = 200
@@ -172,6 +177,11 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       end
 
       include T.def_steps(:my_401_handler)
+
+
+      def exec_success(ctx, success_block:, **)
+        success_block.call(ctx, **ctx.to_hash) # DISCUSS: use Nested(dynamic) ?
+      end
     end
 
 end
@@ -231,14 +241,37 @@ end
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
+    # raise ctx.inspect
 
 # 2. all OK
-    ctx = {seq: []}
+    _rails_success_block = ->(ctx, json:, status:, **) { head(status); render json: json }
+    def head(code)
+      @head = code
+    end
+    def render(options)
+      @render_options = options
+    end
+    def to_h
+      {head: @head, render_options: @render_options}
+    end
+
+
+
+    ctx = {seq: [], success_block: _rails_success_block}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
     ctx[:json].must_equal %{DiagramRepresenter.new()}
+
+  # Rails success block was called
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}}}
+
+######### Controller #########
+
+# 1. do everything automatically
+# 2. override success
+# 2. override failure: suppress the automatic rendering?
 
 exit
 
