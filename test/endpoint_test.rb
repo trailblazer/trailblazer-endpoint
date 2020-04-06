@@ -25,7 +25,25 @@ module Trailblazer
     step :success? # "map" the OPs terminus to to a terminus here (404, etc) and allow to rewire
       # Output(404) => ...Track(404)
       # Output(401) => ...Track(401)
+
+
+
+
+    def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
+      signal, (ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
+
+      # if signal < Trailblazer::Activity::End::Success
+        puts "@@@@@ #{signal.inspect}"
+      if [:failure, :fail_fast].include?(signal.to_h[:semantic])
+        failure_block.(ctx, **ctx)
+      else
+        success_block.(ctx, **ctx)
+      end
+
+      return signal, [ctx]
+    end
   end
+  # DISCUSS: should this also be part of an endpoint-lib activity?
 end
 
 class EndpointTest < Minitest::Spec
@@ -139,10 +157,14 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       step Subprocess(PrototypeEndpoint),
           Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
           Output(:not_found)          => Id(:render_404),
-          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id("End.fail_fast")) do       # head(401), representer: Representer::Error, message: no token
+          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:config_protocol_failure)) do       # head(401), representer: Representer::Error, message: no token
             step :_401_
           end
+
+          # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
+
           step :config_success
+          fail :config_failure
           # fail :exec_or
 
           step :render_success
@@ -153,9 +175,14 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
 
 
-    ### framework-specific ??????
-      step :exec_success
+    ### framework-specific ?????? DISCUSS: should this be outside, checking Class.< Success ?
+      # step :exec_success
 
+
+        # :config_protocol_failure is a :config_failure alias
+        step :config_protocol_failure, magnetic_to: nil, Output(:success) => Path(connect_to: Id("End.fail_fast")) do
+          step :render_protocol_failure # that's a :render_failure alias
+        end
 
       def config_success(ctx, **)
         ctx[:status] = 200
@@ -164,6 +191,21 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
       def render_success(ctx, **)
         ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
+      end
+
+      def config_failure(ctx, **)
+        ctx[:representer] = "ErrRepres"
+      end
+
+      def config_protocol_failure(*args)
+        config_failure(*args)
+      end
+      def render_protocol_failure(*args)
+        render_failure(*args)
+      end
+
+      def render_failure(*args)
+        render_success(*args)
       end
 # how/where would we configure each endpoint? (per action)
   # class Endpoint
@@ -179,9 +221,9 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       include T.def_steps(:my_401_handler)
 
 
-      def exec_success(ctx, success_block:, **)
-        success_block.call(ctx, **ctx.to_hash) # DISCUSS: use Nested(dynamic) ?
-      end
+      # def exec_success(ctx, success_block:, **)
+      #   success_block.call(ctx, **ctx.to_hash) # DISCUSS: use Nested(dynamic) ?
+      # end
     end
 
 end
@@ -234,38 +276,50 @@ end
 
 
 ######### API #########
-
-# 1. authenticate err
-    ctx = {seq: [], authenticate: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
-
-    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
-    # raise ctx.inspect
-
-# 2. all OK
-    _rails_success_block = ->(ctx, json:, status:, **) { head(status); render json: json }
+    # FIXME: fake the controller
+    _rails_success_block = ->(ctx, json:, status:, **) { head(status); render json: json; @bla = nil }
+    _rails_failure_block = ->(ctx, json:, status:, **) { head(status); render json: json; bla }
     def head(code)
       @head = code
+    end
+    def bla
+      @bla = true
     end
     def render(options)
       @render_options = options
     end
     def to_h
-      {head: @head, render_options: @render_options}
+      {head: @head, render_options: @render_options, bla: @bla}
     end
 
 
 
-    ctx = {seq: [], success_block: _rails_success_block}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+# 1. authenticate err
+    ctx = {seq: [], authenticate: false}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
+    # raise ctx.inspect
+
+  # Rails default failure block was called
+    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrRepres.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
+
+# 2. all OK
+
+
+
+    ctx = {seq: []}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], success_block: _rails_success_block)
+
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
     ctx[:json].must_equal %{DiagramRepresenter.new()}
 
-  # Rails success block was called
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}}}
+  # Rails default success block was called
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
 
 ######### Controller #########
 
