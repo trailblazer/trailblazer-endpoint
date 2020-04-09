@@ -165,6 +165,7 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
           step :config_success
           fail :config_failure
+          fail :config_failure_status
           # fail :exec_or
 
           step :render_success
@@ -194,7 +195,18 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       end
 
       def config_failure(ctx, **)
+        puts ctx.inspect
         ctx[:representer] = "ErrRepres"
+        # ctx[:status] = raise # DISCUSS: where and HOW do we find out what is wrong? e.g. 422 Unprocessable Entity
+      end
+
+      def config_failure_status(ctx, **)
+        # DISCUSS: this is a bit like "success?" or a matcher.
+        if ctx[:validate] === false
+          ctx[:status] = 422
+        else
+          ctx[:status] = 200
+        end
       end
 
       def config_protocol_failure(*args)
@@ -278,12 +290,9 @@ end
 ######### API #########
     # FIXME: fake the controller
     _rails_success_block = ->(ctx, json:, status:, **) { head(status); render json: json; @bla = nil }
-    _rails_failure_block = ->(ctx, json:, status:, **) { head(status); render json: json; bla }
+    _rails_failure_block = ->(ctx, json:, status:, **) { head(status); render json: json; @bla = true }
     def head(code)
       @head = code
-    end
-    def bla
-      @bla = true
     end
     def render(options)
       @render_options = options
@@ -292,7 +301,11 @@ end
       {head: @head, render_options: @render_options, bla: @bla}
     end
 
-
+# 1. ops indicate outcome via termini
+# 2. you can still "match"
+# 3. layers
+# DSL .Or on top
+# use TRB's wiring API to extend instead of clumsy overriding/super. Example: failure-status
 
 # 1. authenticate err
     ctx = {seq: [], authenticate: false}
@@ -303,8 +316,24 @@ end
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
     # raise ctx.inspect
 
-  # Rails default failure block was called
+
+  # this calls Rails default failure block
+    # DISCUSS: where to add things like headers?
     to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrRepres.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
+
+# 1.b domain error: validation failed
+    ctx = {seq: [], validate: false}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
+    # raise ctx.inspect
+
+
+  # this calls Rails default failure block
+    # DISCUSS: where to add things like headers?
+    to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrRepres.new()\"}, :bla=>true}}
 
 # 2. all OK
 
