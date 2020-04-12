@@ -154,12 +154,13 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
     # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
     # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
     class API < Trailblazer::Activity::FastTrack
+      _404_path = ->(*) { step :_404_ }
+      _401_path = ->(*) { step :_401_ }
+
       step Subprocess(PrototypeEndpoint),
           Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
-          Output(:not_found)          => Id(:render_404),
-          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:config_protocol_failure)) do       # head(401), representer: Representer::Error, message: no token
-            step :_401_
-          end
+          Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:config_protocol_failure), &_404_path),
+          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:config_protocol_failure), &_401_path)       # head(401), representer: Representer::Error, message: no token
 
           # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
 
@@ -195,7 +196,6 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
       end
 
       def config_failure(ctx, **)
-        puts ctx.inspect
         ctx[:representer] = "ErrRepres"
         # ctx[:status] = raise # DISCUSS: where and HOW do we find out what is wrong? e.g. 422 Unprocessable Entity
       end
@@ -205,7 +205,7 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
         if ctx[:validate] === false
           ctx[:status] = 422
         else
-          ctx[:status] = 200
+          ctx[:status] = 200 # DISCUSS: this is the usual return code for application/domain errors, I guess?
         end
       end
 
@@ -328,11 +328,7 @@ end
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
-    # raise ctx.inspect
-
-
   # this calls Rails default failure block
-    # DISCUSS: where to add things like headers?
     to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrRepres.new()\"}, :bla=>true}}
 
 # 2. all OK
