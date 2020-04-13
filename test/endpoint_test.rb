@@ -153,25 +153,8 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
     # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
     # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
-    class API < Trailblazer::Activity::FastTrack
-      _404_path = ->(*) { step :_404_ }
-      _401_path = ->(*) { step :_401_ }
-
-      step Subprocess(PrototypeEndpoint),
-          Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
-          Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:config_protocol_failure), &_404_path),
-          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:config_protocol_failure), &_401_path)       # head(401), representer: Representer::Error, message: no token
-
-          # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
-
-          step :config_success
-          fail :config_failure
-          fail :config_failure_status
-          # fail :exec_or
-
-          step :render_success
-          fail :render_failure
-
+    require "trailblazer/endpoint/adapter"
+    class API < Trailblazer::Endpoint::Adapter::API
       # example how to add your own step to a certain path
                         # FIXME: :after doesn't work
       step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
@@ -179,12 +162,6 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
     ### framework-specific ?????? DISCUSS: should this be outside, checking Class.< Success ?
       # step :exec_success
-
-
-        # :config_protocol_failure is a :config_failure alias
-        step :config_protocol_failure, magnetic_to: nil, Output(:success) => Path(connect_to: Id("End.fail_fast")) do
-          step :render_protocol_failure # that's a :render_failure alias
-        end
 
       def config_success(ctx, **)
         ctx[:status] = 200
@@ -257,6 +234,7 @@ end
     puts "API"
     puts Trailblazer::Developer.render(Protocol::API)
 
+
 # 1. authenticate works
     ctx = {seq: []}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
@@ -307,6 +285,22 @@ end
 # DSL .Or on top
 # use TRB's wiring API to extend instead of clumsy overriding/super. Example: failure-status
 
+=begin
+    success
+      representer: Api::V1::Memo::Representer
+      status:      200
+    failure
+      representer: Api::V1::Representer::Error
+      status:      422
+        not_found
+          representer:
+          status:       404
+
+    success_representer: Api::V1::Memo::Representer,
+    failure_representer: Api::V1::Representer::Error,
+    policy: MyPolicy,
+=end
+
 # 1. authenticate err
     ctx = {seq: [], authenticate: false}
     # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
@@ -314,12 +308,12 @@ end
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
-    # raise ctx.inspect
-
-
-  # this calls Rails default failure block
     # DISCUSS: where to add things like headers?
-    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrRepres.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
+  # this calls Rails default failure block
+    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
+   # raise ctx.inspect
+
+
 
 # 1.b domain error: validation failed
     ctx = {seq: [], validate: false}
