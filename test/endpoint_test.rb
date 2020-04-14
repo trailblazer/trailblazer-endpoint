@@ -268,7 +268,7 @@ end
 ######### API #########
     # FIXME: fake the controller
     _rails_success_block = ->(ctx, json:, status:, **) { head(status); render json: json; @bla = nil }
-    _rails_failure_block = ->(ctx, json:, status:, **) { head(status); render json: json; @bla = true }
+    _rails_failure_block = ->(ctx, json:nil, status:, **) { head(status); render json: json; @bla = true } # nil-JSON with 404,
     def head(code)
       @head = code
     end
@@ -313,6 +313,14 @@ end
     to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
    # raise ctx.inspect
 
+  # 1.c 404 (NO RENDERING OF BODY!!!)
+    ctx = {seq: [], model: false}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
+    to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
 
 # 1.b domain error: validation failed

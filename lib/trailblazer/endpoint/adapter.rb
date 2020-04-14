@@ -4,7 +4,7 @@ module Trailblazer
       # Basic endpoint adapter for a HTTP document API.
       # As always: "work in progress" ;)
       class API < Trailblazer::Activity::FastTrack
-        _404_path = ->(*) { step :_404_ }
+        _404_path = ->(*) { step :_404_status }
         _401_path = ->(*) { step :_401_ }
 
         step Subprocess(EndpointTest::PrototypeEndpoint),
@@ -70,6 +70,10 @@ module Trailblazer
           ctx[:status] = 401
           ctx[:representer] = "ErrorRepresenter"
           ctx[:model] = Struct.new(:error_message).new("No token")
+        end
+
+        def _404_status(ctx, **)
+          ctx[:status] = 404
         end
 
         # def exec_success(ctx, success_block:, **)
