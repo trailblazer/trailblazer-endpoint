@@ -14,12 +14,14 @@ module Trailblazer
 
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
 
-            step :config_success
+
             fail :failure_render_config
             fail :failure_config_status
-
-            step :render_success
             fail :render_failure
+
+            step :success_render_config
+            step :success_render_status
+            step :render_success
 
 
           # :protocol_join is a :failure_config alias
@@ -34,9 +36,12 @@ module Trailblazer
           protocol_failure               # true
 =end
 
-        def config_success(ctx, **)
+        def success_render_status(ctx, **)
           ctx[:status] = 200
-          ctx[:representer] = "DiagramRepresenter"
+        end
+
+        def success_render_config(ctx, representer:, **)
+          true
         end
 
         def render_protocol_failure_config(*args)

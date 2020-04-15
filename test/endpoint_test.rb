@@ -162,22 +162,8 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
                         # FIXME: :after doesn't work
       step :my_401_handler, before: :_401_, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
 
-
-    ### framework-specific ?????? DISCUSS: should this be outside, checking Class.< Success ?
-      # step :exec_success
-
-      def config_success(ctx, **)
-        ctx[:status] = 200
-        ctx[:representer] = "DiagramRepresenter"
-      end
-
       def render_success(ctx, **)
         ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
-      end
-
-      def config_failure(ctx, **)
-        ctx[:representer] = "ErrRepres"
-        # ctx[:status] = raise # DISCUSS: where and HOW do we find out what is wrong? e.g. 422 Unprocessable Entity
       end
 
       def config_failure_status(ctx, **)
@@ -189,16 +175,6 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
         end
       end
 
-      def config_protocol_failure(*args)
-        config_failure(*args)
-      end
-      def render_protocol_failure(*args)
-        render_failure(*args)
-      end
-
-      def render_failure(*args)
-        render_success(*args)
-      end
 # how/where would we configure each endpoint? (per action)
   # class Endpoint
   #   representer ...
@@ -306,7 +282,8 @@ end
 
 
     app_options = {
-      error_representer: "ErrorRepresenter"
+      error_representer: "ErrorRepresenter",
+      representer: "DiagramRepresenter",
     }
 
 # 1. 401 authenticate err
@@ -323,7 +300,7 @@ end
    # raise ctx.inspect
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
-    ctx = {seq: [], model: false}
+    ctx = {seq: [], model: false, **app_options}
     # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
@@ -347,7 +324,7 @@ end
 
 
 
-    ctx = {seq: []}
+    ctx = {seq: [], **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], success_block: _rails_success_block)
 
 
