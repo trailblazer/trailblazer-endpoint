@@ -5,7 +5,7 @@ module Trailblazer
       # As always: "work in progress" ;)
       class API < Trailblazer::Activity::FastTrack
         _404_path = ->(*) { step :_404_status }
-        _401_path = ->(*) { step :_401_ }
+        _401_path = ->(*) { step :_401_status }
 
         step Subprocess(EndpointTest::PrototypeEndpoint),
             Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
@@ -76,10 +76,9 @@ module Trailblazer
     #   representer ...
     #   message ...
 
-        def _401_(ctx, **)
+        def _401_status(ctx, **)
           ctx[:status] = 401
-          ctx[:representer] = "ErrorRepresenter"
-          ctx[:model] = Struct.new(:error_message).new("No token")
+          # ctx[:model] = Struct.new(:error_message).new("No token")
         end
 
         def _404_status(ctx, **)
