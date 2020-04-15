@@ -166,7 +166,7 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
         ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
       end
 
-      def config_failure_status(ctx, **)
+      def failure_config_status(ctx, **)
         # DISCUSS: this is a bit like "success?" or a matcher.
         if ctx[:validate] === false
           ctx[:status] = 422
@@ -320,9 +320,18 @@ end
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 
+  # 1.b2 another application error (#save), but 200 because of #failure_config_status
+    ctx = {seq: [], save: false, **app_options}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
+  # this calls Rails default failure block
+              # we set status to 200 in #failure_config_status
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
 # 2. all OK
-
-
 
     ctx = {seq: [], **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], success_block: _rails_success_block)

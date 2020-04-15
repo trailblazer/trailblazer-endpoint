@@ -57,12 +57,7 @@ module Trailblazer
         end
 
         def failure_config_status(ctx, **)
-          # DISCUSS: this is a bit like "success?" or a matcher.
-          if ctx[:validate] === false
-            ctx[:status] = 422
-          else
-            ctx[:status] = 200 # DISCUSS: this is the usual return code for application/domain errors, I guess?
-          end
+          ctx[:status] = 422
         end
 
         def protocol_failure(*args)
