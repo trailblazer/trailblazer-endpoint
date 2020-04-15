@@ -113,6 +113,8 @@ class PrototypeEndpoint < Trailblazer::Activity::Railway
     step :handle_not_authorized
   end
 
+  # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
+  # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
   step Subprocess(Create), # we have S/F/NF/VE outputs
     Output(:validation_error) => Track(:failure),
     Output(:not_found) => _Path(semantic: :not_found) do
@@ -130,16 +132,16 @@ end
 # The idea is to use the PrototypeEndpoint's outputs as some kind of protocol, outcomes that need special handling
 # can be wired here, or merged into one (e.g. 401 and failure is failure).
 # I am writing this class in the deep forests of the Algarve, hiding from the GNR.
-class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
-    def self._Path(__step)
-      # Path(end_id: "End.fail_fast") do
-      #   step __step
-      # end
+class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
+  def self._Path(__step)
+    # Path(end_id: "End.fail_fast") do
+    #   step __step
+    # end
 
-      step task: __step, magnetic_to: nil, Output(:success) => End("End.fail_fast"), Output(:failure) => End("End.fail_fast")
+    step task: __step, magnetic_to: nil, Output(:success) => End("End.fail_fast"), Output(:failure) => End("End.fail_fast")
 
-      Id(__step)
-    end
+    Id(__step)
+  end
 
 # Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
   step Subprocess(PrototypeEndpoint),
@@ -154,6 +156,7 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
     # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
     # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
     require "trailblazer/endpoint/adapter"
+    # Adapter::API
     class API < Trailblazer::Endpoint::Adapter::API
       # example how to add your own step to a certain path
                         # FIXME: :after doesn't work
@@ -203,7 +206,7 @@ class Protocol < Trailblazer::Activity::FastTrack # TODO: naming. it's after the
 
       def _401_(ctx, **)
         ctx[:status] = 401
-        ctx[:representer] = "ErrorRepresenter"
+        # ctx[:representer] = "ErrorRepresenter" # TODO: test 4xx override their error representer!
         ctx[:model] = Struct.new(:error_message).new("No token")
       end
 
@@ -230,9 +233,9 @@ end
 
   it "what" do
     puts Trailblazer::Developer.render(PrototypeEndpoint)
-    puts Trailblazer::Developer.render(Protocol)
+    puts Trailblazer::Developer.render(Adapter)
     puts "API"
-    puts Trailblazer::Developer.render(Protocol::API)
+    puts Trailblazer::Developer.render(Adapter::API)
 
 
 # 1. authenticate works
@@ -301,10 +304,16 @@ end
     policy: MyPolicy,
 =end
 
-# 1. authenticate err
-    ctx = {seq: [], authenticate: false}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    app_options = {
+      error_representer: "ErrorRepresenter"
+    }
+
+# 1. 401 authenticate err
+  # RENDER an error document
+    ctx = {seq: [], authenticate: false, **app_options}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
@@ -315,30 +324,31 @@ end
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
     ctx = {seq: [], model: false}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
 
-# 1.b domain error: validation failed
-    ctx = {seq: [], validate: false}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Protocol::API, [ctx, {}])
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], failure_block: _rails_failure_block)
+# 1.b 422 domain error: validation failed
+  # RENDER an error document
+    ctx = {seq: [], validate: false, **app_options}
+    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrRepres.new()\"}, :bla=>true}}
+    to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 
 # 2. all OK
 
 
 
     ctx = {seq: []}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Protocol::API, [ctx, {}], success_block: _rails_success_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], success_block: _rails_success_block)
 
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
