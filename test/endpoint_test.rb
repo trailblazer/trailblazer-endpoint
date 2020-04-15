@@ -180,13 +180,12 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
   #   representer ...
   #   message ...
 
-      def _401_(ctx, **)
-        ctx[:status] = 401
-        # ctx[:representer] = "ErrorRepresenter" # TODO: test 4xx override their error representer!
+      def my_401_handler(ctx, seq:, **)
         ctx[:model] = Struct.new(:error_message).new("No token")
+        seq << :my_401_handler
       end
 
-      include T.def_steps(:my_401_handler)
+      # include T.def_steps(:my_401_handler)
 
 
       # def exec_success(ctx, success_block:, **)
