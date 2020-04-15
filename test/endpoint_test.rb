@@ -182,6 +182,7 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
 
       def my_401_handler(ctx, seq:, **)
         ctx[:model] = Struct.new(:error_message).new("No token")
+
         seq << :my_401_handler
       end
 
@@ -300,7 +301,6 @@ end
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
     ctx = {seq: [], model: false, **app_options}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
@@ -311,7 +311,6 @@ end
 # 1.b 422 domain error: validation failed
   # RENDER an error document
     ctx = {seq: [], validate: false, **app_options}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
@@ -321,7 +320,6 @@ end
 
   # 1.b2 another application error (#save), but 200 because of #failure_config_status
     ctx = {seq: [], save: false, **app_options}
-    # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
@@ -329,6 +327,16 @@ end
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
+# 4. authorization error
+    ctx = {seq: [], policy: false, **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :handle_not_authorized]}
+  # this calls Rails default failure block
+    to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
 
 # 2. all OK
 

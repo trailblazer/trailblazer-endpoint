@@ -3,12 +3,15 @@ module Trailblazer
     module Adapter
       # Basic endpoint adapter for a HTTP document API.
       # As always: "work in progress" ;)
+      #
+      # {End.fail_fast} currently implies a 4xx-able error.
       class API < Trailblazer::Activity::FastTrack
         _404_path = ->(*) { step :_404_status }
         _401_path = ->(*) { step :_401_status }
+        _403_path = ->(*) { step :_403_status }
 
         step Subprocess(EndpointTest::PrototypeEndpoint),
-            Output(:not_authorized)     => Id(:render_policy_breach),    # head(403), representer: Representer::Error, message: wrong permissions
+            Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
             Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
             Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path)       # head(401), representer: Representer::Error, message: no token
 
@@ -83,6 +86,10 @@ module Trailblazer
 
         def _404_status(ctx, **)
           ctx[:status] = 404
+        end
+
+        def _403_status(ctx, **)
+          ctx[:status] = 403
         end
 
         # def exec_success(ctx, success_block:, **)
