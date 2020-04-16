@@ -81,7 +81,6 @@ module Trailblazer
 
         def _401_status(ctx, **)
           ctx[:status] = 401
-          # ctx[:model] = Struct.new(:error_message).new("No token")
         end
 
         def _404_status(ctx, **)

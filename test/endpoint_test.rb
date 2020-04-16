@@ -86,36 +86,28 @@ class EndpointTest < Minitest::Spec
 pp Create.to_h[:outputs]
 
 # TODO: document :track_color
+require "trailblazer/endpoint/protocol"
 
-class PrototypeEndpoint < Trailblazer::Activity::Railway
-  class Failure < Trailblazer::Activity::End # DISCUSS: move to Act::Railway?
-    class Authentication < Failure
-    end
-  end
-
-  def self._Path(semantic:, &block)
-    Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Failure::Authentication.new(semantic: semantic), &block)
-  end
+class PrototypeEndpoint < Trailblazer::Endpoint::Protocol
 
   # step :authenticate, Output(:failure) => Path(track_color: :not_authenticated,
   #   connect_to: Id(:handle_not_authenticated)) do# user from cookie, etc
 
   #   step :a
   # end
-  include T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
 
-  # step :authenticate, Output(:failure) => Track(:_not_authenticated)
-  step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
-      step :handle_not_authenticated
-    end
+  # step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
+  #     step :handle_not_authenticated
+  #   end
 
-  step :policy, Output(:failure) => _Path(semantic: :not_authorized) do # user from cookie, etc
-    step :handle_not_authorized
-  end
+  # step :policy, Output(:failure) => _Path(semantic: :not_authorized) do # user from cookie, etc
+  #   step :handle_not_authorized
+  # end
 
   # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
   # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
   step Subprocess(Create), # we have S/F/NF/VE outputs
+    replace: :activity,
     Output(:validation_error) => Track(:failure),
     Output(:not_found) => _Path(semantic: :not_found) do
       step :handle_not_found # FIXME: don't require steps in path!
@@ -185,13 +177,6 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
 
         seq << :my_401_handler
       end
-
-      # include T.def_steps(:my_401_handler)
-
-
-      # def exec_success(ctx, success_block:, **)
-      #   success_block.call(ctx, **ctx.to_hash) # DISCUSS: use Nested(dynamic) ?
-      # end
     end
 
 end
@@ -225,14 +210,14 @@ end
     ctx = {seq: [], authenticate: false}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
 
-    signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_authenticated>}
+    signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authenticated>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated]}
 
 # 2. model err 404
     ctx = {seq: [], model: false}
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
 
-    signal.inspect.must_equal %{#<EndpointTest::PrototypeEndpoint::Failure::Authentication semantic=:not_found>}
+    signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_found>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
 
 # 3. validation err
