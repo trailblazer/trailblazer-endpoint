@@ -88,7 +88,7 @@ pp Create.to_h[:outputs]
 # TODO: document :track_color
 require "trailblazer/endpoint/protocol"
 
-class PrototypeEndpoint < Trailblazer::Endpoint::Protocol
+class PrototypeProtocol < Trailblazer::Endpoint::Protocol
 
   # step :authenticate, Output(:failure) => Path(track_color: :not_authenticated,
   #   connect_to: Id(:handle_not_authenticated)) do# user from cookie, etc
@@ -108,6 +108,7 @@ class PrototypeEndpoint < Trailblazer::Endpoint::Protocol
   # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
   step Subprocess(Create), # we have S/F/NF/VE outputs
     replace: :activity,
+    id: :activity,  # DISCUSS: do we want to repeat the ID?
     Output(:validation_error) => Track(:failure),
     Output(:not_found) => _Path(semantic: :not_found) do
       step :handle_not_found # FIXME: don't require steps in path!
@@ -121,7 +122,7 @@ class PrototypeEndpoint < Trailblazer::Endpoint::Protocol
   # validation_error => failure
 end
 
-# The idea is to use the PrototypeEndpoint's outputs as some kind of protocol, outcomes that need special handling
+# The idea is to use the PrototypeProtocol's outputs as some kind of protocol, outcomes that need special handling
 # can be wired here, or merged into one (e.g. 401 and failure is failure).
 # I am writing this class in the deep forests of the Algarve, hiding from the GNR.
 class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
@@ -136,7 +137,7 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
   end
 
 # Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
-  step Subprocess(PrototypeEndpoint),
+  step Subprocess(PrototypeProtocol),
     Output(:not_authenticated)  => _Path(:redirect_to_login),
     Output(:not_authorized)     => _Path(:render_401),
     Output(:not_found)          => _Path(:render_404)
@@ -145,7 +146,7 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
 
 
 
-    # gemserver_check:  head(200) : head(401) [skip authenticate, skip authorize]
+    # gemserver_check:  head(200) : head(401) [skip authorize, skip actual activity]
     # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
     require "trailblazer/endpoint/adapter"
     # Adapter::API
@@ -177,6 +178,28 @@ class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the 
 
         seq << :my_401_handler
       end
+
+
+      # Here we test overriding an entire "endpoint", we want to replace {authenticate} and remove {policy} and the actual {activity}.
+      class Gemauth < API
+         # Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
+         #    Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
+         #    Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path)       # head(401), representer: Representer::Error, message: no token
+
+        step Subprocess(
+          EndpointTest::PrototypeProtocol,
+          patch: {[] => ->(*) {
+            step nil, delete: :policy
+            step nil, delete: :activity
+            step :gemserver_authenticate, replace: :authenticate, id: :authenticate, inherit: true
+
+            # def gemserver_authenticate(ctx, gemserver_authenticate:true, **)
+            #   ctx[:]
+            # end
+            include T.def_steps(:gemserver_authenticate)
+            }
+          }), replace: :protocol, inherit: true, id: :protocol
+      end
     end
 
 end
@@ -193,36 +216,39 @@ end
 # OP ends on terminus
 
   it "what" do
-    puts Trailblazer::Developer.render(PrototypeEndpoint)
+    puts Trailblazer::Developer.render(PrototypeProtocol)
     puts Trailblazer::Developer.render(Adapter)
     puts "API"
     puts Trailblazer::Developer.render(Adapter::API)
+    # puts
+    # puts Trailblazer::Developer.render(Adapter::API::Gemauth)
+    # exit
 
 
 # 1. authenticate works
     ctx = {seq: []}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeProtocol, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
 
 # 1. authenticate err
     ctx = {seq: [], authenticate: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeProtocol, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authenticated>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated]}
 
 # 2. model err 404
     ctx = {seq: [], model: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeProtocol, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_found>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
 
 # 3. validation err
     ctx = {seq: [], validate: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeEndpoint, [ctx, {}])
+    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(PrototypeProtocol, [ctx, {}])
 
   # rewired to standard failure
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
@@ -335,6 +361,41 @@ end
 
   # Rails default success block was called
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
+
+
+# 3. 401 for API::Gemauth
+      # we only want to run the authenticate part!
+      #
+      # -- EndpointTest::Adapter::API::Gemauth
+      #     |-- Start.default
+      #     |-- protocol
+      #     |   |-- Start.default
+      #     |   |-- authenticate              <this is actually gemserver_authenticate>
+      #     |   |-- handle_not_authenticated
+      #     |   `-- End.not_authenticated
+      #     |-- my_401_handler
+      #     |-- _401_status
+      #     |-- render_protocol_failure_config
+      #     |-- render_protocol_failure
+      #     |-- protocol_failure
+      #     `-- End.fail_fast
+
+
+    ctx = {seq: [], gemserver_authenticate: false, **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API::Gemauth, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
+    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
+
+  # authentication works
+    ctx = {seq: [], gemserver_authenticate: true, **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Adapter::API::Gemauth, [ctx, {}], success_block: _rails_success_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
+    ctx[:seq].inspect.must_equal %{[:gemserver_authenticate]}
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
+
 
 ######### Controller #########
 

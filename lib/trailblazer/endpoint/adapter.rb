@@ -10,7 +10,9 @@ module Trailblazer
         _401_path = ->(*) { step :_401_status }
         _403_path = ->(*) { step :_403_status }
 
-        step Subprocess(EndpointTest::PrototypeEndpoint),
+        # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
+        step Subprocess(EndpointTest::PrototypeProtocol),
+            id: :protocol,
             Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
             Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
             Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path)       # head(401), representer: Representer::Error, message: no token
