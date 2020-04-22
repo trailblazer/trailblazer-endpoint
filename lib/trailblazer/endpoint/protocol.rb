@@ -1,5 +1,8 @@
 module Trailblazer
   class Endpoint
+    # The {Protocol} implements auth*, and calls the domain OP/WF.
+    # You still have to implement handlers (like {#authorize} and {#handle_not_authorized}) yourself. This might change soon.
+    #
     class Protocol < Trailblazer::Activity::Railway
       class Noop < Trailblazer::Activity::Railway
       end
@@ -18,7 +21,6 @@ module Trailblazer
 
       #   step :a
       # end
-      include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
 
       # DISCUSS: do we really need those paths here? On the other hand, they basically come "for free".
 
@@ -33,7 +35,7 @@ module Trailblazer
 
       # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
-      step Subprocess(Noop), id: :activity
+      step Subprocess(Noop), id: :domain_activity
     end
   end
 end

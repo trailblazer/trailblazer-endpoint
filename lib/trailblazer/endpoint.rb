@@ -1,7 +1,16 @@
 # # require "dry/matcher"
 
-# module Trailblazer
-#   class Endpoint
+module Trailblazer
+  class Endpoint
+     def self.build(protocol:, adapter:, domain_activity:, &block)
+      Class.new(adapter) do
+        step Subprocess(protocol, patch: {[] => ->(*) {
+          step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity}.merge(instance_exec(&block)))
+        }}), inherit: true, id: :protocol, replace: :protocol
+      end
+    end
+  end
+end
 #     # this is totally WIP as we need to find best practices.
 #     # also, i want this to be easily extendable.
 #     Matcher = Dry::Matcher.new(

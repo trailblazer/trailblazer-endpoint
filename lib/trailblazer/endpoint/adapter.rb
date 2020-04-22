@@ -11,10 +11,12 @@ module Trailblazer
         _403_path = ->(*) { step :_403_status }
 
         # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
-        step Subprocess(EndpointTest::PrototypeProtocol),
+require "trailblazer/endpoint/protocol"
+# FIXME
+        step Subprocess(Protocol), # this will get replaced
             id: :protocol,
             Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
-            Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
+            # Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
             Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path)       # head(401), representer: Representer::Error, message: no token
 
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
