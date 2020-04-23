@@ -3,11 +3,15 @@
 module Trailblazer
   class Endpoint
      def self.build(protocol:, adapter:, domain_activity:, &block)
-      Class.new(adapter) do
-        step Subprocess(protocol, patch: {[] => ->(*) {
-          step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity}.merge(instance_exec(&block)))
-        }}), inherit: true, id: :protocol, replace: :protocol
+
+      app_protocol = Class.new(protocol) do
+        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity}.merge(instance_exec(&block)))
       end
+
+      Class.new(adapter) do
+        step Subprocess(app_protocol), inherit: true, id: :protocol, replace: :protocol
+      end # app_adapter
+
     end
   end
 end

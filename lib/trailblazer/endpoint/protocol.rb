@@ -5,6 +5,13 @@ module Trailblazer
     #
     # Protocol must provide all ends for the Adapter (401,403 and 404 in particular), even if the ran op/workflow doesn't have it.
     #   Still thinking about how to do that best.
+
+    # Termini and their "pendants" in HTTP, which is unrelated to protocol!! Protocol is application-focused and doesn't know about HTTP.
+    #   failure: 411
+    #   success: 200
+    #   not_found: 404
+    #   not_authenticated: 401
+    #   not_authorized: 403
     class Protocol < Trailblazer::Activity::Railway
       class Noop < Trailblazer::Activity::Railway
       end

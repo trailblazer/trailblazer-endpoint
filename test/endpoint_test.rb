@@ -138,10 +138,14 @@ api_create_endpoint =
     domain_activity:  Create,
   ) do
     # these are arguments for the Protocol.domain_activity
-    {Output(:validation_error) => Track(:failure),
-        Output(:not_found) => _Path(semantic: :not_found) do
-          step :handle_not_found # FIXME: don't require steps in path!
-        end}
+    {
+      Output(:validation_error) => Track(:failure),
+      # Output(:not_found) => Track(:not_found),
+      Output(:not_found)        => _Path(semantic: :not_found) do # _Path will use {End(:not_found)} and thus reuse the terminus already created in Protocol.
+        step :handle_not_found # FIXME: don't require steps in path!
+      }
+      end
+      }
   end
 
   # Here we test overriding an entire "endpoint", we want to replace {authenticate} and remove {policy} and the actual {activity}.
