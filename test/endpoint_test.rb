@@ -143,7 +143,6 @@ api_create_endpoint =
       # Output(:not_found) => Track(:not_found),
       Output(:not_found)        => _Path(semantic: :not_found) do # _Path will use {End(:not_found)} and thus reuse the terminus already created in Protocol.
         step :handle_not_found # FIXME: don't require steps in path!
-      }
       end
       }
   end
@@ -187,34 +186,6 @@ class CreatePrototypeProtocol < Trailblazer::Endpoint::Protocol
   # validation_error => failure
 end
 
-# The idea is to use the CreatePrototypeProtocol's outputs as some kind of protocol, outcomes that need special handling
-# can be wired here, or merged into one (e.g. 401 and failure is failure).
-# I am writing this class in the deep forests of the Algarve, hiding from the GNR.
-class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
-  def self._Path(__step)
-    # Path(end_id: "End.fail_fast") do
-    #   step __step
-    # end
-
-    step task: __step, magnetic_to: nil, Output(:success) => End("End.fail_fast"), Output(:failure) => End("End.fail_fast")
-
-    Id(__step)
-  end
-
-# Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
-  step Subprocess(CreatePrototypeProtocol),
-    Output(:not_authenticated)  => _Path(:redirect_to_login),
-    Output(:not_authorized)     => _Path(:render_401),
-    Output(:not_found)          => _Path(:render_404)
-    step :exec_success
-    fail :exec_or # this would be rendering the erroring form, as an example.
-
-
-
-    # gemserver_check:  head(200) : head(401) [skip authorize, skip actual activity]
-    # diagram.create: (authenticate: head(401), JSON err message), (validation error/failure: head(422), JSON err document), (success: head(200))
-
-end
 
   # step Invoke(), Output(:failure) => Track(:render_fail), Output(:validation_error) => ...
 
@@ -229,7 +200,6 @@ end
 
   it "what" do
     puts Trailblazer::Developer.render(CreatePrototypeProtocol)
-    puts Trailblazer::Developer.render(Adapter)
     puts "API"
     puts Trailblazer::Developer.render(MyApiAdapter)
     # puts

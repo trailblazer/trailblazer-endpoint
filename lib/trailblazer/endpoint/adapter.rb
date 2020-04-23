@@ -1,5 +1,12 @@
 module Trailblazer
   class Endpoint
+
+    # The idea is to use the CreatePrototypeProtocol's outputs as some kind of protocol, outcomes that need special handling
+    # can be wired here, or merged into one (e.g. 401 and failure is failure).
+    # I am writing this class in the deep forests of the Algarve, hiding from the GNR.
+    # class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
+ # Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
+
     module Adapter
       # Basic endpoint adapter for a HTTP document API.
       # As always: "work in progress" ;)
