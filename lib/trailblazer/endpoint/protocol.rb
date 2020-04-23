@@ -3,6 +3,8 @@ module Trailblazer
     # The {Protocol} implements auth*, and calls the domain OP/WF.
     # You still have to implement handlers (like {#authorize} and {#handle_not_authorized}) yourself. This might change soon.
     #
+    # Protocol must provide all ends for the Adapter (401,403 and 404 in particular), even if the ran op/workflow doesn't have it.
+    #   Still thinking about how to do that best.
     class Protocol < Trailblazer::Activity::Railway
       class Noop < Trailblazer::Activity::Railway
       end
@@ -36,6 +38,17 @@ module Trailblazer
       # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
       step Subprocess(Noop), id: :domain_activity
+
+      # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all
+      # termini for the Adapter this is the only way to get it working right now.
+      # FIXME: is this really the only way to add an {End} to all this?
+      @state.update_sequence do |sequence:, **|
+        sequence = Activity::Path::DSL.append_end(sequence, task: Failure.new(semantic: :not_found), magnetic_to: :not_found, id: "End.not_found")
+
+        recompile_activity!(sequence)
+
+        sequence
+      end
     end
   end
 end

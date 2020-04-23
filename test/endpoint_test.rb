@@ -1,10 +1,6 @@
 require "test_helper"
 
 module Trailblazer
-  def self.Endpoint(policy:, **)
-
-  end
-
   class Endpoint_ < Trailblazer::Activity::Railway
 
 
@@ -133,22 +129,6 @@ class MyApiAdapter < Trailblazer::Endpoint::Adapter::API
   end
 
 
-  # Here we test overriding an entire "endpoint", we want to replace {authenticate} and remove {policy} and the actual {activity}.
-  # class Gemauth < MyApiAdapter
-  #   step Subprocess(
-  #     EndpointTest::CreatePrototypeProtocol,
-  #     patch: {[] => ->(*) {
-  #       step nil, delete: :policy
-  #       step nil, delete: :domain_activity
-  #       step :gemserver_authenticate, replace: :authenticate, id: :authenticate, inherit: true
-
-  #       # def gemserver_authenticate(ctx, gemserver_authenticate:true, **)
-  #       #   ctx[:]
-  #       # end
-  #       include T.def_steps(:gemserver_authenticate)
-  #       }
-  #     }), replace: :protocol, inherit: true, id: :protocol
-  # end
 end
 
 api_create_endpoint =
@@ -162,6 +142,23 @@ api_create_endpoint =
         Output(:not_found) => _Path(semantic: :not_found) do
           step :handle_not_found # FIXME: don't require steps in path!
         end}
+  end
+
+  # Here we test overriding an entire "endpoint", we want to replace {authenticate} and remove {policy} and the actual {activity}.
+  class Gemauth < api_create_endpoint
+    step Subprocess(
+      MyTest::Protocol,
+      patch: {[] => ->(*) {
+        step nil, delete: :policy
+        step nil, delete: :domain_activity
+        step :gemserver_authenticate, replace: :authenticate, id: :authenticate, inherit: true
+
+        # def gemserver_authenticate(ctx, gemserver_authenticate:true, **)
+        #   ctx[:]
+        # end
+        include T.def_steps(:gemserver_authenticate)
+        }
+      }), replace: :protocol, inherit: true, id: :protocol
   end
 
 class CreatePrototypeProtocol < Trailblazer::Endpoint::Protocol
@@ -393,7 +390,7 @@ end
 
 
     ctx = {seq: [], gemserver_authenticate: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint::Gemauth, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
@@ -412,7 +409,7 @@ end
     #   `-- End.success
 
     ctx = {seq: [], gemserver_authenticate: true, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint::Gemauth, [ctx, {}], success_block: _rails_success_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Gemauth, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:gemserver_authenticate]}
