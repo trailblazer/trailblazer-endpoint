@@ -66,9 +66,10 @@ class EndpointTest < Minitest::Spec
 
   # Example OP with three termini
   class Create < Trailblazer::Activity::Railway
-    include T.def_steps(:model, :validate, :save)
+    include T.def_steps(:model, :validate, :save, :cc_check)
 
     step :model,    Output(:failure) => End(:not_found)
+    step :cc_check, Output(:failure) => End(:cc_invalid)
     step :validate, Output(:failure) => End(:validation_error)
     step :save
   end
@@ -137,15 +138,31 @@ api_create_endpoint =
     protocol:         MyTest::Protocol,
     domain_activity:  Create,
   ) do
+    ### PROTOCOL ###
     # these are arguments for the Protocol.domain_activity
     {
-      Output(:validation_error) => Track(:failure),
+      # wire a non-standardized application error to its semantical pendant.
+      Output(:validation_error) => Track(:invalid_data), # non-protocol, "application" output
       # Output(:not_found) => Track(:not_found),
+
+      # wire an unknown end to failure.
+      Output(:cc_invalid) => Track(:failure), # application error.
+
       Output(:not_found)        => _Path(semantic: :not_found) do # _Path will use {End(:not_found)} and thus reuse the terminus already created in Protocol.
         step :handle_not_found # FIXME: don't require steps in path!
       end
       }
   end
+
+
+###############3 TODO #######################
+  # test to wire 411 to another track (existing, known, automatically wired)
+  # test wiring an unknown terminus like "cc_not_accepted" to "failure"
+
+
+# TODO: should we also add a 411 route per default?
+  # how do implement #success? ? in Protocol for sure
+
 
   # Here we test overriding an entire "endpoint", we want to replace {authenticate} and remove {policy} and the actual {activity}.
   class Gemauth < api_create_endpoint
@@ -176,7 +193,9 @@ class CreatePrototypeProtocol < Trailblazer::Endpoint::Protocol
     Output(:validation_error) => Track(:failure),
     Output(:not_found) => _Path(semantic: :not_found) do
       step :handle_not_found # FIXME: don't require steps in path!
+      # DISCUSS: are we actually overriding anything, here?
     end
+
 
   # success
   # failure
@@ -212,7 +231,7 @@ end
     signal, (ctx, _ ) = Trailblazer::Developer.wtf?(CreatePrototypeProtocol, [ctx, {}])
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
 
 # 1. authenticate err
     ctx = {seq: [], authenticate: false}
@@ -234,7 +253,7 @@ end
 
   # rewired to standard failure
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
 
 
 ######### API #########
@@ -300,6 +319,22 @@ end
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
+# `-- #<Class:0x0000000001ff5d88>
+#     |-- Start.default
+#     |-- protocol
+#     |   |-- Start.default
+#     |   |-- authenticate
+#     |   |-- policy
+#     |   |-- domain_activity
+#     |   |   |-- Start.default
+#     |   |   |-- model
+#     |   |   `-- End.not_found
+#     |   |-- handle_not_found       this is added via the block, in the PROTOCOL wiring
+#     |   `-- End.not_found
+#     |-- _404_status
+#     |-- protocol_failure
+#     `-- End.fail_fast
+
 
 # 1.b 422 domain error: validation failed
   # RENDER an error document
@@ -307,19 +342,49 @@ end
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+# `-- #<Class:0x0000000002e54e60>
+#     |-- Start.default
+#     |-- protocol
+#     |   |-- Start.default
+#     |   |-- authenticate
+#     |   |-- policy
+#     |   |-- domain_activity
+#     |   |   |-- Start.default
+#     |   |   |-- model
+#     |   |   |-- validate
+#     |   |   `-- End.validation_error
+#     |   `-- End.invalid_data               this is wired to the {failure} track
+#     |-- failure_render_config
+#     |-- failure_config_status
+#     |-- render_failure
+#     `-- End.failure
+
+
+
 
   # 1.b2 another application error (#save), but 200 because of #failure_config_status
     ctx = {seq: [], save: false, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
+# invalid {cc_check}=>{cc_invalid}
+    ctx = {seq: [], cc_check: false, **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
+  # this calls Rails default failure block
+              # we set status to 200 in #failure_config_status
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
 
 # 4. authorization error
     ctx = {seq: [], policy: false, **app_options}
@@ -338,7 +403,7 @@ end
 
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :validate, :save]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
     ctx[:json].must_equal %{DiagramRepresenter.new()}
 
   # Rails default success block was called

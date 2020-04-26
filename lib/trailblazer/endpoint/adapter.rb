@@ -16,6 +16,7 @@ module Trailblazer
         _404_path = ->(*) { step :_404_status }
         _401_path = ->(*) { step :_401_status }
         _403_path = ->(*) { step :_403_status }
+        # _422_path = ->(*) { step :_422_status } # TODO: this is currently represented by the {failure} track.
 
         # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
 require "trailblazer/endpoint/protocol"
@@ -24,7 +25,8 @@ require "trailblazer/endpoint/protocol"
             id: :protocol,
             Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
             Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
-            Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path)       # head(401), representer: Representer::Error, message: no token
+            Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
+            Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
 
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
 
@@ -38,7 +40,7 @@ require "trailblazer/endpoint/protocol"
             step :render_success
 
 
-          # :protocol_join is a :failure_config alias
+          # DISCUSS: "protocol failure" and "application failure" should be the same path, probably?
           step :render_protocol_failure_config, magnetic_to: nil, Output(:success) => Path(connect_to: Id("End.fail_fast")) do
             step :render_protocol_failure
             step :protocol_failure

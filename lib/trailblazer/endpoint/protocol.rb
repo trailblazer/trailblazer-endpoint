@@ -46,11 +46,14 @@ module Trailblazer
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
       step Subprocess(Noop), id: :domain_activity
 
+      # fail :success?
+
       # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all
       # termini for the Adapter this is the only way to get it working right now.
       # FIXME: is this really the only way to add an {End} to all this?
       @state.update_sequence do |sequence:, **|
         sequence = Activity::Path::DSL.append_end(sequence, task: Failure.new(semantic: :not_found), magnetic_to: :not_found, id: "End.not_found")
+        sequence = Activity::Path::DSL.append_end(sequence, task: Failure.new(semantic: :invalid_data), magnetic_to: :invalid_data, id: "End.invalid_data")
 
         recompile_activity!(sequence)
 
