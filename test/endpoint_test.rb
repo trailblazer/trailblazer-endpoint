@@ -9,23 +9,6 @@ module Trailblazer
       # step :a?
     end
 
-    class Invoke
-      def self.call(ctx, **)
-
-      end
-    end
-
-    step :authenticate,     id: :authenticate,  Output(:failure) => Track(:not_authenticated) # user from cookie, etc
-    step PolicyChain,       id: :policy,        Output(:failure) => Track(:not_authorized) # missing credentials vs. no authorization
-    # step Workflow::Advance::Controller (decrypt, thaw, invoke, ...)
-    step Invoke, id: :invoke # per default: normal OP
-    step :success? # "map" the OPs terminus to to a terminus here (404, etc) and allow to rewire
-      # Output(404) => ...Track(404)
-      # Output(401) => ...Track(401)
-
-
-
-
     def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
       signal, (ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
