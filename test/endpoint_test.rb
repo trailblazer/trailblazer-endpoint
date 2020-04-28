@@ -53,7 +53,7 @@ class EndpointTest < Minitest::Spec
 
     step :model,    Output(:failure) => End(:not_found)
     step :cc_check, Output(:failure) => End(:cc_invalid)
-    step :validate, Output(:failure) => End(:validation_error)
+    step :validate, Output(:failure) => End(:my_validation_error)
     step :save
   end
 
@@ -63,7 +63,7 @@ class EndpointTest < Minitest::Spec
   }
   custom_ends = {
     "End.cc_error" => "End.failure",
-    "End.validation_error" => "End.VAL_ERR",
+    "End.my_validation_error" => "End.VAL_ERR",
   }
 
 pp Create.to_h[:outputs]
@@ -125,7 +125,7 @@ api_create_endpoint =
     # these are arguments for the Protocol.domain_activity
     {
       # wire a non-standardized application error to its semantical pendant.
-      Output(:validation_error) => Track(:invalid_data), # non-protocol, "application" output
+      Output(:my_validation_error) => Track(:invalid_data), # non-protocol, "application" output
       # Output(:not_found) => Track(:not_found),
 
       # wire an unknown end to failure.
@@ -164,32 +164,8 @@ api_create_endpoint =
       }), replace: :protocol, inherit: true, id: :protocol
   end
 
-class CreatePrototypeProtocol < Trailblazer::Endpoint::Protocol
 
-  include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
-
-  # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
-  # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
-  step Subprocess(Create), # we have S/F/NF/VE outputs
-    replace: :domain_activity,
-    id: :domain_activity,  # DISCUSS: do we want to repeat the ID?
-    Output(:validation_error) => Track(:failure),
-    Output(:not_found) => _Path(semantic: :not_found) do
-      step :handle_not_found # FIXME: don't require steps in path!
-      # DISCUSS: are we actually overriding anything, here?
-    end
-
-
-  # success
-  # failure
-  # not_authenticated
-  # not_authorized
-  # not_found
-  # validation_error => failure
-end
-
-
-  # step Invoke(), Output(:failure) => Track(:render_fail), Output(:validation_error) => ...
+  # step Invoke(), Output(:failure) => Track(:render_fail), Output(:my_validation_error) => ...
 
   # Invoke(Create, )
 
@@ -200,44 +176,12 @@ end
 # workflow always terminates on wait events/termini => somewhere, we need to interpret that
 # OP ends on terminus
 
-  it "what" do
-    puts Trailblazer::Developer.render(CreatePrototypeProtocol)
+  it do
     puts "API"
     puts Trailblazer::Developer.render(MyApiAdapter)
     # puts
     # puts Trailblazer::Developer.render(Adapter::API::Gemauth)
     # exit
-
-
-# 1. authenticate works
-    ctx = {seq: []}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(CreatePrototypeProtocol, [ctx, {}])
-
-    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
-
-# 1. authenticate err
-    ctx = {seq: [], authenticate: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(CreatePrototypeProtocol, [ctx, {}])
-
-    signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authenticated>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated]}
-
-# 2. model err 404
-    ctx = {seq: [], model: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(CreatePrototypeProtocol, [ctx, {}])
-
-    signal.inspect.must_equal %{#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_found>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
-
-# 3. validation err
-    ctx = {seq: [], validate: false}
-    signal, (ctx, _ ) = Trailblazer::Developer.wtf?(CreatePrototypeProtocol, [ctx, {}])
-
-  # rewired to standard failure
-    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
-
 
 ######### API #########
     # FIXME: fake the controller
@@ -338,7 +282,7 @@ end
 #     |   |   |-- Start.default
 #     |   |   |-- model
 #     |   |   |-- validate
-#     |   |   `-- End.validation_error
+#     |   |   `-- End.my_validation_error
 #     |   `-- End.invalid_data               this is wired to the {failure} track
 #     |-- failure_render_config
 #     |-- failure_config_status
