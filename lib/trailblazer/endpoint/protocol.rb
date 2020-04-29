@@ -46,7 +46,10 @@ module Trailblazer
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
       step Subprocess(Noop), id: :domain_activity
 
-      # fail :success?
+      # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
+      # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
+      fail :success?
+
 
       # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all
       # termini for the Adapter this is the only way to get it working right now.
