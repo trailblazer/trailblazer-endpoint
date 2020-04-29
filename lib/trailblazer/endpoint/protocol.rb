@@ -48,7 +48,10 @@ module Trailblazer
 
       # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
       # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
-      fail :success?
+        NotFound = Class.new(Trailblazer::Activity::Signal)
+      fail :success?,
+        # FIXME
+        Output(NotFound, :not_found) => Track(:not_found)
 
 
       # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all

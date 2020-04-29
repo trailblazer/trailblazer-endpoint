@@ -95,7 +95,8 @@ module MyTest
 
 # TODO: how can we make this better overridable in the endpoint generator?
     def success?(ctx, **)
-      true
+      return NotFound if ctx[:model] === false
+# for all other cases, the return value doesn't matter.
     end
   end
 end
@@ -239,9 +240,9 @@ api_create_endpoint =
     ctx = {seq: [], cc_check: false, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
-    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
-    to
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}        # we rewire {domain.fail_fast} to {protocol.failure}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
+
 
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
@@ -249,7 +250,7 @@ api_create_endpoint =
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
   end
