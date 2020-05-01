@@ -26,6 +26,9 @@ module Trailblazer
   # DISCUSS: should this also be part of an endpoint-lib activity?
 end
 
+# TODO: document :track_color
+require "trailblazer/endpoint"
+require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
 
 class EndpointTest < Minitest::Spec
@@ -66,7 +69,7 @@ class EndpointTest < Minitest::Spec
     "End.my_validation_error" => "End.VAL_ERR",
   }
 
-pp Create.to_h[:outputs]
+  pp Create.to_h[:outputs]
 
   # Represents a classic FastTrack OP without additional ends.
   # Implicit termini:
@@ -82,84 +85,83 @@ pp Create.to_h[:outputs]
     step :save
   end
 
-# TODO: document :track_color
-require "trailblazer/endpoint/protocol"
 
 # we want to define API and Protocol somewhere application-wide in an explicit file.
 # the domain OP/wiring we want via the endpoint builder.
 
-module MyTest
-  # This implements the actual authentication, policies, etc.
-  class Protocol < Trailblazer::Endpoint::Protocol
-    include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
+  module MyTest
+    # This implements the actual authentication, policies, etc.
+    class Protocol < Trailblazer::Endpoint::Protocol
+      include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
 
-# TODO: how can we make this better overridable in the endpoint generator?
-    def success?(ctx, **)
-      return NotFound if ctx[:model] === false
-# for all other cases, the return value doesn't matter.
-    end
-  end
-end
+  # TODO: how can we make this better overridable in the endpoint generator?
+      def success?(ctx, **)
+        return NotFound if ctx[:model] === false
+  # for all other cases, the return value doesn't matter in {fail}.
 
-require "trailblazer/endpoint"
-
-class MyApiAdapter < Trailblazer::Endpoint::Adapter::API
-# example how to add your own step to a certain path
-                    # FIXME: :after doesn't work
-  step :my_401_handler, before: :_401_status, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
-
-  def render_success(ctx, **)
-    ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
-  end
-
-  def failure_config_status(ctx, **)
-    # DISCUSS: this is a bit like "success?" or a matcher.
-    if ctx[:validate] === false
-      ctx[:status] = 422
-    else
-      ctx[:status] = 200 # DISCUSS: this is the usual return code for application/domain errors, I guess?
-    end
-  end
-
-# how/where would we configure each endpoint? (per action)
-# class Endpoint
-#   representer ...
-#   message ...
-
-  def my_401_handler(ctx, seq:, **)
-    ctx[:model] = Struct.new(:error_message).new("No token")
-
-    seq << :my_401_handler
-  end
-
-
-end
-
-api_create_endpoint =
-  Trailblazer::Endpoint.build(
-    adapter:          MyApiAdapter,
-    protocol:         MyTest::Protocol,
-    domain_activity:  Create,
-  ) do
-    ### PROTOCOL ###
-    # these are arguments for the Protocol.domain_activity
-    {
-      # wire a non-standardized application error to its semantical pendant.
-      Output(:my_validation_error) => Track(:invalid_data), # non-protocol, "application" output
-      # Output(:not_found) => Track(:not_found),
-
-      # wire an unknown end to failure.
-      Output(:cc_invalid) => Track(:failure), # application error.
-
-      Output(:not_found)        => _Path(semantic: :not_found) do # _Path will use {End(:not_found)} and thus reuse the terminus already created in Protocol.
-        step :handle_not_found # FIXME: don't require steps in path!
       end
-      }
+    end
   end
+
+
+  class MyApiAdapter < Trailblazer::Endpoint::Adapter::API
+  # example how to add your own step to a certain path
+                      # FIXME: :after doesn't work
+    step :my_401_handler, before: :_401_status, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
+
+    def render_success(ctx, **)
+      ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
+    end
+
+    def failure_config_status(ctx, **)
+      # DISCUSS: this is a bit like "success?" or a matcher.
+      if ctx[:validate] === false
+        ctx[:status] = 422
+      else
+        ctx[:status] = 200 # DISCUSS: this is the usual return code for application/domain errors, I guess?
+      end
+    end
+
+  # how/where would we configure each endpoint? (per action)
+  # class Endpoint
+  #   representer ...
+  #   message ...
+
+    def my_401_handler(ctx, seq:, **)
+      ctx[:model] = Struct.new(:error_message).new("No token")
+
+      seq << :my_401_handler
+    end
+  end # MyApiAdapter
+
+  api_create_endpoint =
+    Trailblazer::Endpoint.build(
+      adapter:          MyApiAdapter,
+      protocol:         MyTest::Protocol,
+      domain_activity:  Create,
+    ) do
+      ### PROTOCOL ###
+      # these are arguments for the Protocol.domain_activity
+      {
+        # wire a non-standardized application error to its semantical pendant.
+        Output(:my_validation_error) => Track(:invalid_data), # non-protocol, "application" output
+        # Output(:not_found) => Track(:not_found),
+
+        # wire an unknown end to failure.
+        Output(:cc_invalid) => Track(:failure), # application error.
+
+        Output(:not_found)        => _Path(semantic: :not_found) do # _Path will use {End(:not_found)} and thus reuse the terminus already created in Protocol.
+          step :handle_not_found # FIXME: don't require steps in path!
+        end
+        }
+    end
 
   api_legacy_create_endpoint =
   Trailblazer::Endpoint.build(
-    adapter:          MyApiAdapter,
+    # DISCUSS: how do we implement a 201 route?
+    adapter:          Class.new(MyApiAdapter) { def success_render_status(ctx, **)
+      ctx[:status] = 201
+    end },
     protocol:         MyTest::Protocol,
     domain_activity:  LegacyCreate,
   ) do
@@ -235,6 +237,7 @@ api_create_endpoint =
     }
   end
 
+  # The idea here is to bridge a FastTrack op (without standardized ends) to the Protocol termini
   it "LegacyCreate" do
   # cc_check ==> FailFast
     ctx = {seq: [], cc_check: false, **app_options}
@@ -245,7 +248,7 @@ api_create_endpoint =
 
 
 
-  # 1.c 404 (NO RENDERING OF BODY!!!)
+  # 1.c **404** (NO RENDERING OF BODY!!!)
     ctx = {seq: [], model: false, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
@@ -253,22 +256,29 @@ api_create_endpoint =
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
+  # 2. **201** because the model is new.
+    ctx = {seq: [], **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], success_block: _rails_success_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
+    to_h.inspect.must_equal %{{:head=>201, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
   end
 
-    ######### API #########
-    # FIXME: fake the controller
-    let(:_rails_success_block) do ->(ctx, json:, status:, **) { head(status); render json: json; @bla = nil } end
-    let(:_rails_failure_block) do ->(ctx, json:nil, status:, **) { head(status); render json: json; @bla = true } end # nil-JSON with 404,
+  ######### API #########
+  # FIXME: fake the controller
+  let(:_rails_success_block) do ->(ctx, json:, status:, **) { head(status); render json: json; @bla = nil } end
+  let(:_rails_failure_block) do ->(ctx, json:nil, status:, **) { head(status); render json: json; @bla = true } end # nil-JSON with 404,
 
-    def head(code)
-      @head = code
-    end
-    def render(options)
-      @render_options = options
-    end
-    def to_h
-      {head: @head, render_options: @render_options, bla: @bla}
-    end
+  def head(code)
+    @head = code
+  end
+  def render(options)
+    @render_options = options
+  end
+  def to_h
+    {head: @head, render_options: @render_options, bla: @bla}
+  end
 
   it do
     puts "API"
@@ -301,6 +311,9 @@ api_create_endpoint =
 =end
 
 
+  # api_create_endpoint.instance_exec do
+
+  #   step(Subprocess(MyTest::Protocol), patch: {[:protocol] => ->(*) { step :success?, delete: :success? }}, replace: :protocol, inherit: true, id: :protocol) end
 
 # 1. 401 authenticate err
   # RENDER an error document
@@ -465,38 +478,38 @@ api_create_endpoint =
 # 2. override success
 # 2. override failure: suppress the automatic rendering?
 
-exit
 
-    class MyPolicyChain < Trailblazer::Endpoint::PolicyChain
-      step :a?
-      step :b?
-    end
+  #   class MyPolicyChain < Trailblazer::Endpoint::PolicyChain
+  #     step :a?
+  #     step :b?
+  #   end
 
-    Trailblazer::Endpoint(policy: MyPolicyChain)
+  #   Trailblazer::Endpoint(policy: MyPolicyChain)
 
-    class MyEndpoint < Trailblazer::Endpoint
-      step MyPolicies, replace: :policy # with or without root, we have a binary outcome?
-    end
+  #   class MyEndpoint < Trailblazer::Endpoint
+  #     step MyPolicies, replace: :policy # with or without root, we have a binary outcome?
+  #   end
 
-    MyEndpoint.() # with operation
-    MyEndpoint.() # with workflow
+  #   MyEndpoint.() # with operation
+  #   MyEndpoint.() # with workflow
 
-  # op with > 2 ends
-    {our_404: :not_found} # map ends to known ends
+  # # op with > 2 ends
+  #   {our_404: :not_found} # map ends to known ends
 
-  # html version
-    run(MyEndpoint, ) do |ctx|
-      # success
-    end
+  # # html version
+  #   run(MyEndpoint, ) do |ctx|
+  #     # success
+  #   end
 
-  # api version
-    # if 404 ...
-    # else default behavior
+  # # api version
+  #   # if 404 ...
+  #   # else default behavior
+  # end
+
+
+
+
   end
-
-
-
-
 end
 
 # require "test_helper"
