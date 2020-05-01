@@ -96,7 +96,7 @@ class EndpointTest < Minitest::Spec
 
   # TODO: how can we make this better overridable in the endpoint generator?
       def success?(ctx, **)
-        return NotFound if ctx[:model] === false
+        return Trailblazer::Endpoint::Protocol::Bridge::NotFound if ctx[:model] === false
   # for all other cases, the return value doesn't matter in {fail}.
 
       end
@@ -162,7 +162,7 @@ class EndpointTest < Minitest::Spec
     adapter:          Class.new(MyApiAdapter) { def success_render_status(ctx, **)
       ctx[:status] = 201
     end },
-    protocol:         MyTest::Protocol,
+    protocol:         Trailblazer::Endpoint::Protocol::Bridge.insert(MyTest::Protocol),
     domain_activity:  LegacyCreate,
   ) do
 

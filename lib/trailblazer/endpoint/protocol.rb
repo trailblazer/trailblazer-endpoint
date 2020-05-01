@@ -46,12 +46,6 @@ module Trailblazer
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
       step Subprocess(Noop), id: :domain_activity
 
-      # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
-      # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
-        NotFound = Class.new(Trailblazer::Activity::Signal)
-      fail :success?,
-        # FIXME
-        Output(NotFound, :not_found) => Track(:not_found)
 
 
       # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all
@@ -64,6 +58,20 @@ module Trailblazer
         recompile_activity!(sequence)
 
         sequence
+      end
+
+      module Bridge
+        # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
+        # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
+          NotFound = Class.new(Trailblazer::Activity::Signal)
+
+        def self.insert(protocol, **)
+          Class.new(protocol) do
+            fail :success?, after: :domain_activity,
+            # FIXME: how to add more signals/outcomes?
+            Output(NotFound, :not_found) => Track(:not_found)
+          end
+        end
       end
     end
   end
