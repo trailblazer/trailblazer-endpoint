@@ -63,13 +63,15 @@ module Trailblazer
       module Bridge
         # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
         # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
-          NotFound = Class.new(Trailblazer::Activity::Signal)
+          NotFound      = Class.new(Trailblazer::Activity::Signal)
+          NotAuthorized = Class.new(Trailblazer::Activity::Signal)
 
         def self.insert(protocol, **)
           Class.new(protocol) do
             fail :success?, after: :domain_activity,
             # FIXME: how to add more signals/outcomes?
-            Output(NotFound, :not_found) => Track(:not_found)
+            Output(NotFound, :not_found)            => Track(:not_found),
+            Output(NotAuthorized, :not_authorized)  => Id("End.not_authorized") # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
           end
         end
       end

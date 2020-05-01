@@ -77,8 +77,9 @@ class EndpointTest < Minitest::Spec
   #   cc_check  => cc_invalid
   #   validate  => invalid_data
   class LegacyCreate < Trailblazer::Activity::FastTrack
-    include T.def_steps(:model, :validate, :save, :cc_check)
+    include T.def_steps(:my_policy, :model, :validate, :save, :cc_check)
 
+    step :my_policy
     step :model
     step :cc_check, fail_fast: true
     step :validate
@@ -97,6 +98,7 @@ class EndpointTest < Minitest::Spec
   # TODO: how can we make this better overridable in the endpoint generator?
       def success?(ctx, **)
         return Trailblazer::Endpoint::Protocol::Bridge::NotFound if ctx[:model] === false
+        return Trailblazer::Endpoint::Protocol::Bridge::NotAuthorized if ctx[:my_policy] === false
   # for all other cases, the return value doesn't matter in {fail}.
 
       end
@@ -162,7 +164,7 @@ class EndpointTest < Minitest::Spec
     adapter:          Class.new(MyApiAdapter) { def success_render_status(ctx, **)
       ctx[:status] = 201
     end },
-    protocol:         Trailblazer::Endpoint::Protocol::Bridge.insert(MyTest::Protocol),
+    protocol:         myp = Trailblazer::Endpoint::Protocol::Bridge.insert(MyTest::Protocol),
     domain_activity:  LegacyCreate,
   ) do
 
@@ -244,7 +246,7 @@ class EndpointTest < Minitest::Spec
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}        # we rewire {domain.fail_fast} to {protocol.failure}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model, :cc_check]}
 
 
 
@@ -253,7 +255,7 @@ class EndpointTest < Minitest::Spec
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
   # 2. **201** because the model is new.
@@ -261,8 +263,17 @@ class EndpointTest < Minitest::Spec
     signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model, :cc_check, :validate, :save]}
     to_h.inspect.must_equal %{{:head=>201, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
+
+  # **403** because my_policy fails.
+    ctx = {seq: [], my_policy: false, **app_options}
+    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+
+    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
+    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy]}
+  # this calls Rails default failure block
+    to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
   end
 
   ######### API #########
