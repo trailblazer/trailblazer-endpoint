@@ -60,17 +60,6 @@ class EndpointTest < Minitest::Spec
     step :save
   end
 
-  default_ends = {
-    "End.success" => "End.success",
-    "End.failure" => "End.failure",
-  }
-  custom_ends = {
-    "End.cc_error" => "End.failure",
-    "End.my_validation_error" => "End.VAL_ERR",
-  }
-
-  pp Create.to_h[:outputs]
-
   # Represents a classic FastTrack OP without additional ends.
   # Implicit termini:
   #   model     => not_found
