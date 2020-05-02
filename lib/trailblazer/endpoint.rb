@@ -5,7 +5,11 @@ module Trailblazer
      def self.build(protocol:, adapter:, domain_activity:, &block)
 
       app_protocol = Class.new(protocol) do
-        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity}.merge(instance_exec(&block)))
+        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
+
+          extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)]
+        }.merge(instance_exec(&block)))
+
       end
 
       Class.new(adapter) do

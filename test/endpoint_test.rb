@@ -96,7 +96,11 @@ class EndpointTest < Minitest::Spec
       include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
 
   # TODO: how can we make this better overridable in the endpoint generator?
-      def success?(ctx, **)
+      def success?(ctx, domain_activity_return_signal:, **)
+        # FIXME: stupid test to see if we can read {:domain_activity_return_signal}.
+        ctx[:_domain_activity_return_signal] = domain_activity_return_signal
+
+
         return Trailblazer::Endpoint::Protocol::Bridge::NotFound if ctx[:model] === false
         return Trailblazer::Endpoint::Protocol::Bridge::NotAuthorized if ctx[:my_policy] === false
   # for all other cases, the return value doesn't matter in {fail}.
@@ -274,7 +278,11 @@ class EndpointTest < Minitest::Spec
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy]}
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
+
+  # we can read {:domain_activity_return_signal} (currently only set for fails)
+    ctx[:_domain_activity_return_signal].inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
   end
+# TODO: AUTOWIRE RAILWAY/FASTTRACKS
 
   ######### API #########
   # FIXME: fake the controller

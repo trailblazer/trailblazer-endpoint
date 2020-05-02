@@ -21,13 +21,27 @@ module Trailblazer
         # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
 require "trailblazer/endpoint/protocol"
 # FIXME
+
+def self.bla(wrap_ctx, original_args)
+
+#      Unrecognized Signal `"bla"` returned from EndpointTest::LegacyCreate. Registered signals are,
+# - #<Trailblazer::Activity::End semantic=:failure>
+# - #<Trailblazer::Activity::End semantic=:success>
+# - #<Trailblazer::Activity::End semantic=:fail_fast>
+  original_args[0][0][:domain_activity_return_signal] = wrap_ctx[:return_signal]
+
+  return wrap_ctx, original_args
+end
+TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after),  "task_wrap.call_task", ["end_signal", method(:bla)]]]
+
         step Subprocess(Protocol), # this will get replaced
             id: :protocol,
             Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
             Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
             Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
-            Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
+            Output(:invalid_data)       => Track(:failure), # application error, since it's usually a failed validation.
 
+            extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: TERMINUS_HANDLER)]
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
 
 

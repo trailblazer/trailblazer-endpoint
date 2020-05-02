@@ -65,6 +65,7 @@ module Trailblazer
         # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
           NotFound      = Class.new(Trailblazer::Activity::Signal)
           NotAuthorized = Class.new(Trailblazer::Activity::Signal)
+          NotAuthenticated = Class.new(Trailblazer::Activity::Signal)
 
         def self.insert(protocol, **)
           Class.new(protocol) do
