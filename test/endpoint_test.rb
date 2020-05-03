@@ -8,22 +8,7 @@ module Trailblazer
       step :is_root?, Output(:success) => End(:success) # bypass policy chain
       # step :a?
     end
-
-    def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
-      signal, (ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
-
-      # if signal < Trailblazer::Activity::End::Success
-        puts "@@@@@ #{signal.inspect}"
-      if [:failure, :fail_fast].include?(signal.to_h[:semantic])
-        failure_block.(ctx, **ctx)
-      else
-        success_block.(ctx, **ctx)
-      end
-
-      return signal, [ctx]
-    end
   end
-  # DISCUSS: should this also be part of an endpoint-lib activity?
 end
 
 # TODO: document :track_color
@@ -236,7 +221,7 @@ class EndpointTest < Minitest::Spec
   it "LegacyCreate" do
   # cc_check ==> FailFast
     ctx = {seq: [], cc_check: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}        # we rewire {domain.fail_fast} to {protocol.failure}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model, :cc_check]}
@@ -245,7 +230,7 @@ class EndpointTest < Minitest::Spec
 
   # 1.c **404** (NO RENDERING OF BODY!!!)
     ctx = {seq: [], model: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model]}
@@ -253,7 +238,7 @@ class EndpointTest < Minitest::Spec
 
   # 2. **201** because the model is new.
     ctx = {seq: [], **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], success_block: _rails_success_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model, :cc_check, :validate, :save]}
@@ -261,7 +246,7 @@ class EndpointTest < Minitest::Spec
 
   # **403** because my_policy fails.
     ctx = {seq: [], my_policy: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy]}
@@ -327,7 +312,7 @@ class EndpointTest < Minitest::Spec
   # RENDER an error document
     ctx = {seq: [], authenticate: false, **app_options}
     # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
@@ -338,7 +323,7 @@ class EndpointTest < Minitest::Spec
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
     ctx = {seq: [], model: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
@@ -364,7 +349,7 @@ class EndpointTest < Minitest::Spec
 # 1.b 422 domain error: validation failed
   # RENDER an error document
     ctx = {seq: [], validate: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
@@ -392,7 +377,7 @@ class EndpointTest < Minitest::Spec
 
   # 1.b2 another application error (#save), but 200 because of #failure_config_status
     ctx = {seq: [], save: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
@@ -402,7 +387,7 @@ class EndpointTest < Minitest::Spec
 
 # invalid {cc_check}=>{cc_invalid}
     ctx = {seq: [], cc_check: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
@@ -413,7 +398,7 @@ class EndpointTest < Minitest::Spec
 
 # 4. authorization error
     ctx = {seq: [], policy: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :handle_not_authorized]}
@@ -424,7 +409,7 @@ class EndpointTest < Minitest::Spec
 # 2. all OK
 
     ctx = {seq: [], **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(api_create_endpoint, [ctx, {}], success_block: _rails_success_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], success_block: _rails_success_block)
 
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
@@ -454,7 +439,7 @@ class EndpointTest < Minitest::Spec
 
 
     ctx = {seq: [], gemserver_authenticate: false, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
@@ -473,7 +458,7 @@ class EndpointTest < Minitest::Spec
     #   `-- End.success
 
     ctx = {seq: [], gemserver_authenticate: true, **app_options}
-    signal, (ctx, _ ) = Trailblazer::Endpoint_.with_or_etc(Gemauth, [ctx, {}], success_block: _rails_success_block)
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:seq].inspect.must_equal %{[:gemserver_authenticate]}

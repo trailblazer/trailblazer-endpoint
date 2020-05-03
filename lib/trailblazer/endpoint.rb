@@ -17,6 +17,19 @@ module Trailblazer
       end # app_adapter
 
     end
+
+    def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
+      signal, (ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
+
+      # if signal < Trailblazer::Activity::End::Success
+      if [:failure, :fail_fast].include?(signal.to_h[:semantic])
+        failure_block.(ctx, **ctx)
+      else
+        success_block.(ctx, **ctx)
+      end
+
+      return signal, [ctx]
+    end
   end
 end
 #     # this is totally WIP as we need to find best practices.
