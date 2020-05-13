@@ -67,7 +67,17 @@ class EndpointTest < Minitest::Spec
   module MyTest
     # This implements the actual authentication, policies, etc.
     class Protocol < Trailblazer::Endpoint::Protocol
-      include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
+      # include EndpointTest::T.def_steps(:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found)
+
+      [:authenticate, :handle_not_authenticated, :policy, :handle_not_authorized, :handle_not_found].each do |name|
+        define_method(name) do |ctx, **|
+          ctx[:domain_ctx][:seq] << name
+          puts "@@@@@ #{name.inspect} / #{}"
+          return false if ctx[name] === false
+          true
+        end
+      end
+
 
   # TODO: how can we make this better overridable in the endpoint generator?
       def success?(ctx, domain_activity_return_signal:, **)
@@ -95,7 +105,7 @@ class EndpointTest < Minitest::Spec
 
     def failure_config_status(ctx, **)
       # DISCUSS: this is a bit like "success?" or a matcher.
-      if ctx[:validate] === false
+      if ctx[:domain_ctx][:validate] === false
         ctx[:status] = 422
       else
         ctx[:status] = 200 # DISCUSS: this is the usual return code for application/domain errors, I guess?
@@ -107,10 +117,10 @@ class EndpointTest < Minitest::Spec
   #   representer ...
   #   message ...
 
-    def my_401_handler(ctx, seq:, **)
+    def my_401_handler(ctx, domain_ctx:, **)
       ctx[:model] = Struct.new(:error_message).new("No token")
 
-      seq << :my_401_handler
+      domain_ctx[:seq] << :my_401_handler
     end
   end # MyApiAdapter
 
@@ -193,7 +203,13 @@ class EndpointTest < Minitest::Spec
         # def gemserver_authenticate(ctx, gemserver_authenticate:true, **)
         #   ctx[:]
         # end
-        include T.def_steps(:gemserver_authenticate)
+        [:gemserver_authenticate].each do |name|
+          define_method(name) do |ctx, **|
+            ctx[:domain_ctx][:seq] << name
+            return false if ctx[name] === false
+            true
+          end
+        end
         }
       }), replace: :protocol, inherit: true, id: :protocol
   end
@@ -220,7 +236,8 @@ class EndpointTest < Minitest::Spec
   # The idea here is to bridge a FastTrack op (without standardized ends) to the Protocol termini
   it "LegacyCreate" do
   # cc_check ==> FailFast
-    ctx = {seq: [], cc_check: false, **app_options}
+    ctx = {seq: [], cc_check: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}        # we rewire {domain.fail_fast} to {protocol.failure}
@@ -229,7 +246,8 @@ class EndpointTest < Minitest::Spec
 
 
   # 1.c **404** (NO RENDERING OF BODY!!!)
-    ctx = {seq: [], model: false, **app_options}
+    ctx = {seq: [], model: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
@@ -237,7 +255,8 @@ class EndpointTest < Minitest::Spec
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
   # 2. **201** because the model is new.
-    ctx = {seq: [], **app_options}
+    ctx = {seq: []}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
@@ -245,7 +264,8 @@ class EndpointTest < Minitest::Spec
     to_h.inspect.must_equal %{{:head=>201, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
 
   # **403** because my_policy fails.
-    ctx = {seq: [], my_policy: false, **app_options}
+    ctx = {seq: [], my_policy: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_legacy_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
@@ -310,23 +330,25 @@ class EndpointTest < Minitest::Spec
 
 # 1. 401 authenticate err
   # RENDER an error document
-    ctx = {seq: [], authenticate: false, **app_options}
+    ctx = {seq: []}
+    ctx = {domain_ctx: ctx, authenticate: false, **app_options}
     # signal, (ctx, _ ) = Trailblazer::Developer.wtf?(Adapter::API, [ctx, {}])
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
     # DISCUSS: where to add things like headers?
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
    # raise ctx.inspect
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
-    ctx = {seq: [], model: false, **app_options}
+    ctx = {seq: [], model: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
     to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true}}
 
 # `-- #<Class:0x0000000001ff5d88>
@@ -348,11 +370,12 @@ class EndpointTest < Minitest::Spec
 
 # 1.b 422 domain error: validation failed
   # RENDER an error document
-    ctx = {seq: [], validate: false, **app_options}
+    ctx = {seq: [], validate: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 # `-- #<Class:0x0000000002e54e60>
@@ -376,44 +399,48 @@ class EndpointTest < Minitest::Spec
 
 
   # 1.b2 another application error (#save), but 200 because of #failure_config_status
-    ctx = {seq: [], save: false, **app_options}
+    ctx = {seq: [], save: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 
 # invalid {cc_check}=>{cc_invalid}
-    ctx = {seq: [], cc_check: false, **app_options}
+    ctx = {seq: [], cc_check: false}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 
 
 # 4. authorization error
-    ctx = {seq: [], policy: false, **app_options}
+    ctx = {seq: []}
+    ctx = {policy: false, domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :handle_not_authorized]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :handle_not_authorized]}
   # this calls Rails default failure block
     to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true}}
 
 
 # 2. all OK
 
-    ctx = {seq: [], **app_options}
+    ctx = {seq: []}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], success_block: _rails_success_block)
 
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
     ctx[:json].must_equal %{DiagramRepresenter.new()}
 
   # Rails default success block was called
@@ -438,11 +465,12 @@ class EndpointTest < Minitest::Spec
       #     `-- End.fail_fast
 
 
-    ctx = {seq: [], gemserver_authenticate: false, **app_options}
+    ctx = {seq: []}
+    ctx = {domain_ctx: ctx, gemserver_authenticate: false, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
     to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true}}
 
   # authentication works
@@ -457,11 +485,12 @@ class EndpointTest < Minitest::Spec
     #   |-- render_success
     #   `-- End.success
 
-    ctx = {seq: [], gemserver_authenticate: true, **app_options}
+    ctx = {seq: [], gemserver_authenticate: true}
+    ctx = {domain_ctx: ctx, **app_options}
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx[:seq].inspect.must_equal %{[:gemserver_authenticate]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate]}
     to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil}}
 
 

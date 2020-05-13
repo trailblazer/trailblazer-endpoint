@@ -39,9 +39,9 @@ TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_af
             Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
             Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
             Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
-            Output(:invalid_data)       => Track(:failure), # application error, since it's usually a failed validation.
+            Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
 
-            extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: TERMINUS_HANDLER)]
+            # extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: TERMINUS_HANDLER)]
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
 
 

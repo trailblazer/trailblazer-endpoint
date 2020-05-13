@@ -7,7 +7,9 @@ module Trailblazer
       app_protocol = Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
 
-          extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)]
+# FIXME: where does this go?
+          extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)],
+            input: ->(outer, **) { outer[:domain_ctx] }
         }.merge(instance_exec(&block)))
 
       end
@@ -26,12 +28,12 @@ module Trailblazer
       # if signal < Trailblazer::Activity::End::Success
       if [:failure, :fail_fast].include?(signal.to_h[:semantic])
         # TODO: test missing failure_block!
-        failure_block && failure_block.(ctx, **ctx) # DISCUSS: this does nothing if no failure_block passed!
+        failure_block && failure_block.(endpoint_ctx, **endpoint_ctx) # DISCUSS: this does nothing if no failure_block passed!
       else
-        success_block.(ctx, **ctx)
+        success_block.(endpoint_ctx, **endpoint_ctx)
       end
 
-      return signal, [ctx]
+      return signal, [endpoint_ctx]
     end
   end
 end
