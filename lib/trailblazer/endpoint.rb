@@ -19,11 +19,14 @@ module Trailblazer
     end
 
     def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
-      signal, (ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
+      args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
+
+      signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
       # if signal < Trailblazer::Activity::End::Success
       if [:failure, :fail_fast].include?(signal.to_h[:semantic])
-        failure_block.(ctx, **ctx)
+        # TODO: test missing failure_block!
+        failure_block && failure_block.(ctx, **ctx) # DISCUSS: this does nothing if no failure_block passed!
       else
         success_block.(ctx, **ctx)
       end
