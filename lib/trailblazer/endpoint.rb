@@ -9,7 +9,8 @@ module Trailblazer
 
 # FIXME: where does this go?
           extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)],
-            input: ->(outer, **) { outer[:domain_ctx] }
+            input: ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
+            output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
         }.merge(instance_exec(&block)))
 
       end

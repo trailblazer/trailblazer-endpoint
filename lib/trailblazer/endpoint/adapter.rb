@@ -28,11 +28,14 @@ def self.bla(wrap_ctx, original_args)
 # - #<Trailblazer::Activity::End semantic=:failure>
 # - #<Trailblazer::Activity::End semantic=:success>
 # - #<Trailblazer::Activity::End semantic=:fail_fast>
-  original_args[0][0][:domain_activity_return_signal] = wrap_ctx[:return_signal]
+
+# {:return_args} is the original "endpoint ctx" that was returned from the {:output} filter.
+  wrap_ctx[:return_args][0][:domain_activity_return_signal] = wrap_ctx[:return_signal]
 
   return wrap_ctx, original_args
 end
-TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after),  "task_wrap.call_task", ["end_signal", method(:bla)]]]
+# this is called after {:output}.
+TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:bla)]]]
 
         step Subprocess(Protocol), # this will get replaced
             id: :protocol,
