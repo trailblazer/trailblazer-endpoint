@@ -26,14 +26,18 @@ module Trailblazer
 
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
+      # this ctx is passed to the controller block.
+      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx)
+
       # if signal < Trailblazer::Activity::End::Success
       if [:failure, :fail_fast].include?(signal.to_h[:semantic])
         # TODO: test missing failure_block!
-        failure_block && failure_block.(endpoint_ctx, **endpoint_ctx) # DISCUSS: this does nothing if no failure_block passed!
+        failure_block && failure_block.(block_ctx, **block_ctx) # DISCUSS: this does nothing if no failure_block passed!
       else
-        success_block.(endpoint_ctx, **endpoint_ctx)
+        success_block.(block_ctx, **block_ctx)
       end
 
+      # we return the original context???
       return signal, [endpoint_ctx]
     end
   end
