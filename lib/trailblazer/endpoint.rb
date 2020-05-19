@@ -2,17 +2,22 @@
 
 module Trailblazer
   class Endpoint
-     def self.build(protocol:, adapter:, domain_activity:, &block)
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, &block)
+
+      extensions_options = {
+        extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)],
+      }
+      extensions_options = extensions_options.merge(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
+
 
       app_protocol = Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
 
 # FIXME: where does this go?
-          extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)],
-            input: ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
-            output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
-        }.merge(instance_exec(&block)))
-
+        }.
+          merge(extensions_options).
+          merge(instance_exec(&block))
+          )
       end
 
       Class.new(adapter) do
@@ -21,8 +26,15 @@ module Trailblazer
 
     end
 
+    def self.options_for_scope_domain_ctx()
+      {
+        input:  ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
+        output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
+      }
+    end
+
     def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
-      args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
+      # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
