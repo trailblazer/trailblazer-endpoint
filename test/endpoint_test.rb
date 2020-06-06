@@ -226,10 +226,20 @@ class EndpointTest < Minitest::Spec
 # workflow always terminates on wait events/termini => somewhere, we need to interpret that
 # OP ends on terminus
 
+  class Errors < Struct.new(:message, :errors) # FIXME: extract
+  end
+require "json"
+  class ErrorsRepresenter < Struct.new(:model)
+    def to_json
+      JSON.generate(model)
+    end
+  end
+
   let(:app_options) do
     app_options = {
-      error_representer: "ErrorRepresenter",
+      error_representer: ErrorsRepresenter,
       representer: "DiagramRepresenter",
+      errors: Errors.new,
     }
   end
 
@@ -252,7 +262,7 @@ class EndpointTest < Minitest::Spec
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model]}
-    to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true, :seq=>\"[:authenticate, :policy, :my_policy, :model]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>nil, :status=>404}, :bla=>true, :seq=>\"[:authenticate, :policy, :my_policy, :model]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
   # 2. **201** because the model is new.
     ctx = {seq: []}
@@ -280,17 +290,16 @@ class EndpointTest < Minitest::Spec
 
   ######### API #########
   # FIXME: fake the controller
-  let(:_rails_success_block) do ->(ctx, endpoint_ctx:, seq:, signal:, **) { head(endpoint_ctx[:status]); render json: endpoint_ctx[:json]; @bla = nil; @seq = seq.inspect; @signal = signal.inspect } end
-  let(:_rails_failure_block) do ->(ctx, endpoint_ctx:, seq:, signal:, **) { head(endpoint_ctx[:status]); render json: endpoint_ctx[:json]; @bla = true; @seq = seq.inspect; @signal = signal.inspect } end # nil-JSON with 404,
+  let(:_rails_success_block) do ->(ctx, endpoint_ctx:, seq:, signal:, model:, **) {
+    render json: endpoint_ctx[:json], status: endpoint_ctx[:status]; @seq = seq.inspect; @signal = signal.inspect } end
+  let(:_rails_failure_block) do ->(ctx, endpoint_ctx:, seq:, signal:, errors:, **) {
+    render json: endpoint_ctx[:json], status: endpoint_ctx[:status]; @seq = seq.inspect; @signal = signal.inspect } end # nil-JSON with 404,
 
-  def head(code)
-    @head = code
-  end
   def render(options)
     @render_options = options
   end
   def to_h
-    {head: @head, render_options: @render_options, bla: @bla, seq: @seq, signal: @signal}
+    {render_options: @render_options, seq: @seq, signal: @signal}
   end
 
   it do

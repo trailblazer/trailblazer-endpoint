@@ -76,6 +76,30 @@ module Trailblazer
           end
         end
       end
+
+
+      module Domain
+        # taskWrap step that saves the return signal of the {domain_activity}.
+        # The taskWrap step is usually inserted after {task_wrap.output}.
+        def self.terminus_handler(wrap_ctx, original_args)
+
+        #      Unrecognized Signal `"bla"` returned from EndpointTest::LegacyCreate. Registered signals are,
+        # - #<Trailblazer::Activity::End semantic=:failure>
+        # - #<Trailblazer::Activity::End semantic=:success>
+        # - #<Trailblazer::Activity::End semantic=:fromail_fast>
+
+        # {:return_args} is the original "endpoint ctx" that was returned from the {:output} filter.
+          wrap_ctx[:return_args][0][:domain_activity_return_signal] = wrap_ctx[:return_signal]
+
+          return wrap_ctx, original_args
+        end
+
+        def self.extension_for_terminus_handler
+          # this is called after {:output}.
+          [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:terminus_handler)]]]
+        end
+      end
+
     end
   end
 end

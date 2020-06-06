@@ -1,14 +1,28 @@
-# # require "dry/matcher"
-
 module Trailblazer
   class Endpoint
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, &block)
+    # Create an {Endpoint} class with the provided adapter and protocol.
+    # This builder also sets up taskWrap filters around the {domain_activity} execution.
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, &block)
+
+      # special considerations around the {domain_activity} and its taskWrap:
+      #
+      #  1. domain_ctx_filter (e.g. to filter {current_user})
+      #  2. :input (scope {:domain_ctx})
+      #  3. call (domain_activity)
+      #  4. :output
+      #  5. save return signal
+
 
       extensions_options = {
-        extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Adapter::API::TERMINUS_HANDLER)],
+        extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Protocol::Domain.extension_for_terminus_handler)],
       }
-      extensions_options = extensions_options.merge(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
 
+      # scoping: {:domain_ctx} becomes ctx
+      extensions_options.merge!(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
+
+
+      domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
+      extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
 
       app_protocol = Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
@@ -16,7 +30,7 @@ module Trailblazer
 # FIXME: where does this go?
         }.
           merge(extensions_options).
-          merge(instance_exec(&block))
+          merge(instance_exec(&block)) # the block is evaluated in the {Protocol} context.
           )
       end
 
@@ -39,7 +53,7 @@ module Trailblazer
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
       # this ctx is passed to the controller block.
-      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal)
+      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors?
 
       # if signal < Trailblazer::Activity::End::Success
       if [:failure, :fail_fast].include?(signal.to_h[:semantic])

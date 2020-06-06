@@ -14,28 +14,13 @@ module Trailblazer
       # {End.fail_fast} currently implies a 4xx-able error.
       class API < Trailblazer::Activity::FastTrack
         _404_path = ->(*) { step :_404_status }
-        _401_path = ->(*) { step :_401_status }
+        _401_path = ->(*) { step :_401_status; step :_401_error_message }
         _403_path = ->(*) { step :_403_status }
         # _422_path = ->(*) { step :_422_status } # TODO: this is currently represented by the {failure} track.
 
         # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
 require "trailblazer/endpoint/protocol"
 # FIXME
-
-def self.bla(wrap_ctx, original_args)
-
-#      Unrecognized Signal `"bla"` returned from EndpointTest::LegacyCreate. Registered signals are,
-# - #<Trailblazer::Activity::End semantic=:failure>
-# - #<Trailblazer::Activity::End semantic=:success>
-# - #<Trailblazer::Activity::End semantic=:fail_fast>
-
-# {:return_args} is the original "endpoint ctx" that was returned from the {:output} filter.
-  wrap_ctx[:return_args][0][:domain_activity_return_signal] = wrap_ctx[:return_signal]
-
-  return wrap_ctx, original_args
-end
-# this is called after {:output}.
-TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:bla)]]]
 
         step Subprocess(Protocol), # this will get replaced
             id: :protocol,
@@ -101,9 +86,11 @@ TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_af
           render_failure(*args)
         end
 
-        def render_failure(*args)
-          render_success(*args)
-        end
+      # ROAR
+        def render_failure(ctx, error_representer:, errors:, **)
+          # render_success(*args)
+          ctx[:json] = error_representer.new(errors).to_json
+      end
   # how/where would we configure each endpoint? (per action)
     # class Endpoint
     #   representer ...
@@ -119,6 +106,10 @@ TERMINUS_HANDLER = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_af
 
         def _403_status(ctx, **)
           ctx[:status] = 403
+        end
+
+        def _401_error_message(ctx, **)
+          ctx[:error_message] = "Authentication credentials were not provided or invalid."
         end
 
         # def exec_success(ctx, success_block:, **)
