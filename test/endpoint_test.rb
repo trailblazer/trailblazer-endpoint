@@ -34,6 +34,14 @@ class EndpointTest < Minitest::Spec
   # test with authenticated user
   #      without user but for a "free" action
 
+  module Model
+    def model(ctx, seq:, model:true, **)
+      ctx[:model] = Struct.new(:name).new("Yo") if model
+      seq << :model
+      model
+    end
+  end
+
 
   # Example OP with three termini
   class Create < Trailblazer::Activity::Railway
@@ -43,6 +51,8 @@ class EndpointTest < Minitest::Spec
     step :cc_check, Output(:failure) => End(:cc_invalid)
     step :validate, Output(:failure) => End(:my_validation_error)
     step :save
+
+    include Model
   end
 
   # Represents a classic FastTrack OP without additional ends.
@@ -58,13 +68,7 @@ class EndpointTest < Minitest::Spec
     step :cc_check, fail_fast: true
     step :validate
     step :save
-
-    def model(ctx, seq:, model:true, **)
-      puts ctx.inspect
-      ctx[:model] = Struct.new(:name).new("Yo") if model
-      seq << :model
-      model
-    end
+    include Model
   end
 
 
@@ -124,8 +128,8 @@ class EndpointTest < Minitest::Spec
   #   representer ...
   #   message ...
 
-    def my_401_handler(ctx, domain_ctx:, **)
-      ctx[:model] = Struct.new(:error_message).new("No token")
+    def my_401_handler(ctx, domain_ctx:, errors:, **)
+      errors.message = "No token"
 
       domain_ctx[:seq] << :my_401_handler
     end
@@ -225,15 +229,11 @@ class EndpointTest < Minitest::Spec
         step nil, delete: :domain_activity
         step :gemserver_authenticate, replace: :authenticate, id: :authenticate, inherit: true
 
-        # def gemserver_authenticate(ctx, gemserver_authenticate:true, **)
-        #   ctx[:]
-        # end
-        [:gemserver_authenticate].each do |name|
-          define_method(name) do |ctx, **|
-            ctx[:domain_ctx][:seq] << name
-            return false if ctx[name] === false
-            true
-          end
+        def gemserver_authenticate(ctx, domain_ctx:, gemserver_authenticate:true, **)
+          return false if ctx[:gemserver_authenticate] === false
+
+          domain_ctx[:seq] << :gemserver_authenticate
+          domain_ctx[:model] = Struct.new(:name).new("Gemserver says yes.")
         end
         }
       }), replace: :protocol, inherit: true, id: :protocol
@@ -380,7 +380,7 @@ require "json"
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
     # DISCUSS: where to add things like headers?
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":null}\", :status=>401}, :failure=>true, :seq=>\"[:authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
    # raise ctx.inspect
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
@@ -482,10 +482,10 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
-    ctx[:json].must_equal %{DiagramRepresenter.new()}
+    ctx[:json].must_equal %{{\"name\":\"Yo\"}}
 
   # Rails default success block was called
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :failure=>nil, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"name\\\":\\\"Yo\\\"}\", :status=>200}, :failure=>nil, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
 
 
 # 3. 401 for API::Gemauth
@@ -511,8 +511,8 @@ require "json"
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
-    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :failure=>true, :seq=>\"[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:handle_not_authenticated, :my_401_handler]}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
   # authentication works
     # `-- EndpointTest::Adapter::API::Gemauth
@@ -528,11 +528,12 @@ require "json"
 
     ctx = {seq: [], gemserver_authenticate: true}
     ctx = {domain_ctx: ctx, **app_options}
+
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], success_block: _rails_success_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate]}
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :failure=>nil, :seq=>\"[:gemserver_authenticate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"name\\\":\\\"Gemserver says yes.\\\"}\", :status=>200}, :failure=>nil, :seq=>\"[:gemserver_authenticate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
 
 
 ######### Controller #########
