@@ -66,8 +66,10 @@ require "trailblazer/endpoint/protocol"
           failure_render_config(*args)
         end
 
-        def render_success(ctx, **)
-          ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
+# ROAR
+        def render_success(ctx, representer:, domain_ctx:, **)
+          model = domain_ctx[:model]
+          ctx[:json] = representer.new(model).to_json # FIXME: use the same as render_failure.
         end
 
         def failure_render_config(ctx, error_representer:, **)

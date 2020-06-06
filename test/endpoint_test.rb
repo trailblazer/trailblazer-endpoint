@@ -58,6 +58,13 @@ class EndpointTest < Minitest::Spec
     step :cc_check, fail_fast: true
     step :validate
     step :save
+
+    def model(ctx, seq:, model:true, **)
+      puts ctx.inspect
+      ctx[:model] = Struct.new(:name).new("Yo") if model
+      seq << :model
+      model
+    end
   end
 
 
@@ -99,9 +106,9 @@ class EndpointTest < Minitest::Spec
                       # FIXME: :after doesn't work
     step :my_401_handler, before: :_401_status, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
 
-    def render_success(ctx, **)
-      ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
-    end
+    # def render_success(ctx, **)
+    #   ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}
+    # end
 
     def failure_config_status(ctx, **)
       # DISCUSS: this is a bit like "success?" or a matcher.
@@ -127,10 +134,22 @@ class EndpointTest < Minitest::Spec
   api_create_endpoint =
     Trailblazer::Endpoint.build(
       adapter:          MyApiAdapter,
-      protocol:         MyTest::Protocol,
+      protocol:         Class.new(MyTest::Protocol) do # FIXME: why do we have to open a new class to inject the handler method?
+        def handle_invalid_data(ctx, errors:, **) # FIXME: should this be part of the library?
+          errors.message = "The submitted data is invalid."
+          # DISCUSS: here, we could "translate" the {contract.errors}.
+        end
+
+        def handle_not_authorized(ctx, errors:, **)
+          errors.message = "Action not allowed due to a policy."
+        end
+      end,
       domain_activity:  Create,
     ) do
       ### PROTOCOL ###
+
+      step :handle_invalid_data, magnetic_to: :invalid_data, Output(:success) => Track(:invalid_data)
+
       # these are arguments for the Protocol.domain_activity
       {
         # wire a non-standardized application error to its semantical pendant.
@@ -152,7 +171,13 @@ class EndpointTest < Minitest::Spec
     adapter:          Class.new(MyApiAdapter) { def success_render_status(ctx, **)
       ctx[:status] = 201
     end },
-    protocol:         myp = Trailblazer::Endpoint::Protocol::Bridge.insert(MyTest::Protocol),
+    protocol:         Trailblazer::Endpoint::Protocol::Bridge.insert(MyTest::Protocol).class_eval do
+      def handle_not_authorized(ctx, errors:, **)
+        errors.message = "Action not allowed due to a policy."
+      end
+
+      self
+    end,
     domain_activity:  LegacyCreate,
   ) do
 
@@ -229,16 +254,22 @@ class EndpointTest < Minitest::Spec
   class Errors < Struct.new(:message, :errors) # FIXME: extract
   end
 require "json"
-  class ErrorsRepresenter < Struct.new(:model)
+  class ErrorsRepresenter < Struct.new(:model) # DISCUSS: use Representable?
     def to_json
-      JSON.generate(model)
+      JSON.generate(errors: model.errors, message: model.message)
     end
   end
 
-  let(:app_options) do
-    app_options = {
+  class DiagramRepresenter < ErrorsRepresenter
+    def to_json
+      JSON.generate({name: model.name})
+    end
+  end
+
+  def app_options
+      app_options = {
       error_representer: ErrorsRepresenter,
-      representer: "DiagramRepresenter",
+      representer: DiagramRepresenter,
       errors: Errors.new,
     }
   end
@@ -262,7 +293,7 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model]}
-    to_h.inspect.must_equal %{{:render_options=>{:json=>nil, :status=>404}, :bla=>true, :seq=>\"[:authenticate, :policy, :my_policy, :model]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>nil, :status=>404}, :failure=>true, :seq=>\"[:authenticate, :policy, :my_policy, :model]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
   # 2. **201** because the model is new.
     ctx = {seq: []}
@@ -271,7 +302,7 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy, :model, :cc_check, :validate, :save]}
-    to_h.inspect.must_equal %{{:head=>201, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil, :seq=>\"[:authenticate, :policy, :my_policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"name\\\":\\\"Yo\\\"}\", :status=>201}, :failure=>nil, :seq=>\"[:authenticate, :policy, :my_policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
 
   # **403** because my_policy fails.
     ctx = {seq: [], my_policy: false}
@@ -281,8 +312,7 @@ require "json"
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :my_policy]}
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true, :seq=>\"[:authenticate, :policy, :my_policy]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
-
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"Action not allowed due to a policy.\\\"}\", :status=>403}, :failure=>true, :seq=>\"[:authenticate, :policy, :my_policy]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
   # we can read {:domain_activity_return_signal} (currently only set for fails)
     ctx[:_domain_activity_return_signal].inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
   end
@@ -291,15 +321,17 @@ require "json"
   ######### API #########
   # FIXME: fake the controller
   let(:_rails_success_block) do ->(ctx, endpoint_ctx:, seq:, signal:, model:, **) {
+    @failure = nil
     render json: endpoint_ctx[:json], status: endpoint_ctx[:status]; @seq = seq.inspect; @signal = signal.inspect } end
   let(:_rails_failure_block) do ->(ctx, endpoint_ctx:, seq:, signal:, errors:, **) {
+    @failure = true
     render json: endpoint_ctx[:json], status: endpoint_ctx[:status]; @seq = seq.inspect; @signal = signal.inspect } end # nil-JSON with 404,
 
   def render(options)
     @render_options = options
   end
   def to_h
-    {render_options: @render_options, seq: @seq, signal: @signal}
+    {render_options: @render_options, failure: @failure, seq: @seq, signal: @signal}
   end
 
   it do
@@ -348,7 +380,7 @@ require "json"
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
     # DISCUSS: where to add things like headers?
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true, :seq=>\"[:authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":null}\", :status=>401}, :failure=>true, :seq=>\"[:authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
    # raise ctx.inspect
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
@@ -358,7 +390,7 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :handle_not_found]}
-    to_h.inspect.must_equal %{{:head=>404, :render_options=>{:json=>nil}, :bla=>true, :seq=>\"[:authenticate, :policy, :model, :handle_not_found]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>nil, :status=>404}, :failure=>true, :seq=>\"[:authenticate, :policy, :model, :handle_not_found]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
 # `-- #<Class:0x0000000001ff5d88>
 #     |-- Start.default
@@ -386,7 +418,7 @@ require "json"
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:failure>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate]}
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:head=>422, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"The submitted data is invalid.\\\"}\", :status=>422}, :failure=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
 # `-- #<Class:0x0000000002e54e60>
 #     |-- Start.default
 #     |-- protocol
@@ -398,12 +430,12 @@ require "json"
 #     |   |   |-- model
 #     |   |   |-- validate
 #     |   |   `-- End.my_validation_error
+#     |   |-- handle_invalid_data
 #     |   `-- End.invalid_data               this is wired to the {failure} track
 #     |-- failure_render_config
 #     |-- failure_config_status
 #     |-- render_failure
 #     `-- End.failure
-
 
 
 
@@ -416,7 +448,7 @@ require "json"
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check, :validate, :save]}
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":null}\", :status=>200}, :failure=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
 
 # invalid {cc_check}=>{cc_invalid}
     ctx = {seq: [], cc_check: false}
@@ -427,7 +459,7 @@ require "json"
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :model, :cc_check]}
   # this calls Rails default failure block
               # we set status to 200 in #failure_config_status
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":null}\", :status=>200}, :failure=>true, :seq=>\"[:authenticate, :policy, :model, :cc_check]\", :signal=>\"#<Trailblazer::Activity::End semantic=:failure>\"}}
 
 
 # 4. authorization error
@@ -436,9 +468,9 @@ require "json"
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy, :handle_not_authorized]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :policy]}
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:head=>403, :render_options=>{:json=>\"ErrorRepresenter.new()\"}, :bla=>true, :seq=>\"[:authenticate, :policy, :handle_not_authorized]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"Action not allowed due to a policy.\\\"}\", :status=>403}, :failure=>true, :seq=>\"[:authenticate, :policy]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
 
 # 2. all OK
@@ -453,7 +485,7 @@ require "json"
     ctx[:json].must_equal %{DiagramRepresenter.new()}
 
   # Rails default success block was called
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :failure=>nil, :seq=>\"[:authenticate, :policy, :model, :cc_check, :validate, :save]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
 
 
 # 3. 401 for API::Gemauth
@@ -480,7 +512,7 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]}
-    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :bla=>true, :seq=>\"[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:head=>401, :render_options=>{:json=>\"ErrorRepresenter.new(#<struct error_message=\\\"No token\\\">)\"}, :failure=>true, :seq=>\"[:gemserver_authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
   # authentication works
     # `-- EndpointTest::Adapter::API::Gemauth
@@ -500,7 +532,7 @@ require "json"
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
     ctx[:domain_ctx][:seq].inspect.must_equal %{[:gemserver_authenticate]}
-    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :bla=>nil, :seq=>\"[:gemserver_authenticate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
+    to_h.inspect.must_equal %{{:head=>200, :render_options=>{:json=>\"DiagramRepresenter.new()\"}, :failure=>nil, :seq=>\"[:gemserver_authenticate]\", :signal=>\"#<Trailblazer::Activity::End semantic=:success>\"}}
 
 
 ######### Controller #########

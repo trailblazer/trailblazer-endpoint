@@ -72,7 +72,10 @@ module Trailblazer
             fail :success?, after: :domain_activity,
             # FIXME: how to add more signals/outcomes?
             Output(NotFound, :not_found)            => Track(:not_found),
-            Output(NotAuthorized, :not_authorized)  => Id("End.not_authorized") # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
+
+            # FIXME: Track(:not_authorized) is defined before this step, so the Forward search doesn't find it.
+            # solution would be to walk down sequence and find the first {:magnetic_to} "not_authorized"
+            Output(NotAuthorized, :not_authorized)  => Id(:handle_not_authorized) # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
           end
         end
       end
