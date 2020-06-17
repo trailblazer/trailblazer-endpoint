@@ -53,7 +53,7 @@ module Trailblazer
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
       # this ctx is passed to the controller block.
-      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors?
+      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors? status?
 
       # if signal < Trailblazer::Activity::End::Success
       if [:failure, :fail_fast].include?(signal.to_h[:semantic])
