@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
 
 
   # spec.add_dependency "dry-matcher"
-  spec.add_dependency "trailblazer-activity-dsl-linear"
+  spec.add_dependency "trailblazer-activity-dsl-linear", ">= 0.2.8", "< 0.4.0"
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
