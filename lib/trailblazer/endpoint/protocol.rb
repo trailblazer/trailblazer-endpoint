@@ -25,21 +25,12 @@ module Trailblazer
         Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Failure.new(semantic: semantic), &block)
       end
 
-      # step :authenticate, Output(:failure) => Path(track_color: :not_authenticated,
-      #   connect_to: Id(:handle_not_authenticated)) do# user from cookie, etc
-
-      #   step :a
-      # end
-
-      # DISCUSS: do we really need those paths here? On the other hand, they basically come "for free".
-
-      # step :authenticate, Output(:failure) => Track(:_not_authenticated)
       step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
-          step :handle_not_authenticated
+          # step :handle_not_authenticated
         end
 
       step :policy, Output(:failure) => _Path(semantic: :not_authorized) do # user from cookie, etc
-        step :handle_not_authorized
+        # step :handle_not_authorized
       end
 
       # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
@@ -75,7 +66,7 @@ module Trailblazer
 
             # FIXME: Track(:not_authorized) is defined before this step, so the Forward search doesn't find it.
             # solution would be to walk down sequence and find the first {:magnetic_to} "not_authorized"
-            Output(NotAuthorized, :not_authorized)  => Id(:handle_not_authorized) # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
+            Output(NotAuthorized, :not_authorized)  => Track(:not_authorized, wrap_around: true) # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
           end
         end
       end

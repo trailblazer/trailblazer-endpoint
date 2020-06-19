@@ -147,6 +147,8 @@ class EndpointTest < Minitest::Spec
         def handle_not_authorized(ctx, errors:, **)
           errors.message = "Action not allowed due to a policy."
         end
+
+        step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized), before: "End.not_authorized"
       end,
       domain_activity:  Create,
     ) do
@@ -179,6 +181,8 @@ class EndpointTest < Minitest::Spec
       def handle_not_authorized(ctx, errors:, **)
         errors.message = "Action not allowed due to a policy."
       end
+
+      step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized), before: "End.not_authorized"
 
       self
     end,
@@ -377,10 +381,10 @@ require "json"
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(api_create_endpoint, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :handle_not_authenticated, :my_401_handler]}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:authenticate, :my_401_handler]}
     # DISCUSS: where to add things like headers?
   # this calls Rails default failure block
-    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:authenticate, :handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:authenticate, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
    # raise ctx.inspect
 
   # 1.c 404 (NO RENDERING OF BODY!!!)
@@ -511,8 +515,8 @@ require "json"
     signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(Gemauth, [ctx, {}], failure_block: _rails_failure_block)
 
     signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:fail_fast>}
-    ctx[:domain_ctx][:seq].inspect.must_equal %{[:handle_not_authenticated, :my_401_handler]}
-    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:handle_not_authenticated, :my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
+    ctx[:domain_ctx][:seq].inspect.must_equal %{[:my_401_handler]}
+    to_h.inspect.must_equal %{{:render_options=>{:json=>\"{\\\"errors\\\":null,\\\"message\\\":\\\"No token\\\"}\", :status=>401}, :failure=>true, :seq=>\"[:my_401_handler]\", :signal=>\"#<Trailblazer::Activity::End semantic=:fail_fast>\"}}
 
   # authentication works
     # `-- EndpointTest::Adapter::API::Gemauth
