@@ -51,6 +51,24 @@ module Trailblazer
         sequence
       end
 
+
+      class Standard < Protocol
+        step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated), before: "End.not_authenticated"
+        step :handle_not_authorized,    magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized), before: "End.not_authorized"
+
+
+        # TODO: allow translation.
+        module Handler
+          def handle_not_authorized(ctx, errors:, **)
+            errors.message = "Action not allowed due to a policy setting."
+          end
+
+          def handle_not_authenticated(ctx, errors:, **)
+            errors.message = "Authentication credentials were not provided or invalid."
+          end
+        end
+      end
+
       module Bridge
         # this "bridge" should be optional for "legacy operations" that don't have explicit ends.
         # we have to inspect the ctx to find out what "really" happened (e.g. model empty ==> 404)
@@ -62,7 +80,7 @@ module Trailblazer
           Class.new(protocol) do
             fail :success?, after: :domain_activity,
             # FIXME: how to add more signals/outcomes?
-            Output(NotFound, :not_found)            => Track(:not_found),
+            Output(NotFound, :not_found)            => Track(:not_found, wrap_around: true),
 
             # FIXME: Track(:not_authorized) is defined before this step, so the Forward search doesn't find it.
             # solution would be to walk down sequence and find the first {:magnetic_to} "not_authorized"

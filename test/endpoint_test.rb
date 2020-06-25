@@ -17,7 +17,6 @@ require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
 
 class EndpointTest < Minitest::Spec
-  T = Trailblazer::Activity::Testing
   #   policies
   #    policy.success?
   # invoke

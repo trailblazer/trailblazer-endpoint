@@ -7,7 +7,27 @@ module Trailblazer
     # class Adapter < Trailblazer::Activity::FastTrack # TODO: naming. it's after the "application logic", more like Controller
  # Currently reusing End.fail_fast as a "something went wrong, but it wasn't a real application error!"
 
+
     module Adapter
+      class Web <Trailblazer::Activity::Railway
+
+        # step Subprocess(Endpoint::Protocol), # this will get replaced
+        #   id: :protocol,
+        #   Output(:not_authorized)     => Path(track_color: :not_authorized, connect_to: Id(:protocol_failure), &->(*) {  })#,
+
+        #   # Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
+        #   # Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
+        #   # Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
+
+        #   @state.update_sequence do |sequence:, **|
+        #     sequence = Activity::Path::DSL.append_end(sequence, task: Protocol::Failure.new(semantic: :protocol_failure), magnetic_to: :protocol_failure, id: "End.protocol_failure")
+
+        #     recompile_activity!(sequence)
+
+        #     sequence
+        #   end
+      end
+
       # Basic endpoint adapter for a HTTP document API.
       # As always: "work in progress" ;)
       #
@@ -19,15 +39,14 @@ module Trailblazer
         # _422_path = ->(*) { step :_422_status } # TODO: this is currently represented by the {failure} track.
 
         # The API Adapter automatically wires well-defined outputs for you to well-defined paths. :)
-require "trailblazer/endpoint/protocol"
 # FIXME
 
         step Subprocess(Protocol), # this will get replaced
-            id: :protocol,
-            Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
-            Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
-            Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
-            Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
+          id: :protocol,
+          Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:render_protocol_failure_config), &_403_path),
+          Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
+          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
+          Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
 
             # extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: TERMINUS_HANDLER)]
             # failure is automatically wired to failure, being an "application error" vs. a "protocol error (auth, etc)"
