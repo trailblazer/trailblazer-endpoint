@@ -51,10 +51,11 @@ module Trailblazer
         sequence
       end
 
-
+      # Best-practices of useful routes and handlers that work with 2.1-OPs.
       class Standard < Protocol
         step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated)#, before: "End.not_authenticated"
-        step :handle_not_authorized,    magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized)#, before: "End.not_authorized"
+        step :handle_not_authorized,    magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized)
+        # step :handle_invalid_data,      magnetic_to: :invalid_data, Output(:success) => Track(:invalid_data), Output(:failure) => Track(:invalid_data)
 
 
         # TODO: allow translation.
@@ -66,6 +67,10 @@ module Trailblazer
           def handle_not_authenticated(ctx, errors:, **)
             errors.message = "Authentication credentials were not provided or are invalid."
           end
+        end
+
+        class Termini # FIXME: this means with invalid_data, not_found termini? 2.1?
+
         end
       end
 

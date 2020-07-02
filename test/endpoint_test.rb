@@ -16,6 +16,105 @@ require "trailblazer/endpoint"
 require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
 
+
+class Basic_EndpointTest < Minitest::Spec
+  it "{Protocol} is very simple and has no handlers" do
+    protocol = Class.new(Trailblazer::Endpoint::Protocol)
+
+    Trailblazer::Developer.render(protocol).must_equal %{
+#<Start/:default>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=authenticate>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=authenticate>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+ {Trailblazer::Activity::Right} => Trailblazer::Endpoint::Protocol::Noop
+Trailblazer::Endpoint::Protocol::Noop
+ {#<Trailblazer::Activity::End semantic=:failure>} => #<End/:failure>
+ {#<Trailblazer::Activity::End semantic=:success>} => #<End/:success>
+#<End/:success>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:invalid_data>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_found>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+
+#<End/:failure>
+}
+  end
+
+  it "{Protocol::Standard} has handlers for 401, 403, 422" do
+    protocol = Class.new(Trailblazer::Endpoint::Protocol::Standard)
+
+    Trailblazer::Developer.render(protocol).must_equal %{
+#<Start/:default>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=authenticate>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=authenticate>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authenticated>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authorized>
+ {Trailblazer::Activity::Right} => Trailblazer::Endpoint::Protocol::Noop
+Trailblazer::Endpoint::Protocol::Noop
+ {#<Trailblazer::Activity::End semantic=:failure>} => #<End/:failure>
+ {#<Trailblazer::Activity::End semantic=:success>} => #<End/:success>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authenticated>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authorized>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+#<End/:success>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:invalid_data>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_found>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+
+#<End/:failure>
+}
+  end
+
+    it "{Adapter::Web} has status setters for 401, 403, 422" do
+    protocol = Class.new(Trailblazer::Endpoint::Adapter::Web)
+
+    Trailblazer::Developer.render(protocol).must_equal %{
+#<Start/:default>
+ {Trailblazer::Activity::Right} => Trailblazer::Endpoint::Protocol
+Trailblazer::Endpoint::Protocol
+ {#<Trailblazer::Activity::End semantic=:failure>} => #<End/:failure>
+ {#<Trailblazer::Activity::End semantic=:success>} => #<End/:success>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authorized>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_403_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_found>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_404_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authenticated>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:invalid_data>} => #<End/:failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_403_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_404_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+ {Trailblazer::Activity::Left} => #<End/:fail_fast>
+ {Trailblazer::Activity::Right} => #<End/:fail_fast>
+#<End/:success>
+
+#<End/:pass_fast>
+
+#<End/:fail_fast>
+
+#<End/:failure>
+}
+  end
+end
+
 class EndpointTest < Minitest::Spec
   #   policies
   #    policy.success?

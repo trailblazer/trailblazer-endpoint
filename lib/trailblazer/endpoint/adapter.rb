@@ -9,23 +9,38 @@ module Trailblazer
 
 
     module Adapter
-      class Web <Trailblazer::Activity::Railway
+      class Web <Trailblazer::Activity::FastTrack
+        _404_path = ->(*) { step :_404_status }
+        _401_path = ->(*) { step :_401_status }
+        _403_path = ->(*) { step :_403_status }
+        # _422_path = ->(*) { step :_422_status } # TODO: this is currently represented by the {failure} track.
 
-        # step Subprocess(Endpoint::Protocol), # this will get replaced
-        #   id: :protocol,
-        #   Output(:not_authorized)     => Path(track_color: :not_authorized, connect_to: Id(:protocol_failure), &->(*) {  })#,
+        step Subprocess(Protocol), # this will get replaced
+          id: :protocol,
+          Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:protocol_failure), &_403_path),
+          Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
+          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:protocol_failure), &_401_path),
+          Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
 
-        #   # Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
-        #   # Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:render_protocol_failure_config), &_401_path),       # head(401), representer: Representer::Error, message: no token
-        #   # Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
+        step :protocol_failure, magnetic_to: nil, Output(:success) => Track(:fail_fast), Output(:failure) => Track(:fail_fast)
 
-        #   @state.update_sequence do |sequence:, **|
-        #     sequence = Activity::Path::DSL.append_end(sequence, task: Protocol::Failure.new(semantic: :protocol_failure), magnetic_to: :protocol_failure, id: "End.protocol_failure")
+        def protocol_failure(ctx, **)
+          true
+        end
 
-        #     recompile_activity!(sequence)
 
-        #     sequence
-        #   end
+# FIXME:::::::
+                def _401_status(ctx, **)
+          ctx[:status] = 401
+        end
+
+        def _404_status(ctx, **)
+          ctx[:status] = 404
+        end
+
+        def _403_status(ctx, **)
+          ctx[:status] = 403
+        end
       end
 
       # Basic endpoint adapter for a HTTP document API.
