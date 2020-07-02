@@ -26,19 +26,9 @@ class DocsEndpointTest < Minitest::Spec
 #<Trailblazer::Activity::TaskBuilder::Task user_proc=authenticate>
  {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authenticated>
  {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
-#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authenticated>
- {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
- {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
-#<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
-
 #<Trailblazer::Activity::TaskBuilder::Task user_proc=policy>
  {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authorized>
  {Trailblazer::Activity::Right} => Trailblazer::Endpoint::Protocol::Noop
-#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authorized>
- {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
- {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
-#<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
-
 Trailblazer::Endpoint::Protocol::Noop
  {#<Trailblazer::Activity::End semantic=:failure>} => #<End/:failure>
  {#<Trailblazer::Activity::End semantic=:success>} => #<End/:success>
@@ -47,6 +37,16 @@ Trailblazer::Endpoint::Protocol::Noop
 #<Trailblazer::Endpoint::Protocol::Failure/:invalid_data>
 
 #<Trailblazer::Endpoint::Protocol::Failure/:not_found>
+
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authorized>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authorized>
+
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=handle_not_authenticated>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
+#<Trailblazer::Endpoint::Protocol::Failure/:not_authenticated>
 
 #<End/:failure>
 }

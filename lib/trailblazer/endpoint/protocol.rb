@@ -21,7 +21,7 @@ module Trailblazer
         # end
       end
 
-      def self._Path(semantic:, &block)
+      def self._Path(semantic:, &block) # DISCUSS: the problem with Path currently is https://github.com/trailblazer/trailblazer-activity-dsl-linear/issues/27
         Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Failure.new(semantic: semantic), &block)
       end
 
@@ -53,8 +53,8 @@ module Trailblazer
 
 
       class Standard < Protocol
-        step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated), before: "End.not_authenticated"
-        step :handle_not_authorized,    magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized), before: "End.not_authorized"
+        step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated)#, before: "End.not_authenticated"
+        step :handle_not_authorized,    magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized)#, before: "End.not_authorized"
 
 
         # TODO: allow translation.
@@ -64,7 +64,7 @@ module Trailblazer
           end
 
           def handle_not_authenticated(ctx, errors:, **)
-            errors.message = "Authentication credentials were not provided or invalid."
+            errors.message = "Authentication credentials were not provided or are invalid."
           end
         end
       end
@@ -80,11 +80,11 @@ module Trailblazer
           Class.new(protocol) do
             fail :success?, after: :domain_activity,
             # FIXME: how to add more signals/outcomes?
-            Output(NotFound, :not_found)            => Track(:not_found, wrap_around: true),
+            Output(NotFound, :not_found)            => Track(:not_found),
 
             # FIXME: Track(:not_authorized) is defined before this step, so the Forward search doesn't find it.
             # solution would be to walk down sequence and find the first {:magnetic_to} "not_authorized"
-            Output(NotAuthorized, :not_authorized)  => Track(:not_authorized, wrap_around: true) # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
+            Output(NotAuthorized, :not_authorized)  => Track(:not_authorized) # FIXME: how to "insert into path"? => Track(:not_authorized) doesn't play!
           end
         end
       end
