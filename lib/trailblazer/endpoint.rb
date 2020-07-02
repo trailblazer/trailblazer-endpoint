@@ -50,6 +50,7 @@ module Trailblazer
     def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
       # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
+
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
       # this ctx is passed to the controller block.
