@@ -26,8 +26,8 @@ module Trailblazer
         #
         # @return endpoint_options
 
-        def build_options_for(builder:, policies:)
-          signal, (ctx, _) = builder.([{policies: policies}])
+        def build_options_for(builder:, **options)
+          signal, (ctx, _) = builder.([options])
 
           ctx[:build_options] # ["web:submitted?", {protocol_block: ..., options_for_build: ...}]
         end
