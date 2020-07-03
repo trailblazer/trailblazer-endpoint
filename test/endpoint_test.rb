@@ -113,6 +113,14 @@ Trailblazer::Endpoint::Protocol
 #<End/:failure>
 }
   end
+
+  it "{Adapter::API} has status setters for 401, 403, 422, error handlers (message)" do
+    protocol = Class.new(Trailblazer::Endpoint::Adapter::API)
+
+    Trailblazer::Developer.render(protocol).must_equal %{
+
+}
+  end
 end
 
 class EndpointTest < Minitest::Spec
