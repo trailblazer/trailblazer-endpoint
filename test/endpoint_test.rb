@@ -118,9 +118,85 @@ Trailblazer::Endpoint::Protocol
     protocol = Class.new(Trailblazer::Endpoint::Adapter::API)
 
     Trailblazer::Developer.render(protocol).must_equal %{
+#<Start/:default>
+ {Trailblazer::Activity::Right} => Trailblazer::Endpoint::Protocol
+Trailblazer::Endpoint::Protocol
+ {#<Trailblazer::Activity::End semantic=:failure>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_render_config>
+ {#<Trailblazer::Activity::End semantic=:success>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=success_render_config>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authorized>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_403_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_found>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_404_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:not_authenticated>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_status>
+ {#<Trailblazer::Endpoint::Protocol::Failure semantic=:invalid_data>} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_render_config>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_403_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_protocol_failure_config>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_404_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_error_message>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=_401_error_message>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_protocol_failure_config>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_render_config>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_config_status>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_config_status>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=failure_config_status>
+ {Trailblazer::Activity::Left} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_failure>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=render_failure>
+ {Trailblazer::Activity::Left} => #<End/:failure>
+ {Trailblazer::Activity::Right} => #<End/:failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=success_render_config>
+ {Trailblazer::Activity::Left} => #<End/:failure>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=success_render_status>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=success_render_status>
+ {Trailblazer::Activity::Left} => #<End/:failure>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_success>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=render_success>
+ {Trailblazer::Activity::Left} => #<End/:failure>
+ {Trailblazer::Activity::Right} => #<End/:success>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=render_protocol_failure_config>
+ {Trailblazer::Activity::Left} => #<End/:failure>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=render_protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=render_protocol_failure>
+ {Trailblazer::Activity::Right} => #<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+#<Trailblazer::Activity::TaskBuilder::Task user_proc=protocol_failure>
+ {Trailblazer::Activity::Right} => #<End/:fail_fast>
+#<End/:success>
 
+#<End/:pass_fast>
+
+#<End/:fail_fast>
+
+#<End/:failure>
 }
   end
+
+  it "Web / perfect 2.1 OP scenario" do
+    activity = Class.new(Trailblazer::Activity::Railway) do
+
+    end
+
+    protocol = Class.new(Trailblazer::Endpoint::Protocol) do # DISCUSS: what to to with authenticate and policy?
+      include T.def_steps(:authenticate, :policy)
+    end
+
+    endpoint =
+      Trailblazer::Endpoint.build(
+        domain_activity: activity,
+        protocol: protocol, # do we cover all usual routes?
+        adapter:  Trailblazer::Endpoint::Adapter::Web
+    ) do
+
+
+      {}
+    end
+
+  # success
+    assert_route(endpoint, {}, :authenticate, :policy, :success)
+  # authentication error
+    assert_route endpoint, {authenticate: false}, :authenticate, :fail_fast
+  end
+
+
 end
 
 class EndpointTest < Minitest::Spec
