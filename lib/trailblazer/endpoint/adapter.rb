@@ -17,9 +17,9 @@ module Trailblazer
 
         step Subprocess(Protocol), # this will get replaced
           id: :protocol,
-          Output(:not_authorized)     => Path(track_color: :_403, connect_to: Id(:protocol_failure), &_403_path),
-          Output(:not_found)          => Path(track_color: :_404, connect_to: Id(:protocol_failure), &_404_path),
-          Output(:not_authenticated)  => Path(track_color: :_401, connect_to: Id(:protocol_failure), &_401_path),
+          Output(:not_authorized)     => Path(track_color: :not_authorized, connect_to: Id(:protocol_failure), &_403_path),
+          Output(:not_found)          => Path(track_color: :not_found, connect_to: Id(:protocol_failure), &_404_path),
+          Output(:not_authenticated)  => Path(track_color: :not_authenticated, connect_to: Id(:protocol_failure), &_401_path),
           Output(:invalid_data)       => Track(:failure) # application error, since it's usually a failed validation.
 
         step :protocol_failure, magnetic_to: nil, Output(:success) => Track(:fail_fast), Output(:failure) => Track(:fail_fast)
@@ -57,12 +57,28 @@ module Trailblazer
         end
 
 
-        def self.insert_error_handler!(adapter)
-          adapter.class_eval do
-            step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated)
-            step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized)
-            step :handle_not_found, magnetic_to: :not_found, Output(:success) => Track(:not_found), Output(:failure) => Track(:not_found)
+        def self.insert_error_handler_steps(adapter)
+          adapter = Class.new(adapter) do
+            step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated), before: :_401_status
+            step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized), before: :_403_status
+            # step :handle_not_found, magnetic_to: :not_found, Output(:success) => Track(:not_found), Output(:failure) => Track(:not_found)
             fail :handle_invalid_data
+          end
+        end
+
+        class Errors < Struct.new(:message, :errors) # FIXME: extract
+          module Handlers
+            def handle_not_authenticated(ctx, errors:, **)
+              errors.message = "Authentication credentials were not provided or are invalid."
+            end
+
+            def handle_not_authorized(ctx, errors:, **)
+              errors.message = "Action not allowed due to a policy setting."
+            end
+
+            def handle_invalid_data(ctx, errors:, **)
+              errors.message = "The submitted data is invalid."
+            end
           end
         end
       end
