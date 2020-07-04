@@ -5,6 +5,7 @@ require "trailblazer/developer"
 
 require "trailblazer/endpoint"
 require "trailblazer/endpoint/protocol"
+require "trailblazer/endpoint/adapter"
 
 require "test_helper"
 
