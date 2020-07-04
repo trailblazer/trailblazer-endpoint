@@ -30,7 +30,7 @@ module Trailblazer
 
 
 # FIXME:::::::
-                def _401_status(ctx, **)
+        def _401_status(ctx, **)
           ctx[:status] = 401
         end
 
@@ -43,11 +43,35 @@ module Trailblazer
         end
       end
 
+      class API < Web
+        step :_200_status, after: :protocol
+
+        def _200_status(ctx, **)
+          ctx[:status] = 200
+        end
+
+        fail :_422_status, before: "End.failure"
+
+        def _422_status(ctx, **)
+          ctx[:status] = 422
+        end
+
+
+        def self.insert_error_handler!(adapter)
+          adapter.class_eval do
+            step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), Output(:failure) => Track(:not_authenticated)
+            step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), Output(:failure) => Track(:not_authorized)
+            step :handle_not_found, magnetic_to: :not_found, Output(:success) => Track(:not_found), Output(:failure) => Track(:not_found)
+            fail :handle_invalid_data
+          end
+        end
+      end
+
       # Basic endpoint adapter for a HTTP document API.
       # As always: "work in progress" ;)
       #
       # {End.fail_fast} currently implies a 4xx-able error.
-      class API < Trailblazer::Activity::FastTrack
+      class API_ < Trailblazer::Activity::FastTrack
         _404_path = ->(*) { step :_404_status }
         _401_path = ->(*) { step :_401_status; step :_401_error_message }
         _403_path = ->(*) { step :_403_status }
