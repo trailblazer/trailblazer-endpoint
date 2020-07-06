@@ -2,7 +2,7 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, &block)
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil,  &block)
 
       # special considerations around the {domain_activity} and its taskWrap:
       #
@@ -31,11 +31,11 @@ module Trailblazer
         }.
           merge(extensions_options).
           merge(instance_exec(&block)) # the block is evaluated in the {Protocol} context.
-          )
+        )
       end
 
       Class.new(adapter) do
-        step Subprocess(app_protocol), inherit: true, id: :protocol, replace: :protocol
+        step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})
       end # app_adapter
 
     end
@@ -47,7 +47,9 @@ module Trailblazer
       }
     end
 
-    def self.with_or_etc(activity, args, failure_block: nil, success_block: nil) # FIXME: blocks required?
+    # Runtime
+    # Invokes the endpoint for you and runs one of the three outcome blocks.
+    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:)
       # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
 
@@ -57,15 +59,65 @@ module Trailblazer
       block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors? status?
 
       # if signal < Trailblazer::Activity::End::Success
-      if [:failure, :fail_fast].include?(signal.to_h[:semantic])
-        # TODO: test missing failure_block!
-        failure_block && failure_block.(block_ctx, **block_ctx) # DISCUSS: this does nothing if no failure_block passed!
-      else
-        success_block.(block_ctx, **block_ctx)
-      end
+      adapter_terminus_semantic = signal.to_h[:semantic]
+
+      executed_block =
+        if adapter_terminus_semantic    == :success
+          success_block
+        elsif adapter_terminus_semantic == :fail_fast
+          protocol_failure_block
+        else
+          failure_block
+        end
+
+      executed_block.(block_ctx, **block_ctx)
 
       # we return the original context???
       return signal, [endpoint_ctx]
+    end
+
+    #@ For WORKFLOW and operations. not sure this method will stay here.
+    def self.arguments_for(domain_ctx:, collaboration:, dictionary: collaboration.to_h[:dictionary], flow_options:, circuit_options: {}, success_id:, **options)
+      success_if= Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
+
+      domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
+
+      [
+        [
+          {
+              activity:                       collaboration,
+              domain_ctx:                     domain_ctx, # DISCUSS: is this where {:resume_data} comes in?
+              # process_model_class:            process_model_class,
+              # process_model_from_resume_data: process_model_from_resume_data,
+              # find_process_model:             find_process_model,
+              # encrypted_resume_data:          encrypted_resume_data,
+
+              success_if: success_if,
+
+              dictionary:                     dictionary,
+              # cipher_key:                     cipher_key,
+              **options,
+          },
+          flow_options
+        ],
+        circuit_options
+      ]
+    end
+
+    # FIXME: name will change! this is for controllers, only!
+    def self.advance_from_controller(endpoint, success_block:, failure_block:, protocol_failure_block: protocol_failure_block, **argument_options)
+      args = Trailblazer::Endpoint.arguments_for(argument_options)
+
+      signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
+        endpoint,
+        args[0], # [ctx, flow_options]
+
+        success_block:          success_block,
+        failure_block:          failure_block,
+        protocol_failure_block: protocol_failure_block,
+      )
+
+      ctx
     end
   end
 end
