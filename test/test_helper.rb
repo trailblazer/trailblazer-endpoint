@@ -22,4 +22,13 @@ Minitest::Spec.class_eval do
 
     ctx.to_h.slice(*ctx_assumptions.keys).must_equal ctx_assumptions
   end
+
+  def activity
+    activity = Class.new(Trailblazer::Activity::Railway) do
+      step :model, Output(:failure) => End(:not_found)
+      step :validate
+
+      include T.def_steps(:validate, :model)
+    end
+  end
 end

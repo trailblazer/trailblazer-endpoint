@@ -1,14 +1,7 @@
 require "test_helper"
 
 class DocsAPITest < Minitest::Spec
-  def activity
-    activity = Class.new(Trailblazer::Activity::Railway) do
-      step :model, Output(:failure) => End(:not_found)
-      step :validate
 
-      include T.def_steps(:validate, :model)
-    end
-  end
 
   it "Adapter::API" do
     protocol = Class.new(Trailblazer::Endpoint::Protocol) do # DISCUSS: what to to with authenticate and policy?
