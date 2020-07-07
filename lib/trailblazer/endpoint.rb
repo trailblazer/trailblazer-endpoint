@@ -52,7 +52,6 @@ module Trailblazer
     def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:)
       # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
-
       signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
 
       # this ctx is passed to the controller block.
@@ -76,9 +75,14 @@ module Trailblazer
       return signal, [endpoint_ctx]
     end
 
+    # def self.default_success_if(success_id)
+    #   ->(signal:, graph:, **) { signal[:lane_positions][suspend_activity].last == graph.find(success_id).task }
+    # end
+
     #@ For WORKFLOW and operations. not sure this method will stay here.
     def self.arguments_for(domain_ctx:, collaboration:, dictionary: collaboration.to_h[:dictionary], flow_options:, circuit_options: {}, success_id:, **options)
-      success_if= Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
+      # success_if= Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
+      success_if = ->(*) { raise "yo" }#Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
 
       domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
 
