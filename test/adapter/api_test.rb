@@ -1,8 +1,6 @@
 require "test_helper"
 
-class DocsAPITest < Minitest::Spec
-
-
+class AdapterAPITest < Minitest::Spec
   it "Adapter::API" do
     protocol = Class.new(Trailblazer::Endpoint::Protocol) do # DISCUSS: what to to with authenticate and policy?
       include T.def_steps(:authenticate, :policy)
