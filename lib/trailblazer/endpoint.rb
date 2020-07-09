@@ -80,10 +80,7 @@ module Trailblazer
     # end
 
     #@ For WORKFLOW and operations. not sure this method will stay here.
-    def self.arguments_for(domain_ctx:, collaboration:, dictionary: collaboration.to_h[:dictionary], flow_options:, circuit_options: {}, success_id:, **options)
-      # success_if= Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
-      success_if = ->(*) { raise "yo" }#Trailblazer::Workflow::Collaboration::Synchronous::Endpoint.default_success_if(success_id) # FIXME: make overrideable!
-
+    def self.arguments_for(domain_ctx:, collaboration:, dictionary: collaboration.to_h[:dictionary], flow_options:, circuit_options: {}, **options)
       domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
 
       [
@@ -95,8 +92,6 @@ module Trailblazer
               # process_model_from_resume_data: process_model_from_resume_data,
               # find_process_model:             find_process_model,
               # encrypted_resume_data:          encrypted_resume_data,
-
-              success_if: success_if,
 
               dictionary:                     dictionary,
               # cipher_key:                     cipher_key,
