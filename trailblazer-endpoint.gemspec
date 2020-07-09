@@ -7,8 +7,8 @@ Gem::Specification.new do |spec|
   spec.version       = Trailblazer::Endpoint::VERSION
   spec.authors       = ["Nick Sutterer"]
   spec.email         = ["apotonick@gmail.com"]
-  spec.description   = %q{Generic HTTP handlers for operation results.}
-  spec.summary       = %q{Generic HTTP handlers for operation results.}
+  spec.description   = %q{Endpoints handle authentication, policies, run your domain operation and set up the rendering.}
+  spec.summary       = %q{Endpoints handle authentication, policies, run your domain operation and set up the rendering.}
   spec.homepage      = "http://trailblazer.to/gems/operation/endpoint.html"
   spec.license       = "LGPL-3.0"
 
