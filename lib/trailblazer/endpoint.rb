@@ -75,25 +75,19 @@ module Trailblazer
       return signal, [endpoint_ctx]
     end
 
-    # def self.default_success_if(success_id)
-    #   ->(signal:, graph:, **) { signal[:lane_positions][suspend_activity].last == graph.find(success_id).task }
-    # end
-
     #@ For WORKFLOW and operations. not sure this method will stay here.
-    def self.arguments_for(domain_ctx:, collaboration:, dictionary: collaboration.to_h[:dictionary], flow_options:, circuit_options: {}, **options)
+    def self.arguments_for(domain_ctx:, flow_options:, circuit_options: {}, **options)
       domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
 
       [
         [
           {
-              activity:                       collaboration,
               domain_ctx:                     domain_ctx, # DISCUSS: is this where {:resume_data} comes in?
               # process_model_class:            process_model_class,
               # process_model_from_resume_data: process_model_from_resume_data,
               # find_process_model:             find_process_model,
               # encrypted_resume_data:          encrypted_resume_data,
 
-              dictionary:                     dictionary,
               # cipher_key:                     cipher_key,
               **options,
           },
