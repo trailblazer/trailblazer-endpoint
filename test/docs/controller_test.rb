@@ -1,5 +1,63 @@
 require "test_helper"
 
+require "trailblazer/endpoint/controller"
+class ControllerOptionsTest < Minitest::Spec
+  class Controller
+    include Trailblazer::Endpoint::Controller
+
+    def view
+      endpoint "view?"
+    end
+
+    # we add {:options_for_domain_ctx} manually
+    def download
+      endpoint "download?", params: {id: params[:other_id]}, redis: "Redis"
+    end
+
+    # override some settings from {endpoint_options}:
+    def new
+      endpoint "new?", find_process_model: false
+    end
+  end
+
+  class ControllerThatDoesntInherit
+    include Trailblazer::Endpoint::Controller
+
+    def options_for_domain_ctx
+      {
+        params: params
+      }
+    end
+
+    def options_for_endpoint
+
+    end
+
+    def view
+      endpoint "view?"
+    end
+
+    # we add {:options_for_domain_ctx} manually
+    def download
+      endpoint "download?", params: {id: params[:other_id]}, redis: "Redis"
+    end
+
+    # override some settings from {endpoint_options}:
+    def new
+      endpoint "new?", find_process_model: false
+    end
+  end
+
+  it "what" do
+
+  end
+
+  it "allows to get options without a bloody controller" do
+    MemoController.bla(params: params)
+  end
+end
+
+
 class DocsControllerTest < Minitest::Spec
   it "what" do
     endpoint "view?" do |ctx|
@@ -24,11 +82,10 @@ class DocsControllerTest < Minitest::Spec
         @seq << :success
         # 200, success
         return
+      end.Or() do |ctx|
+        # Only 422
+        @seq << :failure
       end
-
-      @seq << :failure
-      # 422
-      # but also 404 etc
     end
 
     def call(action, **params)
@@ -43,15 +100,15 @@ class DocsControllerTest < Minitest::Spec
         failure_block: ->(*) { return },
         protocol_failure_block: ->(*) { @seq << 401 and return },
 
-        collaboration: @___activity,
         domain_ctx: {},
-        success_id: "fixme",
         flow_options: {},
 
         **params,
 
       # DISCUSS: do we really like that fuzzy API? if yes, why do we need {additional_endpoint_options} or whatever it's called?
         seq: @seq,
+
+        or_status: [422, :failure]
       )
     end
   end
@@ -78,15 +135,6 @@ class DocsControllerTest < Minitest::Spec
 
   # 401
     seq = Controller.new(endpoint, activity).call(:view, authenticate: false)
-    seq.must_equal [:authenticate, :policy, :model, :validate, :success]
-  end
-
-  it "what" do
-    endpoint "view?" do |ctx|
-      # 200, success
-      return
-    end.Or() do |ctx|
-      # Only 422
-    end
+    seq.must_equal [:authenticate, 401]
   end
 end
