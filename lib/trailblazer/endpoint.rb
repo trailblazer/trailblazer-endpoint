@@ -76,7 +76,7 @@ module Trailblazer
     end
 
     #@ For WORKFLOW and operations. not sure this method will stay here.
-    def self.arguments_for(domain_ctx:, flow_options:, circuit_options: {}, **options)
+    def self.arguments_for(domain_ctx:, flow_options:, circuit_options: {}, **endpoint_options)
       domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
 
       [
@@ -89,7 +89,7 @@ module Trailblazer
               # encrypted_resume_data:          encrypted_resume_data,
 
               # cipher_key:                     cipher_key,
-              **options,
+              **endpoint_options,
           },
           flow_options
         ],
