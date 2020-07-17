@@ -13,7 +13,7 @@ module Trailblazer
 
       normalizer = Normalizer.add(normalizer, target, methods) # {target} is the "target class".
 
-      Normalizer::State.new(normalizer)
+      Normalizer::State.new(normalizer, methods)
     end
 
     module Normalizer
@@ -28,26 +28,42 @@ module Trailblazer
       end
 
       class State < Module
-        def initialize(normalizer)
+        def initialize(normalizer, config)
           @normalizer = normalizer
+          @config = config
         end
 
+        # called once when extended in {ApplicationController}.
         def extended(extended)
           super
           extended.extend(Accessor)
+          extended.extend(Config)
           extended.instance_variable_set(:@normalizer, @normalizer)
+          extended.instance_variable_set(:@config, @config)
         end
+
       end
       module Accessor
+        def inherited(subclass)
+          normalizer = Normalizer.add(_normalizer, subclass, _config) # add configure steps for {subclass} to the _new_ normalizer.
+          subclass.instance_variable_set(:@normalizer, normalizer)
+          subclass.instance_variable_set(:@config, _config)
+        end
 
-        # attr_reader :_normalizer
-        # def normalizer=(v)
-        #   @normalizer = v
-        # end
         def _normalizer
           @normalizer
         end
+      end
 
+
+      module Config
+        # @experimental
+        def config=(v)
+          @config = v
+        end
+        def _config
+          @config
+        end
       end
 
       def self.add(normalizer, target, methods)
@@ -62,7 +78,7 @@ module Trailblazer
         ->((ctx, flow_options), *) {
 
           if target.respond_to?(config_name) # this is pure magic, kinda sucks, but for configuration is ok. # TODO: add flag {strict: true}.
-            config = target.send(config_name, **ctx)
+            config = target.send(config_name, ctx, **ctx)
             ctx[config_name] = ctx[config_name].merge(config)
           end
 
@@ -74,6 +90,7 @@ module Trailblazer
 end
 
 class ConfigTest < Minitest::Spec
+  Controller = Struct.new(:params)
 
   class ApplicationController
     # extend Trailblazer::Endpoint.Normalizer(methods: [:options_for_endpoint, :options_for_domain_ctx])
@@ -93,6 +110,11 @@ class ConfigTest < Minitest::Spec
     pp ctx
 
     ctx.inspect.must_equal %{{:options_for_endpoint=>{:find_process_model=>true}, :options_for_domain_ctx=>{}}}
+
+    puts Trailblazer::Developer.render(MemoController._normalizer)
+    signal, (ctx, ) = Trailblazer::Developer.wtf?( MemoController._normalizer, [{controller: Controller.new("bla")}])
+
+    ctx.inspect.must_equal %{{:controller=>#<struct ConfigTest::Controller params=\"bla\">, :options_for_endpoint=>{:find_process_model=>true, :params=>\"bla\"}, :options_for_domain_ctx=>{}}}
   end
 
   class EmptyController < ApplicationController
@@ -113,7 +135,7 @@ class ConfigTest < Minitest::Spec
     end
   end
 
-  it do
-    MemoController.normalize_for(controller: "Controller")
-  end
+  # it do
+  #   MemoController.normalize_for(controller: "Controller")
+  # end
 end
