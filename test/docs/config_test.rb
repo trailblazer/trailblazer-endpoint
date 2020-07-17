@@ -1,5 +1,7 @@
 require "test_helper"
 
+# TODO
+# extend empty conf methods instead of {respond_to?}
 module Trailblazer
   class Endpoint
     def self.Normalizer(target:, methods:)
@@ -10,6 +12,8 @@ module Trailblazer
       end
 
       normalizer = Normalizer.add(normalizer, target, methods) # {target} is the "target class".
+
+      Normalizer::State.new(normalizer)
     end
 
     module Normalizer
@@ -23,16 +27,28 @@ module Trailblazer
         end
       end
 
-      module Bla
-        def normalizer=(v)
-          @normalizer = v
+      class State < Module
+        def initialize(normalizer)
+          @normalizer = normalizer
         end
-        def normalizer
+
+        def extended(extended)
+          super
+          extended.extend(Accessor)
+          extended.instance_variable_set(:@normalizer, @normalizer)
+        end
+      end
+      module Accessor
+
+        # attr_reader :_normalizer
+        # def normalizer=(v)
+        #   @normalizer = v
+        # end
+        def _normalizer
           @normalizer
         end
 
       end
-
 
       def self.add(normalizer, target, methods)
         Class.new(normalizer) do
@@ -61,8 +77,8 @@ class ConfigTest < Minitest::Spec
 
   class ApplicationController
     # extend Trailblazer::Endpoint.Normalizer(methods: [:options_for_endpoint, :options_for_domain_ctx])
-    extend Trailblazer::Endpoint::Normalizer::Bla
-    self.normalizer = Trailblazer::Endpoint.Normalizer(target: self, methods: [:options_for_endpoint, :options_for_domain_ctx])
+    # extend Trailblazer::Endpoint::Normalizer::Bla
+    extend Trailblazer::Endpoint.Normalizer(target: self, methods: [:options_for_endpoint, :options_for_domain_ctx])
 
     def self.options_for_endpoint(ctx, **)
       {
@@ -71,8 +87,13 @@ class ConfigTest < Minitest::Spec
     end
   end
 
-  pp ApplicationController.normalizer
-  pp Trailblazer::Developer.wtf?( ApplicationController.normalizer, [{}])
+  it "what" do
+    puts Trailblazer::Developer.render(ApplicationController._normalizer)
+    signal, (ctx, ) = Trailblazer::Developer.wtf?( ApplicationController._normalizer, [{}])
+    pp ctx
+
+    ctx.inspect.must_equal %{{:options_for_endpoint=>{:find_process_model=>true}, :options_for_domain_ctx=>{}}}
+  end
 
   class EmptyController < ApplicationController
     # for whatever reason, we don't override anything here.
