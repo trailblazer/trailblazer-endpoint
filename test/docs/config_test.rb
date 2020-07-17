@@ -7,7 +7,7 @@ module Trailblazer
     def self.Normalizer(target:, methods:)
       normalizer = Class.new(Trailblazer::Activity::Railway) do
         methods.collect do |config_name|
-          step Normalizer::Default.new(config_name), id: :"default_#{config_name}"
+          step Normalizer.DefaultToEmptyHash(config_name), id: :"default_#{config_name}"
         end
       end
 
@@ -17,14 +17,8 @@ module Trailblazer
     end
 
     module Normalizer
-      class Default
-        def initialize(config_name)
-          @config_name = config_name
-        end
-
-        def call(ctx, **)
-          ctx[@config_name] ||= {}
-        end
+      def self.DefaultToEmptyHash(config_name)
+        -> (ctx, **) { ctx[config_name] ||= {} }
       end
 
       class State < Module
@@ -44,6 +38,7 @@ module Trailblazer
       end
       module Accessor
         def inherited(subclass)
+          super
           normalizer = Normalizer.add(@normalizer, subclass, @config) # add configure steps for {subclass} to the _new_ normalizer.
           subclass.instance_variable_set(:@normalizer, normalizer)
           subclass.instance_variable_set(:@config, @config)
