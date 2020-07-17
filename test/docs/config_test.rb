@@ -6,12 +6,12 @@ module Trailblazer
   class Endpoint
     def self.Normalizer(target:, methods:)
       normalizer = Class.new(Trailblazer::Activity::Railway) do
+        # inject an empty {} for all options.
         methods.collect do |config_name|
           step Normalizer.DefaultToEmptyHash(config_name), id: :"default_#{config_name}"
         end
       end
 
-      normalizer = Normalizer.add(normalizer, target, methods) # {target} is the "target class".
 
       Normalizer::State.new(normalizer, methods)
     end
@@ -31,7 +31,9 @@ module Trailblazer
         def extended(extended)
           super
           extended.extend(Accessor)
-          extended.instance_variable_set(:@normalizer, @normalizer)
+
+          normalizer = Normalizer.add(@normalizer, extended, @config) # {target} is the "target class".
+          extended.instance_variable_set(:@normalizer, normalizer)
           extended.instance_variable_set(:@config, @config)
         end
 
@@ -39,6 +41,7 @@ module Trailblazer
       module Accessor
         def inherited(subclass)
           super
+
           normalizer = Normalizer.add(@normalizer, subclass, @config) # add configure steps for {subclass} to the _new_ normalizer.
           subclass.instance_variable_set(:@normalizer, normalizer)
           subclass.instance_variable_set(:@config, @config)
