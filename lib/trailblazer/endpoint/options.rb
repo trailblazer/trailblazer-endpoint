@@ -23,7 +23,41 @@ module Trailblazer
       Normalizer.add(normalizer, nil, options)
     end
 
+    module Options
+      module DSL
+        def directive(directive_name, *callables)
+          @normalizers[directive_name] = Trailblazer::Endpoint::Normalizer.Options(directive_name, *callables) # DISCUSS: allow multiple calls?
+        end
+
+        def self.extended(extended) # TODO: let's hope this is only called once per hierachy :)
+          extended.instance_variable_set(:@normalizers, {})
+        end
+
+        module Inherit
+          def inherited(subclass)
+            super
+
+            subclass.instance_variable_set(:@normalizers, @normalizers.dup)
+          end
+        end
+      end
+
+      def options_for(directive_name, **runtime_options)
+        normalizer = @normalizers[directive_name]
+
+        signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [{directive_name => {**runtime_options}}])
+        ctx[directive_name]
+      end
+    end
+
     module Normalizer
+      def self.Options(directive_name, *callables, base_class: Trailblazer::Activity::Path)
+        normalizer = Class.new(base_class) do
+        end
+
+        Normalizer.add(normalizer, directive_name, callables)
+      end
+
       def self.DefaultToEmptyHash(config_name)
         -> (ctx, **) { ctx[config_name] ||= {} }
       end
@@ -57,14 +91,10 @@ module Trailblazer
         end
       end
 
-      def self.add(normalizer, target, options)
+      def self.add(normalizer, directive_name, options)
         Class.new(normalizer) do
-          options.collect do |(callable, option_name)|
-            # FIXME
-            # target.define_singleton_method(config_name) { |ctx, **| {} } # Add an empty hash per class, that is then to be overridden.
-            # FIXME
-
-            step task: Normalizer.CallDirective(callable, option_name), id: "#{option_name}=>#{callable}"
+          options.collect do |callable|
+            step task: Normalizer.CallDirective(callable, directive_name), id: "#{directive_name}=>#{callable}"
           end
         end
       end

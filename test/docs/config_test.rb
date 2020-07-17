@@ -5,8 +5,19 @@ require "trailblazer/endpoint/options"
 class ConfigTest < Minitest::Spec
   Controller = Struct.new(:params)
 
-  class ApplicationController
+  it "what" do
+    ApplicationController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
 
+  # inherits endpoint options from ApplicationController
+    ApeController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
+  # defines its own domain options, none in ApplicationController
+    ApeController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:current_user=>\"Yo\"}}
+
+    BoringController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
+    BoringController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:current_user=>\"Yo\"     how do we inherit automatically? }}
+  end
+
+  class ApplicationController
     def self.options_for_endpoint(ctx, **)
       {
         find_process_model: true,
@@ -19,17 +30,30 @@ class ConfigTest < Minitest::Spec
       }
     end
 
-    @normalizer = Trailblazer::Endpoint.Normalizer___(ApplicationController.method(:options_for_endpoint) => :options_for_endpoint, ApplicationController.method(:request_options)=> :options_for_endpoint )
-
-
-    #extend Trailblazer::Endpoint.Normalizer(target: self, methods: [:options_for_endpoint, :options_for_domain_ctx])
+    extend Trailblazer::Endpoint::Options::DSL
+    extend Trailblazer::Endpoint::Options::DSL::Inherit
+    extend Trailblazer::Endpoint::Options
+    directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
   end
 
-  it "what" do
-    signal, (ctx, ) = Trailblazer::Developer.wtf?( ApplicationController.instance_variable_get(:@normalizer), [{options_for_endpoint: {}}])
+  class ApeController < ApplicationController
+    def self.options_for_domain_ctx(ctx, **)
+      {
+        current_user: "Yo",
+      }
+    end
 
-    ctx.inspect.must_equal %{{:options_for_endpoint=>{:find_process_model=>true, :request=>true}}}
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
   end
+
+  class BoringController < ApplicationController
+    def self.options_for_domain_ctx(ctx, **) {current_user: "Yo",} end
+    def self.options_for_endpoint(ctx, **)   {xml: "<XML",} end
+
+    directive :options_for_endpoint,   method(:options_for_endpoint)
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+  end
+
 
   it "what" do
     puts Trailblazer::Developer.render(ApplicationController.instance_variable_get(:@normalizer))
