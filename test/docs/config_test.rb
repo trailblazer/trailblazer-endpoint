@@ -71,3 +71,138 @@ class ConfigTest < Minitest::Spec
   #   MemoController.normalize_for(controller: "Controller")
   # end
 end
+
+
+ # # option :options_for_domain_ctx, inherit: ApplicationController
+
+
+
+=begin
+    public def compute_option(option_name)
+      normalizer = self.class.instance_variable_get(:@normalizers)[option_name]
+
+      signal, (ctx, ) = Trailblazer::Developer.wtf?( normalizer, [{option_name => {}, controller: self}])
+      ctx[option_name]
+    end
+
+
+
+
+
+    def endpoint(event_name, policies,
+      domain_activity: Trailblazer::Workflow::Advance::Controller,
+      protocol: Charon::Endpoint::Protocol,
+      scope_domain_ctx: false,
+      **action_options, # [:process_model_id, :find_process_model] passed from the user.
+      &block)
+
+
+      default_build_options = {
+        adapter:          Charon::Endpoint::Adapter,
+        protocol:         protocol,
+        domain_activity:  domain_activity,
+        scope_domain_ctx: scope_domain_ctx,
+        domain_ctx_filter: Charon::Endpoint.current_user_in_domain_ctx,
+      }
+
+      build_and_invoke_endpoint(event_name, policies, default_build_options: default_build_options, **action_options, &block)
+    end
+
+    def build_and_invoke_endpoint(event_name, policies, default_build_options:, **action_options, &block)
+# FIXME: make at compile-time
+      _, endpoint = Trailblazer::Endpoint::Builder::DSL.endpoint_for(id: event_name, builder: Charon::Endpoint::Builder, default_options: default_build_options, policies: policies, with_root: true)
+
+      invoke_endpoint(endpoint, event_name, **action_options, &block)
+    end
+
+
+    # Controller-specific!
+    # Merge various controller options hashes, etc.
+    def invoke_endpoint(endpoint, event_name, options_for_domain_ctx: self.compute_option(:options_for_domain_ctx), **action_options, &block)
+      domain_ctx = options_for_domain_ctx
+
+      position = ApplicationController.advance_ep(
+        endpoint,
+        event_name: event_name,
+
+        domain_ctx: domain_ctx,
+
+        success_block:    self.success_block, # the blocks need to be defined in controller instance context.
+        failure_block:    self.failure_block,
+        protocol_failure_block: self.protocol_failure_block,
+
+        controller_block: block, # DISCUSS: do we always need that?
+
+        **self.compute_option(:options_for_endpoint), # "class level"
+        **action_options,     # per action
+      )
+
+      return position
+    end
+
+    class Or
+      def initialize(execute:, ctx: nil)
+        @execute = execute
+        @ctx     = ctx
+      end
+
+      def Or(&block)
+        yield(@ctx) if @execute
+      end
+    end
+  end
+
+  include Endpoint
+    public def compute_option(option_name)
+      normalizer = self.class.instance_variable_get(:@normalizers)[option_name]
+
+      signal, (ctx, ) = Trailblazer::Developer.wtf?( normalizer, [{option_name => {}, controller: self}])
+      ctx[option_name]
+    end
+
+  @normalizers= {
+    options_for_domain_ctx: Trailblazer::Endpoint::Normalizer___({
+      ApplicationController::Endpoint.method(:options_for_domain_ctx) => :options_for_domain_ctx,
+      ApplicationController::Endpoint.method(:redis_options) => :options_for_domain_ctx
+    }
+    ),
+    options_for_endpoint: Trailblazer::Endpoint::Normalizer___({
+      ApplicationController::Endpoint.method(:options_for_endpoint) => :options_for_endpoint,
+    }
+    )
+  }
+
+
+
+  def legacy_operation(operation, policies, &block)
+   default_build_options = {
+      adapter:          Charon::Endpoint::Adapter,
+      domain_ctx_filter: Charon::Endpoint.current_user_in_domain_ctx,
+      domain_activity: operation,
+      protocol: Charon::Endpoint::Protocol::LegacyOperation,
+      scope_domain_ctx: true
+    }
+
+    _, endpoint = Trailblazer::Endpoint::Builder::DSL.endpoint_for(id: operation, builder: Charon::Endpoint::Builder, default_options: default_build_options, policies: policies, with_root: true)
+# TODO: build on class level
+
+    invoke_endpoint(endpoint, operation, &block)
+  end
+
+
+  def self.advance_ep(endpoint, success_block:, failure_block:, protocol_failure_block:, **argument_options)
+    args, _ = Trailblazer::Endpoint.arguments_for(Charon::Endpoint.arguments_for(argument_options))
+
+    signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
+      endpoint,
+      args, # [ctx, flow_options]
+
+      success_block: success_block,
+      failure_block: failure_block,
+      protocol_failure_block: protocol_failure_block,
+    )
+
+    return ctx[:__or__]
+  end
+
+=end
