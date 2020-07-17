@@ -37,7 +37,6 @@ module Trailblazer
         def extended(extended)
           super
           extended.extend(Accessor)
-          extended.extend(Config)
           extended.instance_variable_set(:@normalizer, @normalizer)
           extended.instance_variable_set(:@config, @config)
         end
@@ -45,24 +44,9 @@ module Trailblazer
       end
       module Accessor
         def inherited(subclass)
-          normalizer = Normalizer.add(_normalizer, subclass, _config) # add configure steps for {subclass} to the _new_ normalizer.
+          normalizer = Normalizer.add(@normalizer, subclass, @config) # add configure steps for {subclass} to the _new_ normalizer.
           subclass.instance_variable_set(:@normalizer, normalizer)
-          subclass.instance_variable_set(:@config, _config)
-        end
-
-        def _normalizer
-          @normalizer
-        end
-      end
-
-
-      module Config
-        # @experimental
-        def config=(v)
-          @config = v
-        end
-        def _config
-          @config
+          subclass.instance_variable_set(:@config, @config)
         end
       end
 
@@ -105,14 +89,14 @@ class ConfigTest < Minitest::Spec
   end
 
   it "what" do
-    puts Trailblazer::Developer.render(ApplicationController._normalizer)
-    signal, (ctx, ) = Trailblazer::Developer.wtf?( ApplicationController._normalizer, [{}])
+    puts Trailblazer::Developer.render(ApplicationController.instance_variable_get(:@normalizer))
+    signal, (ctx, ) = Trailblazer::Developer.wtf?( ApplicationController.instance_variable_get(:@normalizer), [{}])
     pp ctx
 
     ctx.inspect.must_equal %{{:options_for_endpoint=>{:find_process_model=>true}, :options_for_domain_ctx=>{}}}
 
-    puts Trailblazer::Developer.render(MemoController._normalizer)
-    signal, (ctx, ) = Trailblazer::Developer.wtf?( MemoController._normalizer, [{controller: Controller.new("bla")}])
+    puts Trailblazer::Developer.render(MemoController.instance_variable_get(:@normalizer))
+    signal, (ctx, ) = Trailblazer::Developer.wtf?( MemoController.instance_variable_get(:@normalizer), [{controller: Controller.new("bla")}])
 
     ctx.inspect.must_equal %{{:controller=>#<struct ConfigTest::Controller params=\"bla\">, :options_for_endpoint=>{:find_process_model=>true, :params=>\"bla\"}, :options_for_domain_ctx=>{}}}
   end
