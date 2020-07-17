@@ -12,13 +12,18 @@ module Trailblazer
         end
       end
 
-
       Normalizer::State.new(normalizer, methods)
     end
 
     module Normalizer
       def self.DefaultToEmptyHash(config_name)
         -> (ctx, **) { ctx[config_name] ||= {} }
+      end
+
+      def self.add_normalizer!(target, normalizer, config)
+        normalizer = Normalizer.add(normalizer, target, config) # add configure steps for {subclass} to the _new_ normalizer.
+        target.instance_variable_set(:@normalizer, normalizer)
+        target.instance_variable_set(:@config, config)
       end
 
       class State < Module
@@ -30,11 +35,9 @@ module Trailblazer
         # called once when extended in {ApplicationController}.
         def extended(extended)
           super
-          extended.extend(Accessor)
 
-          normalizer = Normalizer.add(@normalizer, extended, @config) # {target} is the "target class".
-          extended.instance_variable_set(:@normalizer, normalizer)
-          extended.instance_variable_set(:@config, @config)
+          extended.extend(Accessor)
+          Normalizer.add_normalizer!(extended, @normalizer, @config)
         end
 
       end
@@ -42,9 +45,7 @@ module Trailblazer
         def inherited(subclass)
           super
 
-          normalizer = Normalizer.add(@normalizer, subclass, @config) # add configure steps for {subclass} to the _new_ normalizer.
-          subclass.instance_variable_set(:@normalizer, normalizer)
-          subclass.instance_variable_set(:@config, @config)
+          Normalizer.add_normalizer!(subclass, @normalizer, @config)
         end
       end
 
