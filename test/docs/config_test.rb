@@ -36,12 +36,12 @@ module Trailblazer
         def extended(extended)
           super
 
-          extended.extend(Accessor)
+          extended.extend(Inherited)
           Normalizer.add_normalizer!(extended, @normalizer, @config)
         end
 
       end
-      module Accessor
+      module Inherited
         def inherited(subclass)
           super
 
@@ -52,6 +52,10 @@ module Trailblazer
       def self.add(normalizer, target, methods)
         Class.new(normalizer) do
           methods.collect do |config_name|
+            # FIXME
+            target.define_singleton_method(config_name) { |ctx, **| {} } # Add an empty hash per class, that is then to be overridden.
+            # FIXME
+
             step task: Normalizer.CallDirectiveMethod(target, config_name), id: "#{target}##{config_name}"
           end
         end
@@ -59,11 +63,9 @@ module Trailblazer
 
       def self.CallDirectiveMethod(target, config_name)
         ->((ctx, flow_options), *) {
+          config = target.send(config_name, ctx, **ctx) # e.g. ApplicationController.options_for_endpoint
 
-          if target.respond_to?(config_name) # this is pure magic, kinda sucks, but for configuration is ok. # TODO: add flag {strict: true}.
-            config = target.send(config_name, ctx, **ctx)
-            ctx[config_name] = ctx[config_name].merge(config)
-          end
+          ctx[config_name] = ctx[config_name].merge(config)
 
           return Trailblazer::Activity::Right, [ctx, flow_options]
         }
@@ -76,8 +78,6 @@ class ConfigTest < Minitest::Spec
   Controller = Struct.new(:params)
 
   class ApplicationController
-    # extend Trailblazer::Endpoint.Normalizer(methods: [:options_for_endpoint, :options_for_domain_ctx])
-    # extend Trailblazer::Endpoint::Normalizer::Bla
     extend Trailblazer::Endpoint.Normalizer(target: self, methods: [:options_for_endpoint, :options_for_domain_ctx])
 
     def self.options_for_endpoint(ctx, **)
@@ -98,6 +98,11 @@ class ConfigTest < Minitest::Spec
     signal, (ctx, ) = Trailblazer::Developer.wtf?( MemoController.instance_variable_get(:@normalizer), [{controller: Controller.new("bla")}])
 
     ctx.inspect.must_equal %{{:controller=>#<struct ConfigTest::Controller params=\"bla\">, :options_for_endpoint=>{:find_process_model=>true, :params=>\"bla\"}, :options_for_domain_ctx=>{}}}
+  end
+
+  it "does add empty hashes per class level option" do
+    EmptyController.options_for_endpoint({}).must_equal({})
+    EmptyController.options_for_domain_ctx({}).must_equal({})
   end
 
   class EmptyController < ApplicationController
