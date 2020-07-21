@@ -13,8 +13,12 @@ class ConfigTest < Minitest::Spec
   # defines its own domain options, none in ApplicationController
     ApeController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:current_user=>\"Yo\"}}
 
-    BoringController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
-    BoringController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:current_user=>\"Yo\"     how do we inherit automatically? }}
+    # 3-rd level, inherit everything from 2-nd level
+    ApeBabeController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
+    ApeBabeController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:current_user=>\"Yo\"}}
+
+    BoringController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true, :xml=>"<XML"}}
+    BoringController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:policy=>\"Ehm\"}}
   end
 
   class ApplicationController
@@ -46,11 +50,19 @@ class ConfigTest < Minitest::Spec
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
   end
 
+  class ApeBabeController < ApeController
+    # def self.options_for_domain_ctx(ctx, **)
+    #   {policy: "Ehm"}
+    # end
+
+    # directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+  end
+
   class BoringController < ApplicationController
-    def self.options_for_domain_ctx(ctx, **) {current_user: "Yo",} end
+    def self.options_for_domain_ctx(ctx, **) {policy: "Ehm",} end
     def self.options_for_endpoint(ctx, **)   {xml: "<XML",} end
 
-    directive :options_for_endpoint,   method(:options_for_endpoint)
+    directive :options_for_endpoint,   method(:options_for_endpoint) #, inherit: ApplicationController
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
   end
 

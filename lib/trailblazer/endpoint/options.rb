@@ -25,8 +25,13 @@ module Trailblazer
 
     module Options
       module DSL
-        def directive(directive_name, *callables)
-          @normalizers[directive_name] = Trailblazer::Endpoint::Normalizer.Options(directive_name, *callables) # DISCUSS: allow multiple calls?
+        def directive(directive_name, *callables, inherit: superclass)
+          options = {}
+
+
+          options[:base_class] = instance_variable_get(:@normalizers)[directive_name] || Trailblazer::Activity::Path # FIXME
+
+          @normalizers[directive_name] = Trailblazer::Endpoint::Normalizer.Options(directive_name, *callables, **options) # DISCUSS: allow multiple calls?
         end
 
         def self.extended(extended) # TODO: let's hope this is only called once per hierachy :)
