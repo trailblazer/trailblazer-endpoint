@@ -36,9 +36,7 @@ class ConfigTest < Minitest::Spec
       }
     end
 
-    extend Trailblazer::Endpoint::Options::DSL
-    extend Trailblazer::Endpoint::Options::DSL::Inherit
-    extend Trailblazer::Endpoint::Options
+    extend Trailblazer::Endpoint::Controller
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
   end
 
