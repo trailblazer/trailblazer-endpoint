@@ -28,8 +28,9 @@ module Trailblazer
         def directive(directive_name, *callables, inherit: superclass)
           options = {}
 
-
-          options[:base_class] = instance_variable_get(:@normalizers)[directive_name] || Trailblazer::Activity::Path # FIXME
+          if inherit
+            options[:base_class] = instance_variable_get(:@normalizers)[directive_name] || Trailblazer::Activity::Path # FIXME
+          end
 
           @normalizers[directive_name] = Trailblazer::Endpoint::Normalizer.Options(directive_name, *callables, **options) # DISCUSS: allow multiple calls?
         end

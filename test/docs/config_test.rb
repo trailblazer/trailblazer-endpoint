@@ -19,6 +19,8 @@ class ConfigTest < Minitest::Spec
 
     BoringController.options_for(:options_for_endpoint).inspect.must_equal %{{:find_process_model=>true, :request=>true, :xml=>"<XML"}}
     BoringController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:policy=>\"Ehm\"}}
+
+    OverridingController.options_for(:options_for_domain_ctx).inspect.must_equal %{{:redis=>\"Arrr\"}}
   end
 
   class ApplicationController
@@ -64,6 +66,15 @@ class ConfigTest < Minitest::Spec
 
     directive :options_for_endpoint,   method(:options_for_endpoint) #, inherit: ApplicationController
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+  end
+
+  class OverridingController < BoringController
+    def self.options_for_domain_ctx(ctx, **)
+      {
+        redis: "Arrr",
+      }
+    end
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx), inherit: false
   end
 
 
