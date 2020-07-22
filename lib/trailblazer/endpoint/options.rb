@@ -48,11 +48,15 @@ module Trailblazer
         end
       end
 
-      def options_for(directive_name, **runtime_options)
+      def options_for(directive_name, runtime_options)
         normalizer = @normalizers[directive_name]
 
-        signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [{directive_name => {**runtime_options}}])
-        ctx[directive_name]
+        ctx = Trailblazer::Context::IndifferentAccess.build(runtime_options, {}, [{}, {}], {}) # FIXME: easier {::build}, please!
+
+        signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
+
+        _, options = ctx.decompose
+        options
       end
     end
 
@@ -119,7 +123,10 @@ module Trailblazer
         ->((ctx, flow_options), *) {
           config = callable.(ctx, **ctx) # e.g. ApplicationController.options_for_endpoint
 
-          ctx[option_name] = ctx[option_name].merge(config)
+          # ctx[option_name] = ctx[option_name].merge(config)
+          config.each do |k, v|
+            ctx[k] = v
+          end
 
           return Trailblazer::Activity::Right, [ctx, flow_options]
         }
