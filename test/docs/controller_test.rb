@@ -1,5 +1,51 @@
 require "test_helper"
 
+class DocsControllerTest < Minitest::Spec
+  protocol = Class.new(Trailblazer::Endpoint::Protocol)do
+    include T.def_steps(:authenticate, :policy)
+  end
+
+  endpoint =
+    Trailblazer::Endpoint.build(
+      domain_activity: activity,
+      protocol: protocol,
+      adapter: Trailblazer::Endpoint::Adapter::Web,
+      scope_domain_ctx: false,
+
+  ) do
+    {Output(:not_found) => Track(:not_found)}
+  end
+
+
+
+  class ApplicationController
+    def self.options_for_endpoint(ctx, **)
+      {
+        find_process_model: true,
+      }
+    end
+
+    def self.request_options(ctx, **)
+      {
+        request: true,
+      }
+    end
+
+    extend Trailblazer::Endpoint::Controller
+    directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
+  end
+
+  class ApeController < ApplicationController
+    def self.options_for_domain_ctx(ctx, **)
+      {
+        current_user: "Yo",
+      }
+    end
+
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+  end
+end
+
 require "trailblazer/endpoint/controller"
 class ControllerOptionsTest < Minitest::Spec
   class Controller
