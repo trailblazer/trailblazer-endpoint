@@ -44,6 +44,15 @@ class DocsControllerTest < Minitest::Spec
 
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
   end
+
+
+  class HtmlController < ApplicationController
+
+    def view
+      endpoint "view?",
+    end
+
+  end
 end
 
 require "trailblazer/endpoint/controller"
