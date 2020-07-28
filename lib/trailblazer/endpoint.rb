@@ -125,3 +125,6 @@ end
 
 require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
+require "trailblazer/endpoint/dsl"
+require "trailblazer/endpoint/controller"
+require "trailblazer/endpoint/options"
