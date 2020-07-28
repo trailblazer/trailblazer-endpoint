@@ -9,6 +9,8 @@ module Trailblazer
           self
         end
 
+        alias_method :Or, :failure
+
         def protocol_failure(&block)
           self.protocol_failure_block = block
           self

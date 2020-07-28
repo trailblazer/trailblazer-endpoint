@@ -78,13 +78,14 @@ class DocsControllerTest < Minitest::Spec
     end
 
     private def _endpoint(action, params: {}, &block)
-      success_block =          ->(*) { @seq << :success_block }
-      failure_block =          ->(*) { @seq << :failure_block }
-      protocol_failure_block = ->(*) { @seq << :protocol_failure_block }
+      success_block =          ->(ctx, seq:, **) { render seq << :success_block }
+      failure_block =          ->(ctx, seq:, **) { render seq << :failure_block }
+      protocol_failure_block = ->(ctx, seq:, **) { render seq << :protocol_failure_block }
 
       dsl = Trailblazer::Endpoint::DSL::Runtime.new({action: action, params: params}, block || success_block, failure_block, protocol_failure_block) # provides #Or etc, is returned to {Controller#call}
     end
 
+    # all standard routes are user-defined
     def view
       _endpoint "view?" do |ctx, seq:, **|
         render "success" + ctx[:current_user] + seq.inspect
@@ -94,6 +95,21 @@ class DocsControllerTest < Minitest::Spec
 
       end.protocol_failure do |ctx, seq:, **|
         render "protocol_failure" + ctx[:current_user] + seq.inspect
+      end
+    end
+
+    # standard use-case: only success
+    def show
+      _endpoint "view?" do |ctx, seq:, **|
+        render "success" + ctx[:current_user] + seq.inspect
+      end
+    end
+
+    def update
+      _endpoint "view?" do |ctx, seq:, **|
+        render "success" + ctx[:current_user] + seq.inspect
+      end.Or do |ctx, seq:, **|
+        render "Fail!" + ctx[:current_user] + seq.inspect
       end
     end
 
@@ -121,6 +137,38 @@ class DocsControllerTest < Minitest::Spec
   # protocol_failure
     controller = HtmlController.new
     controller.process(:view, params: {authenticate: false}).must_equal %{protocol_failureYo[:authenticate]}
+  end
+
+  it "only success_block is user-defined" do
+  # success
+    controller = HtmlController.new
+    controller.process(:show, params: {}).must_equal %{successYo[:authenticate, :policy, :model, :validate]}
+
+  # failure
+    controller = HtmlController.new
+    # from controller-default
+    controller.process(:show, params: {validate: false}).must_equal [:authenticate, :policy, :model, :validate, :failure_block]
+
+  # protocol_failure
+    controller = HtmlController.new
+    # from controller-default
+    controller.process(:show, params: {authenticate: false}).must_equal [:authenticate, :protocol_failure_block]
+  end
+
+  it "success/Or" do
+  # success
+    controller = HtmlController.new
+    controller.process(:update, params: {}).must_equal %{successYo[:authenticate, :policy, :model, :validate]}
+
+  # failure
+    controller = HtmlController.new
+    # from controller-default
+    controller.process(:update, params: {validate: false}).must_equal %{Fail!Yo[:authenticate, :policy, :model, :validate]}
+
+  # protocol_failure
+    controller = HtmlController.new
+    # from controller-default
+    controller.process(:update, params: {authenticate: false}).must_equal [:authenticate, :protocol_failure_block]
   end
 end
 
