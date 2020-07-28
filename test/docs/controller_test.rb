@@ -18,7 +18,8 @@ class DocsControllerTest < Minitest::Spec
     extend Trailblazer::Endpoint::Controller
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
 
-    def process(action_name)
+    def process(action_name, params:)
+      @params = params
       send(action_name)
     end
 
@@ -65,13 +66,14 @@ class DocsControllerTest < Minitest::Spec
 
         # retrieve/compute options_for_domain_ctx and options_for_endpoint
 
-        domain_ctx: {seq: seq=[], current_user: "Yo"},
+        domain_ctx: {seq: seq=[], current_user: "Yo", **@params},
         flow_options: {},
 
         **options,
 
         seq: seq,
         current_user: "Yo",
+        **@params,
       )
     end
 
@@ -86,10 +88,12 @@ class DocsControllerTest < Minitest::Spec
     def view
       _endpoint "view?" do |ctx, seq:, **|
         render "success" + ctx[:current_user] + seq.inspect
-      end.failure do |ctx, model:, **|
 
-      end.protocol_failure do |ctx, model:, **|
+      end.failure do |ctx, seq:, **|
+        render "failure" + ctx[:current_user] + seq.inspect
 
+      end.protocol_failure do |ctx, seq:, **|
+        render "protocol_failure" + ctx[:current_user] + seq.inspect
       end
     end
 
@@ -106,8 +110,17 @@ class DocsControllerTest < Minitest::Spec
   end # HtmlController
 
   it "what" do
+  # success
     controller = HtmlController.new
-    controller.process(:view).must_equal %{successYo[:authenticate, :policy, :model, :validate]}
+    controller.process(:view, params: {}).must_equal %{successYo[:authenticate, :policy, :model, :validate]}
+
+  # failure
+    controller = HtmlController.new
+    controller.process(:view, params: {validate: false}).must_equal %{failureYo[:authenticate, :policy, :model, :validate]}
+
+  # protocol_failure
+    controller = HtmlController.new
+    controller.process(:view, params: {authenticate: false}).must_equal %{protocol_failureYo[:authenticate]}
   end
 end
 
