@@ -107,7 +107,7 @@ class DocsControllerTest < Minitest::Spec
 
   it "what" do
     controller = HtmlController.new
-    controller.process(:view).must_equal %{"successYo[:authenticate, :policy, :model, :validate]}
+    controller.process(:view).must_equal %{successYo[:authenticate, :policy, :model, :validate]}
   end
 end
 
