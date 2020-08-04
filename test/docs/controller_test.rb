@@ -3,9 +3,10 @@ require "test_helper"
 class DocsControllerTest < Minitest::Spec
 
   class ApplicationController
-    def self.options_for_endpoint(ctx, **)
+    def self.options_for_endpoint(ctx, controller:, **)
       {
         find_process_model: true,
+        **controller.instance_variable_get(:@params)[:params]
       }
     end
 
@@ -17,7 +18,6 @@ class DocsControllerTest < Minitest::Spec
 
     def self.options_for_flow_options(ctx, **)
       {
-
       }
     end
 
@@ -25,26 +25,16 @@ class DocsControllerTest < Minitest::Spec
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
     directive :options_for_flow_options, method(:options_for_flow_options)
 
-    def process(action_name, params:)
+    def process(action_name, **params)
       @params = params
       send_action(action_name)
+      @render
     end
 
     def render(text)
       @render = text
     end
   end
-
-  class ApeController < ApplicationController
-    def self.options_for_domain_ctx(ctx, **)
-      {
-        current_user: "Yo",
-      }
-    end
-
-    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
-  end
-
 
   class HtmlController < ApplicationController
     private def endpoint_for(*)
@@ -64,27 +54,7 @@ class DocsControllerTest < Minitest::Spec
       end
     end
 
-    # private def advance_endpoint(options, &block)
-    #   endpoint = endpoint_for(options)
-
-    #   ctx = Trailblazer::Endpoint.advance_from_controller(
-
-    #     endpoint,
-
-    #     # retrieve/compute options_for_domain_ctx and options_for_endpoint
-
-    #     domain_ctx: {seq: seq=[], current_user: "Yo", **@params},
-    #     flow_options: {},
-
-    #     **options,
-
-    #     seq: seq,
-    #     current_user: "Yo",
-    #     **@params,
-    #   )
-    # end
-
-    include Trailblazer::Endpoint::Controller #fixme
+    include Trailblazer::Endpoint::Controller # FIXME
     include Trailblazer::Endpoint::Controller::Rails
     include Trailblazer::Endpoint::Controller::Rails::Process
     # include Trailblazer::Endpoint::Options
@@ -92,30 +62,29 @@ class DocsControllerTest < Minitest::Spec
     def self.options_for_block_options(ctx, controller:, **)
       {
         success_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :success_block } },
-        failure_block:          ->(ctx, seq:, **) { render seq << :failure_block },
-        protocol_failure_block: ->(ctx, seq:, **) { render seq << :protocol_failure_block }
+        failure_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :failure_block } },
+        protocol_failure_block: ->(ctx, seq:, **) { controller.instance_exec { render seq << :protocol_failure_block } }
       }
     end
 
-    def self.options_for_domain_ctx(ctx, **)
+    def self.options_for_domain_ctx(ctx, seq:, **)
       {
         current_user: "Yo",
-        seq: [],
+        seq: seq,
       }
     end
 
     directive :options_for_block_options, HtmlController.method(:options_for_block_options)
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
 
-    private def _endpoint(action, params: {}, &block)
-      endpoint(action, &block)
+    private def _endpoint(action, seq: [], &block)
+      endpoint(action, seq: seq, &block)
     end
 
     # all standard routes are user-defined
     def view
       _endpoint "view?" do |ctx, seq:, **|
         render "success" + ctx[:current_user] + seq.inspect
-
       end.failure do |ctx, seq:, **|
         render "failure" + ctx[:current_user] + seq.inspect
 

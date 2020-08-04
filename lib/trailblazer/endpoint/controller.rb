@@ -23,10 +23,10 @@ module Trailblazer
         end
       end # Rails
 
-    def endpoint(name, &block)
+    def endpoint(name, **action_options, &block)
       endpoint = endpoint_for(name)
 
-      invoke_endpoint_with_dsl(endpoint: endpoint, &block)
+      invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
     end
 
     def invoke_endpoint_with_dsl(options, &block)
@@ -74,9 +74,9 @@ module Trailblazer
 
       # Requires {options_for}
       def compile_options_for_controller(options_for_domain_ctx: nil, **action_options)
-        domain_ctx       = options_for_domain_ctx || self.class.options_for(:options_for_domain_ctx, controller: self, **action_options)
-        endpoint_options = self.class.options_for(:options_for_endpoint, controller: self, **action_options) # "class level"
         flow_options     = self.class.options_for(:options_for_flow_options, controller: self, **action_options)
+        endpoint_options = self.class.options_for(:options_for_endpoint, controller: self, **action_options) # "class level"
+        domain_ctx       = options_for_domain_ctx || self.class.options_for(:options_for_domain_ctx, controller: self, **action_options)
 
         return domain_ctx, endpoint_options, flow_options
       end
