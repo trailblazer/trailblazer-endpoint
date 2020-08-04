@@ -15,12 +15,19 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
+    def self.options_for_flow_options(ctx, **)
+      {
+
+      }
+    end
+
     extend Trailblazer::Endpoint::Controller
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
+    directive :options_for_flow_options, method(:options_for_flow_options)
 
     def process(action_name, params:)
       @params = params
-      send(action_name)
+      send_action(action_name)
     end
 
     def render(text)
@@ -57,32 +64,51 @@ class DocsControllerTest < Minitest::Spec
       end
     end
 
-    private def advance_endpoint(options, &block)
-      endpoint = endpoint_for(options)
+    # private def advance_endpoint(options, &block)
+    #   endpoint = endpoint_for(options)
 
-      ctx = Trailblazer::Endpoint.advance_from_controller(
+    #   ctx = Trailblazer::Endpoint.advance_from_controller(
 
-        endpoint,
+    #     endpoint,
 
-        # retrieve/compute options_for_domain_ctx and options_for_endpoint
+    #     # retrieve/compute options_for_domain_ctx and options_for_endpoint
 
-        domain_ctx: {seq: seq=[], current_user: "Yo", **@params},
-        flow_options: {},
+    #     domain_ctx: {seq: seq=[], current_user: "Yo", **@params},
+    #     flow_options: {},
 
-        **options,
+    #     **options,
 
-        seq: seq,
-        current_user: "Yo",
-        **@params,
-      )
+    #     seq: seq,
+    #     current_user: "Yo",
+    #     **@params,
+    #   )
+    # end
+
+    include Trailblazer::Endpoint::Controller #fixme
+    include Trailblazer::Endpoint::Controller::Rails
+    include Trailblazer::Endpoint::Controller::Rails::Process
+    # include Trailblazer::Endpoint::Options
+
+    def self.options_for_block_options(ctx, controller:, **)
+      {
+        success_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :success_block } },
+        failure_block:          ->(ctx, seq:, **) { render seq << :failure_block },
+        protocol_failure_block: ->(ctx, seq:, **) { render seq << :protocol_failure_block }
+      }
     end
 
-    private def _endpoint(action, params: {}, &block)
-      success_block =          ->(ctx, seq:, **) { render seq << :success_block }
-      failure_block =          ->(ctx, seq:, **) { render seq << :failure_block }
-      protocol_failure_block = ->(ctx, seq:, **) { render seq << :protocol_failure_block }
+    def self.options_for_domain_ctx(ctx, **)
+      {
+        current_user: "Yo",
+        seq: [],
+      }
+    end
 
-      dsl = Trailblazer::Endpoint::DSL::Runtime.new({action: action, params: params}, block || success_block, failure_block, protocol_failure_block) # provides #Or etc, is returned to {Controller#call}
+    directive :options_for_block_options, HtmlController.method(:options_for_block_options)
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+
+    private def _endpoint(action, params: {}, &block)
+      endpoint(action, &block)
     end
 
     # all standard routes are user-defined
@@ -112,16 +138,6 @@ class DocsControllerTest < Minitest::Spec
       end.Or do |ctx, seq:, **|
         render "Fail!" + ctx[:current_user] + seq.inspect
       end
-    end
-
-    def process(*)
-      dsl = super
-
-      options, block_options = dsl.to_args
-
-      advance_endpoint(**options, **block_options)
-
-      @render
     end
 
   end # HtmlController

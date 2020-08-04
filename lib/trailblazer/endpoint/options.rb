@@ -132,14 +132,5 @@ module Trailblazer
         }
       end
     end # Normalizer
-
-    module Controller
-      def self.extended(extended)
-        extended.extend Trailblazer::Endpoint::Options::DSL
-        extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
-        extended.extend Trailblazer::Endpoint::Options
-      end
-    end # Controller
-
   end
 end

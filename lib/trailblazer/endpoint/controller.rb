@@ -1,6 +1,12 @@
 module Trailblazer
   class Endpoint
     module Controller
+      def self.extended(extended)
+        extended.extend Trailblazer::Endpoint::Options::DSL
+        extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
+        extended.extend Trailblazer::Endpoint::Options
+      end
+
       module Rails
         module Process
           def send_action(action_name)
@@ -8,15 +14,10 @@ module Trailblazer
 
             dsl = send(action_name) # call the actual controller action.
 
-            options, block_options = dsl.to_args(success_block: self.success_block, failure_block: self.failure_block, protocol_failure_block: self.protocol_failure_block)
+            options, block_options = dsl.to_args(self.class.options_for(:options_for_block_options, controller: self)) # {success_block:, failure_block:, protocol_failure_block:}
             # now we know the authorative blocks
 
-            advance_endpoint_for_controller(
-              options[:endpoint],
-              **options,
-
-              block_options: block_options
-            )
+            advance_endpoint_for_controller(**options, block_options: block_options)
           end
 
         end
@@ -51,13 +52,13 @@ module Trailblazer
 
       # Ultimate low-level entry point.
       # Remember that you don't _have_ to use Endpoint.with_or_etc to invoke an endpoint.
-      def advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:)
+      def advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:, flow_options:)
 
         # build Context(ctx),
-        args, _ = Trailblazer::Endpoint.arguments_for( # TODO: remove 2nd return
-          domain_ctx,
-          endpoint_options,
-          flow_options
+        args, _ = Trailblazer::Endpoint.arguments_for(
+          domain_ctx:   domain_ctx,
+          flow_options: flow_options,
+          **endpoint_options,
         )
 
         signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
