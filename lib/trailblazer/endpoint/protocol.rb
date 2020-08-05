@@ -1,3 +1,5 @@
+require "trailblazer/activity/dsl/linear"
+
 module Trailblazer
   class Endpoint
     # The {Protocol} implements auth*, and calls the domain OP/WF.
