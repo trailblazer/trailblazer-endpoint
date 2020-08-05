@@ -47,6 +47,16 @@ module Trailblazer
       }
     end
 
+    def self.domain_ctx_filter(variables)
+      ->(_ctx, ((ctx, a), b)) do # taskWrap interface
+        variables.each do |variable|
+          ctx[:domain_ctx][variable] = ctx[variable]
+        end
+
+        [_ctx, [[ctx, a], b]]
+      end
+    end
+
     # Runtime
     # Invokes the endpoint for you and runs one of the three outcome blocks.
     def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:)

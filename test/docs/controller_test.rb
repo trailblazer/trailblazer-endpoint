@@ -214,6 +214,7 @@ class DocsControllerTest < Minitest::Spec
           adapter: Trailblazer::Endpoint::Adapter::Web,
           scope_domain_ctx: true,
 
+          domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model])
       ) do
         {}
       end
@@ -225,6 +226,7 @@ class DocsControllerTest < Minitest::Spec
 
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
       {
+        seq: seq,
       }
     end
 
@@ -241,10 +243,10 @@ class DocsControllerTest < Minitest::Spec
 
     def view
       _endpoint "view?" do |ctx, seq:, **|
-        render "success" + ctx["contract.params"].to_s + seq.inspect
+        render "success" + ctx[:message].to_s + seq.inspect
       end
     end
-  end # OptionsController
+  end # DomainContextController
 
   it "{:current_user} and {:process_model} are made available in {domain_ctx}" do
     controller = DomainContextController.new
