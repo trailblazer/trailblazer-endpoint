@@ -6,7 +6,7 @@ class DocsControllerTest < Minitest::Spec
     def self.options_for_endpoint(ctx, controller:, **)
       {
         find_process_model: true,
-        **controller.instance_variable_get(:@params)[:params]
+        **controller.instance_variable_get(:@params)[:params],
       }
     end
 
@@ -47,7 +47,7 @@ class DocsControllerTest < Minitest::Spec
           domain_activity: Minitest::Spec.new(nil).activity, # FIXME
           protocol: protocol,
           adapter: Trailblazer::Endpoint::Adapter::Web,
-          scope_domain_ctx: false,
+          scope_domain_ctx: true,
 
       ) do
         {Output(:not_found) => Track(:not_found)}
@@ -67,10 +67,11 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
-    def self.options_for_domain_ctx(ctx, seq:, **)
+    def self.options_for_domain_ctx(ctx, seq:, controller:, **)
       {
         current_user: "Yo",
         seq: seq,
+        **controller.instance_variable_get(:@params)[:params],
       }
     end
 

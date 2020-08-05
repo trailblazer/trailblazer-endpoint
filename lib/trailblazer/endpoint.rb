@@ -77,7 +77,8 @@ module Trailblazer
 
     #@ For WORKFLOW and operations. not sure this method will stay here.
     def self.arguments_for(domain_ctx:, flow_options:, circuit_options: {}, **endpoint_options)
-      domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
+      # we don't have to create the Ctx wrapping explicitly here. this is done via `:input`.
+      # domain_ctx      = Trailblazer::Context::IndifferentAccess.build(domain_ctx, {}, [domain_ctx, flow_options], circuit_options)
 
       [
         [
