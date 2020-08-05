@@ -1,0 +1,16 @@
+.bundle/
+/.yardoc
+/Gemfile.lock
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/log
+tmp
+.DS_Store
+log/
+*.iml
+.idea
+*.swp
+gemfiles/*.lock
