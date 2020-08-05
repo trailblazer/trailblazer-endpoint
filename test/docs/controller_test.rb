@@ -164,9 +164,6 @@ class DocsControllerTest < Minitest::Spec
   class OptionsController < HtmlController
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
       {
-        current_user: "Yo",
-        seq: seq,
-        **controller.instance_variable_get(:@params)[:params],
         "contract.params" => Object, # string-key should usually break if not wrapped
       }
     end
