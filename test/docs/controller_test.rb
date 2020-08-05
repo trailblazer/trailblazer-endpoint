@@ -157,6 +157,33 @@ class DocsControllerTest < Minitest::Spec
     # from controller-default
     controller.process(:update, params: {authenticate: false}).must_equal [:authenticate, :protocol_failure_block]
   end
+
+
+# Test if {domain_ctx} is automatically wrapped via Context() so that we can use string-keys.
+# TODO: test if aliases etc are properly passed.
+  class OptionsController < HtmlController
+    def self.options_for_domain_ctx(ctx, seq:, controller:, **)
+      {
+        current_user: "Yo",
+        seq: seq,
+        **controller.instance_variable_get(:@params)[:params],
+        "contract.params" => Object, # string-key should usually break if not wrapped
+      }
+    end
+
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+
+    def view
+      _endpoint "view?" do |ctx, seq:, **|
+        render "success" + ctx["contract.params"].to_s + seq.inspect
+      end
+    end
+  end # OptionsController
+
+  it "allows string keys in {domain_ctx} since it gets automatically Ctx()-wrapped" do
+    controller = OptionsController.new
+    controller.process(:view, params: {}).must_equal %{successObject[:authenticate, :policy, :model, :validate]}
+  end
 end
 
 class ControllerOptionsTest < Minitest::Spec
