@@ -21,9 +21,19 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
+    def self.options_for_block_options(ctx, controller:, **)
+      {
+        success_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :success_block } },
+        failure_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :failure_block } },
+        protocol_failure_block: ->(ctx, seq:, **) { controller.instance_exec { render seq << :protocol_failure_block } }
+      }
+    end
+
+
     extend Trailblazer::Endpoint::Controller
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
     directive :options_for_flow_options, method(:options_for_flow_options)
+    directive :options_for_block_options, method(:options_for_block_options)
 
     def process(action_name, **params)
       @params = params
@@ -34,6 +44,10 @@ class DocsControllerTest < Minitest::Spec
     def render(text)
       @render = text
     end
+
+    include Trailblazer::Endpoint::Controller # FIXME
+    include Trailblazer::Endpoint::Controller::Rails
+    include Trailblazer::Endpoint::Controller::Rails::Process
   end
 
   class HtmlController < ApplicationController
@@ -54,19 +68,6 @@ class DocsControllerTest < Minitest::Spec
       end
     end
 
-    include Trailblazer::Endpoint::Controller # FIXME
-    include Trailblazer::Endpoint::Controller::Rails
-    include Trailblazer::Endpoint::Controller::Rails::Process
-    # include Trailblazer::Endpoint::Options
-
-    def self.options_for_block_options(ctx, controller:, **)
-      {
-        success_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :success_block } },
-        failure_block:          ->(ctx, seq:, **) { controller.instance_exec { render seq << :failure_block } },
-        protocol_failure_block: ->(ctx, seq:, **) { controller.instance_exec { render seq << :protocol_failure_block } }
-      }
-    end
-
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
       {
         current_user: "Yo",
@@ -75,7 +76,6 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
-    directive :options_for_block_options, HtmlController.method(:options_for_block_options)
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
 
     private def _endpoint(action, seq: [], &block)
@@ -168,7 +168,15 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
+    def self.options_for_endpoint(ctx, controller:, **)
+      {
+        current_user: "Yogi",
+        process_model: Class,
+      }
+    end
+
     directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+    directive :options_for_endpoint, method(:options_for_endpoint), inherit: false
 
     def view
       _endpoint "view?" do |ctx, seq:, **|
@@ -180,6 +188,67 @@ class DocsControllerTest < Minitest::Spec
   it "allows string keys in {domain_ctx} since it gets automatically Ctx()-wrapped" do
     controller = OptionsController.new
     controller.process(:view, params: {}).must_equal %{successObject[:authenticate, :policy, :model, :validate]}
+  end
+
+
+# copy from {endpoint_ctx} to {domain_ctx}
+  class DomainContextController < ApplicationController
+    private def endpoint_for(*)
+      protocol = Class.new(Trailblazer::Endpoint::Protocol) do
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      activity = Class.new(Trailblazer::Activity::Railway) do
+        step :check
+
+        def check(ctx, current_user:, seq:, process_model:, **)
+          seq << :check
+          ctx[:message] = "#{current_user} / #{process_model}"
+        end
+      end
+
+      endpoint =
+        Trailblazer::Endpoint.build(
+          domain_activity: activity,
+          protocol: protocol,
+          adapter: Trailblazer::Endpoint::Adapter::Web,
+          scope_domain_ctx: true,
+
+      ) do
+        {}
+      end
+    end
+    private def _endpoint(action, seq: [], &block)
+      endpoint(action, seq: seq, &block)
+    end
+
+
+    def self.options_for_domain_ctx(ctx, seq:, controller:, **)
+      {
+      }
+    end
+
+    def self.options_for_endpoint(ctx, controller:, **)
+      {
+        current_user: "Yogi",
+        process_model: Class,
+        something: true,
+      }
+    end
+
+    directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+    directive :options_for_endpoint, method(:options_for_endpoint), inherit: false
+
+    def view
+      _endpoint "view?" do |ctx, seq:, **|
+        render "success" + ctx["contract.params"].to_s + seq.inspect
+      end
+    end
+  end # OptionsController
+
+  it "{:current_user} and {:process_model} are made available in {domain_ctx}" do
+    controller = DomainContextController.new
+    controller.process(:view, params: {}).must_equal %{successObject[:authenticate, :policy, :model, :validate]asdf}
   end
 end
 
