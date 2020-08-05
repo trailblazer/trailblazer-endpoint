@@ -8,3 +8,9 @@ Rake::TestTask.new(:test) do |test|
   test.test_files = FileList['test/endpoint_test.rb', 'test/docs/*_test.rb', "test/adapter/*_test.rb"]
   test.verbose = true
 end
+
+Rake::TestTask.new('test-rails-app') do |test|
+  test.libs << 'test'
+  test.test_files = FileList['test/rails-app/test/test_helper.rb', 'test/rails-app/test/**/*.rb']
+  test.verbose = true
+end

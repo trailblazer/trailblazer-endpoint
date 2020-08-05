@@ -7,8 +7,6 @@ require "trailblazer/endpoint"
 require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
 
-require "test_helper"
-
 Minitest::Spec.class_eval do
   T = Trailblazer::Activity::Testing
 
