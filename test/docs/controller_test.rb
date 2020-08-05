@@ -250,7 +250,7 @@ class DocsControllerTest < Minitest::Spec
 
   it "{:current_user} and {:process_model} are made available in {domain_ctx}" do
     controller = DomainContextController.new
-    controller.process(:view, params: {}).must_equal %{successObject[:authenticate, :policy, :model, :validate]asdf}
+    controller.process(:view, params: {}).must_equal %{successYogi / Class[:authenticate, :policy, :check]}
   end
 end
 
