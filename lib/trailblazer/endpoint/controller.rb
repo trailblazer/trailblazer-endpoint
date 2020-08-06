@@ -5,6 +5,9 @@ module Trailblazer
         extended.extend Trailblazer::Endpoint::Options::DSL
         extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
         extended.extend Trailblazer::Endpoint::Options
+        extended.extend DSL::Endpoint
+
+        extended.include InstanceMethods
       end
 
       module Rails
@@ -23,36 +26,83 @@ module Trailblazer
         end
       end # Rails
 
-    def endpoint(name, **action_options, &block)
-      endpoint = endpoint_for(name)
+      module DSL
+        module Endpoint
+          def endpoint(name, **options)
+            return generic_endpoint_config(**name, **options) if name.is_a?(Hash)
+            endpoint_config(name, **options)
+          end
 
-      invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
-    end
+          def generic_endpoint_config(protocol:, adapter:, **options)
+            self.singleton_class.define_method :generic_options do |ctx,**|
+              {
+                protocol: protocol,
+                adapter: adapter,
+                **options
+              }
+            end
 
-    def invoke_endpoint_with_dsl(options, &block)
-      _dsl = Trailblazer::Endpoint::DSL::Runtime.new(options, block) # provides #Or etc, is returned to {Controller#call}
-    end
+            directive :generic_options, method(:generic_options) # FIXME: do we need this?
+          end
 
-      module_function
+          def endpoint_config(name, **options)
+            build_options = options_for(:generic_options, {}).merge(options)
 
-      def advance_endpoint_for_controller(endpoint:, block_options:, **action_options)
-        domain_ctx, endpoint_options, flow_options = compile_options_for_controller(**action_options) # controller-specific, get from directives.
+            endpoint = Trailblazer::Endpoint.build(build_options) do
+              {}
+            end
 
-        endpoint_options = endpoint_options.merge(action_options) # DISCUSS
+            directive :endpoints, ->(*) { {name => endpoint} }
+          end
 
-        advance_endpoint(
-          endpoint:      endpoint,
-          block_options: block_options,
+        end
+      end
 
-          domain_ctx:       domain_ctx,
-          endpoint_options: endpoint_options,
-          flow_options:     flow_options,
-        )
+      module InstanceMethods
+        def endpoint(name, **action_options, &block)
+          endpoint = endpoint_for(name)
+
+          invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
+        end
+
+        def endpoint_for(name)
+          self.class.options_for(:endpoints, {})[name]
+        end
+
+        def invoke_endpoint_with_dsl(options, &block)
+          _dsl = Trailblazer::Endpoint::DSL::Runtime.new(options, block) # provides #Or etc, is returned to {Controller#call}
+        end
+
+      # somehow different
+
+        def advance_endpoint_for_controller(endpoint:, block_options:, **action_options)
+          domain_ctx, endpoint_options, flow_options = compile_options_for_controller(**action_options) # controller-specific, get from directives.
+
+          endpoint_options = endpoint_options.merge(action_options) # DISCUSS
+
+          Endpoint::Controller.advance_endpoint(
+            endpoint:      endpoint,
+            block_options: block_options,
+
+            domain_ctx:       domain_ctx,
+            endpoint_options: endpoint_options,
+            flow_options:     flow_options,
+          )
+        end
+
+        # Requires {options_for}
+        def compile_options_for_controller(options_for_domain_ctx: nil, **action_options)
+          flow_options     = self.class.options_for(:options_for_flow_options, controller: self, **action_options)
+          endpoint_options = self.class.options_for(:options_for_endpoint, controller: self, **action_options) # "class level"
+          domain_ctx       = options_for_domain_ctx || self.class.options_for(:options_for_domain_ctx, controller: self, **action_options)
+
+          return domain_ctx, endpoint_options, flow_options
+        end
       end
 
       # Ultimate low-level entry point.
       # Remember that you don't _have_ to use Endpoint.with_or_etc to invoke an endpoint.
-      def advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:, flow_options:)
+      def self.advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:, flow_options:)
 
         # build Context(ctx),
         args, _ = Trailblazer::Endpoint.arguments_for(
@@ -72,14 +122,6 @@ module Trailblazer
         )
       end
 
-      # Requires {options_for}
-      def compile_options_for_controller(options_for_domain_ctx: nil, **action_options)
-        flow_options     = self.class.options_for(:options_for_flow_options, controller: self, **action_options)
-        endpoint_options = self.class.options_for(:options_for_endpoint, controller: self, **action_options) # "class level"
-        domain_ctx       = options_for_domain_ctx || self.class.options_for(:options_for_domain_ctx, controller: self, **action_options)
-
-        return domain_ctx, endpoint_options, flow_options
-      end
     end # Controller
   end
 end

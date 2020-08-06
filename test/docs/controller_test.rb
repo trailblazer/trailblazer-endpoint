@@ -193,35 +193,27 @@ class DocsControllerTest < Minitest::Spec
 
 # copy from {endpoint_ctx} to {domain_ctx}
   class DomainContextController < ApplicationController
-    private def endpoint_for(*)
-      protocol = Class.new(Trailblazer::Endpoint::Protocol) do
-        include T.def_steps(:authenticate, :policy)
-      end
-
-      activity = Class.new(Trailblazer::Activity::Railway) do
-        step :check
-
-        def check(ctx, current_user:, seq:, process_model:, **)
-          seq << :check
-          ctx[:message] = "#{current_user} / #{process_model}"
-        end
-      end
-
-      endpoint =
-        Trailblazer::Endpoint.build(
-          domain_activity: activity,
-          protocol: protocol,
-          adapter: Trailblazer::Endpoint::Adapter::Web,
-          scope_domain_ctx: true,
-
-          domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model])
-      ) do
-        {}
-      end
-    end
     private def _endpoint(action, seq: [], &block)
       endpoint(action, seq: seq, &block)
     end
+
+    activity = Class.new(Trailblazer::Activity::Railway) do
+      step :check
+
+      def check(ctx, current_user:, seq:, process_model:, **)
+        seq << :check
+        ctx[:message] = "#{current_user} / #{process_model}"
+      end
+    end
+
+    protocol = Class.new(Trailblazer::Endpoint::Protocol) do
+      include T.def_steps(:authenticate, :policy)
+    end
+
+directive :endpoints, ->(*) { {} }
+    endpoint protocol: protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
+
+    endpoint "view?", domain_activity: activity
 
 
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
