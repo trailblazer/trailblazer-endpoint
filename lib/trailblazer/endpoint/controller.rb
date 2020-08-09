@@ -28,6 +28,10 @@ module Trailblazer
 
       module DSL
         module Endpoint
+          def self.extended(extended)
+            extended.directive(:endpoints, ->(*) { {} })
+          end
+
           def endpoint(name, **options)
             return generic_endpoint_config(**name, **options) if name.is_a?(Hash)
             endpoint_config(name, **options)

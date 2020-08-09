@@ -210,7 +210,6 @@ class DocsControllerTest < Minitest::Spec
       include T.def_steps(:authenticate, :policy)
     end
 
-directive :endpoints, ->(*) { {} }
     endpoint protocol: protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
 
     endpoint "view?", domain_activity: activity
