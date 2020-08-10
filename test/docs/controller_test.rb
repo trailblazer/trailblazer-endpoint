@@ -48,6 +48,14 @@ class DocsControllerTest < Minitest::Spec
     include Trailblazer::Endpoint::Controller # FIXME
     include Trailblazer::Endpoint::Controller::Rails
     include Trailblazer::Endpoint::Controller::Rails::Process
+
+
+
+    protocol = Class.new(Trailblazer::Endpoint::Protocol) do
+      include T.def_steps(:authenticate, :policy)
+    end
+
+    endpoint protocol: protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
   end
 
   class HtmlController < ApplicationController
@@ -205,12 +213,6 @@ class DocsControllerTest < Minitest::Spec
         ctx[:message] = "#{current_user} / #{process_model}"
       end
     end
-
-    protocol = Class.new(Trailblazer::Endpoint::Protocol) do
-      include T.def_steps(:authenticate, :policy)
-    end
-
-    endpoint protocol: protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
 
     endpoint "view?", domain_activity: activity
 
