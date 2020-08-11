@@ -201,8 +201,8 @@ class DocsControllerTest < Minitest::Spec
 
 # copy from {endpoint_ctx} to {domain_ctx}
   class DomainContextController < ApplicationController
-    private def _endpoint(action, seq: [], &block)
-      endpoint(action, seq: seq, &block)
+    private def _endpoint(action, seq: [], **options, &block)
+      endpoint(action, seq: seq, **options, &block)
     end
 
     activity = Class.new(Trailblazer::Activity::Railway) do
@@ -215,6 +215,7 @@ class DocsControllerTest < Minitest::Spec
     end
 
     endpoint "view?", domain_activity: activity
+    endpoint "show?", domain_activity: activity
 
 
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
@@ -239,11 +240,32 @@ class DocsControllerTest < Minitest::Spec
         render "success" + ctx[:message].to_s + seq.inspect
       end
     end
+
+    def show
+      # override existing domain_ctx
+      # make options here available in steps
+      _endpoint "show?", options_for_domain_ctx: {params: {id: 1}, seq: []} do |ctx, seq:, params:, **|
+        render "success" + ctx[:message].to_s + seq.inspect + params.inspect
+      end
+    end
+
+    def create
+      # add endpoint_options
+    end
+
+    # todo: test overriding endp options
+      # _endpoint "show?", params: {id: 1}, process_model: "it's me!" do |ctx, seq:, params:, process_model:, **|
   end # DomainContextController
 
   it "{:current_user} and {:process_model} are made available in {domain_ctx}" do
     controller = DomainContextController.new
     controller.process(:view, params: {}).must_equal %{successYogi / Class[:authenticate, :policy, :check]}
+  end
+
+  it "{:seq} is overridden, {:params} made available, in {domain_ctx}" do
+    controller = DomainContextController.new
+    # note that {seq} is not shared anymore
+    controller.process(:show, params: {}).must_equal %{successYogi / Class[:check]{:id=>1}}
   end
 end
 
