@@ -251,6 +251,9 @@ class DocsControllerTest < Minitest::Spec
 
     def create
       # add endpoint_options
+      _endpoint "show?", policy: false do |ctx, seq:, params:, **|
+        render "success" + ctx[:message].to_s + seq.inspect + params.inspect
+      end
     end
 
     # todo: test overriding endp options
@@ -267,57 +270,11 @@ class DocsControllerTest < Minitest::Spec
     # note that {seq} is not shared anymore
     controller.process(:show, params: {}).must_equal %{successYogi / Class[:check]{:id=>1}}
   end
-end
 
-class ControllerOptionsTest < Minitest::Spec
-  class Controller
-    include Trailblazer::Endpoint::Controller
-
-    def view
-      endpoint "view?"
-    end
-
-    # we add {:options_for_domain_ctx} manually
-    def download
-      endpoint "download?", params: {id: params[:other_id]}, redis: "Redis"
-    end
-
-    # override some settings from {endpoint_options}:
-    def new
-      endpoint "new?", find_process_model: false
-    end
-  end
-
-  class ControllerThatDoesntInherit
-    include Trailblazer::Endpoint::Controller
-
-    def options_for_domain_ctx
-      {
-        params: params
-      }
-    end
-
-    def options_for_endpoint
-
-    end
-
-    def view
-      endpoint "view?"
-    end
-
-    # we add {:options_for_domain_ctx} manually
-    def download
-      endpoint "download?", params: {id: params[:other_id]}, redis: "Redis"
-    end
-
-    # override some settings from {endpoint_options}:
-    def new
-      endpoint "new?", find_process_model: false
-    end
-  end
-
-  it "allows to get options without a bloody controller" do
-    MemoController.bla(params: params)
+  it "allows passing {endpoint_options} directly" do
+    controller = DomainContextController.new
+    controller.process(:create, params: {}).must_equal [:authenticate, :policy, :protocol_failure_block]
   end
 end
+
 
