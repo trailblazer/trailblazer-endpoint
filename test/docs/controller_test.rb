@@ -1,7 +1,6 @@
 require "test_helper"
 
 class DocsControllerTest < Minitest::Spec
-
   class ApplicationController
     def self.options_for_endpoint(ctx, controller:, **)
       {
@@ -51,11 +50,11 @@ class DocsControllerTest < Minitest::Spec
 
 
 
-    protocol = Class.new(Trailblazer::Endpoint::Protocol) do
+    Protocol = Class.new(Trailblazer::Endpoint::Protocol) do
       include T.def_steps(:authenticate, :policy)
     end
 
-    endpoint protocol: protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
+    endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_ctx_filter: Trailblazer::Endpoint.domain_ctx_filter([:current_user, :process_model]), scope_domain_ctx: true
   end
 
   class HtmlController < ApplicationController
@@ -205,7 +204,7 @@ class DocsControllerTest < Minitest::Spec
       endpoint(action, seq: seq, **options, &block)
     end
 
-    activity = Class.new(Trailblazer::Activity::Railway) do
+    Activity = Class.new(Trailblazer::Activity::Railway) do
       step :check
 
       def check(ctx, current_user:, seq:, process_model:, **)
@@ -214,8 +213,8 @@ class DocsControllerTest < Minitest::Spec
       end
     end
 
-    endpoint "view?", domain_activity: activity
-    endpoint "show?", domain_activity: activity
+    endpoint "view?", domain_activity: Activity
+    endpoint "show?", domain_activity: Activity
 
 
     def self.options_for_domain_ctx(ctx, seq:, controller:, **)
@@ -274,6 +273,49 @@ class DocsControllerTest < Minitest::Spec
   it "allows passing {endpoint_options} directly" do
     controller = DomainContextController.new
     controller.process(:create, params: {}).must_equal [:authenticate, :policy, :protocol_failure_block]
+  end
+
+
+# Test without DSL
+  class BasicController
+    extend Trailblazer::Endpoint::Controller
+
+    def self.options_for_block_options(ctx, controller:, **)
+      {
+        success_block:          ->(ctx, endpoint_ctx:, **) { controller.head 200 },
+        failure_block:          ->(ctx, **) { controller.head 402 },
+        protocol_failure_block: ->(ctx, endpoint_ctx:, **) { controller.head endpoint_ctx[:status] }
+      }
+    end
+
+    directive :generic_options,          ->(*) { Hash.new }
+    directive :options_for_flow_options, ->(*) { Hash.new }
+    directive :options_for_endpoint,     ->(*) { Hash.new }
+    directive :options_for_domain_ctx,   ->(*) { Hash.new }
+    directive :options_for_block_options, method(:options_for_block_options)
+
+    def endpoint(name, &block)
+      action_options = {seq: []}
+
+      advance_endpoint_for_controller(endpoint: endpoint_for(name), block_options: self.class.options_for(:options_for_block_options, {controller: self}), **action_options)
+    end
+
+    def head(status)
+      @status = status
+    end
+  end
+
+  class RodaController < BasicController
+    endpoint("show?", protocol: ApplicationController::Protocol, adapter: Trailblazer::Endpoint::Adapter::Web, domain_activity: Class.new(Trailblazer::Activity::Railway) { def save(*); true; end; step :save })
+
+    def show
+      endpoint "show?"
+      @status
+    end
+  end
+
+  it "what" do
+    RodaController.new.show.must_equal 200
   end
 end
 
