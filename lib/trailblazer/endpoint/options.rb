@@ -29,7 +29,7 @@ module Trailblazer
       end
 
       def options_for(directive_name, runtime_options)
-        normalizer = @normalizers[directive_name]
+        normalizer = @normalizers.fetch(directive_name)
 
         ctx = Trailblazer::Context::IndifferentAccess.build(runtime_options, {}, [{}, {}], {}) # FIXME: easier {::build}, please!
 

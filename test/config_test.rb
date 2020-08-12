@@ -23,6 +23,12 @@ class ConfigTest < Minitest::Spec
     OverridingController.options_for(:options_for_domain_ctx, {}).inspect.must_equal %{{:redis=>\"Arrr\"}}
   end
 
+  it "raises helpful exception with unknown directive" do
+    assert_raises KeyError do
+      ApplicationController.options_for(:unknown_options, {})
+    end
+  end
+
   class ApplicationController
     def self.options_for_endpoint(ctx, **)
       {
