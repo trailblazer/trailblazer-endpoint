@@ -8,6 +8,12 @@ module Trailblazer
         extended.extend DSL::Endpoint
 
         extended.include InstanceMethods
+
+        # DISCUSS: hmm
+        extended.directive :generic_options,          ->(*) { Hash.new } # for Controller::endpoint
+        extended.directive :options_for_flow_options, ->(*) { Hash.new }
+        extended.directive :options_for_endpoint,     ->(*) { Hash.new }
+        extended.directive :options_for_domain_ctx,   ->(*) { Hash.new }
       end
 
       module Rails

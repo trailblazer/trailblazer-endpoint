@@ -288,10 +288,6 @@ class DocsControllerTest < Minitest::Spec
       }
     end
 
-    directive :generic_options,          ->(*) { Hash.new }
-    directive :options_for_flow_options, ->(*) { Hash.new }
-    directive :options_for_endpoint,     ->(*) { Hash.new }
-    directive :options_for_domain_ctx,   ->(*) { Hash.new }
     directive :options_for_block_options, method(:options_for_block_options)
 
     def endpoint(name, &block)
