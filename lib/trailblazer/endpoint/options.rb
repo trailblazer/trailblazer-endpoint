@@ -1,28 +1,7 @@
-# TODO
+# DISCUSS: the generic inheritance/Options logic might be extracted to trailblazer-config or something.
+#          it is completely independent and could be helpful for many other configurations.
 module Trailblazer
   class Endpoint
-    def self.Normalizer(target:, options:)
-      normalizer = Class.new(Trailblazer::Activity::Railway) do
-        # inject an empty {} for all options.
-        # options.collect do |(method_name => option)|
-        #   step Normalizer.DefaultToEmptyHash(config_name), id: :"default_#{config_name}"
-        # end
-      end
-
-      Normalizer::State.new(normalizer, options)
-    end
-
-    def self.Normalizer___(options, base_class: Trailblazer::Activity::Path)
-      normalizer = Class.new(base_class) do
-        # inject an empty {} for all options.
-        # options.collect do |(method_name => option)|
-        #   step Normalizer.DefaultToEmptyHash(config_name), id: :"default_#{config_name}"
-        # end
-      end
-
-      Normalizer.add(normalizer, nil, options)
-    end
-
     module Options
       module DSL
         def directive(directive_name, *callables, inherit: superclass)
@@ -35,6 +14,7 @@ module Trailblazer
           @normalizers[directive_name] = Trailblazer::Endpoint::Normalizer.Options(directive_name, *callables, **options) # DISCUSS: allow multiple calls?
         end
 
+        # Called in {Endpoint::Controller}.
         def self.extended(extended) # TODO: let's hope this is only called once per hierachy :)
           extended.instance_variable_set(:@normalizers, {})
         end
@@ -107,16 +87,6 @@ module Trailblazer
             step task: Normalizer.CallDirective(callable, directive_name), id: "#{directive_name}=>#{callable}"
           end
         end
-      end
-
-      def self.CallDirectiveMethod(target, config_name)
-        ->((ctx, flow_options), *) {
-          config = target.send(config_name, ctx, **ctx) # e.g. ApplicationController.options_for_endpoint
-
-          ctx[config_name] = ctx[config_name].merge(config)
-
-          return Trailblazer::Activity::Right, [ctx, flow_options]
-        }
       end
 
       def self.CallDirective(callable, option_name)

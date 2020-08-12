@@ -31,6 +31,9 @@ class DocsControllerTest < Minitest::Spec
 
 
     extend Trailblazer::Endpoint::Controller
+    include Trailblazer::Endpoint::Controller::Rails
+    include Trailblazer::Endpoint::Controller::Rails::Process
+
     directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
     directive :options_for_flow_options, method(:options_for_flow_options)
     directive :options_for_block_options, method(:options_for_block_options)
@@ -45,9 +48,6 @@ class DocsControllerTest < Minitest::Spec
       @render = text
     end
 
-    include Trailblazer::Endpoint::Controller # FIXME
-    include Trailblazer::Endpoint::Controller::Rails
-    include Trailblazer::Endpoint::Controller::Rails::Process
 
 
 
