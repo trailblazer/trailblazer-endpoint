@@ -32,11 +32,19 @@ module Trailblazer
         end # Process
 
         # The three default handlers for {Endpoint::with_or_etc}
+        # @experimental
         module DefaultBlocks
           def self.extended(extended)
             extended.directive :options_for_block_options, Controller.method(:options_for_block_options)
           end
         end
+        # @experimental
+        module DefaultParams
+          def self.extended(extended)
+            extended.directive :options_for_domain_ctx, ->(ctx, controller:, **) { {params: controller.params} }
+          end
+        end
+
       end # Rails
 
       module DSL
