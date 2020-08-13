@@ -8,14 +8,17 @@ class SongsController < ApplicationController
   end
 
   def create_with_options
-    endpoint "Create", process_model: "yay!"
+    endpoint "Create", process_model: "yay!" do |ctx, model:, endpoint_ctx:, **|
+      # TODO test process_model
+      render json: model
+    end
   end
 
   def create_with_or
     endpoint "Create" do |ctx, model:, **|
-
-    end.Or do |ctx, model:, **|
-
+      render json: {or: model}
+    end.Or do |ctx, model:, endpoint_ctx:, **|
+      render json: model, status: 422
     end
   end
 end
