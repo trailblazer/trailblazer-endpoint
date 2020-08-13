@@ -29,6 +29,13 @@ module Trailblazer
             advance_endpoint_for_controller(**options, block_options: block_options)
           end
 
+        end # Process
+
+        # The three default handlers for {Endpoint::with_or_etc}
+        module DefaultBlocks
+          def self.extended(extended)
+            extended.directive :options_for_block_options, Controller.method(:options_for_block_options)
+          end
         end
       end # Rails
 
@@ -130,6 +137,15 @@ module Trailblazer
           # failure_block: failure_block,
           # protocol_failure_block: protocol_failure_block,
         )
+      end
+
+      # Default blocks for the {Adapter}.
+      def self.options_for_block_options(ctx, controller:, **)
+        {
+          success_block:          ->(ctx, endpoint_ctx:, **) { controller.head 200 },
+          failure_block:          ->(ctx, **) { controller.head 422 },
+          protocol_failure_block: ->(ctx, endpoint_ctx:, **) { controller.head endpoint_ctx[:status] }
+        }
       end
 
     end # Controller

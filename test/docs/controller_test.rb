@@ -280,15 +280,7 @@ class DocsControllerTest < Minitest::Spec
   class BasicController
     extend Trailblazer::Endpoint::Controller
 
-    def self.options_for_block_options(ctx, controller:, **)
-      {
-        success_block:          ->(ctx, endpoint_ctx:, **) { controller.head 200 },
-        failure_block:          ->(ctx, **) { controller.head 402 },
-        protocol_failure_block: ->(ctx, endpoint_ctx:, **) { controller.head endpoint_ctx[:status] }
-      }
-    end
-
-    directive :options_for_block_options, method(:options_for_block_options)
+    directive :options_for_block_options, Trailblazer::Endpoint::Controller.method(:options_for_block_options)
 
     def endpoint(name, &block)
       action_options = {seq: []}

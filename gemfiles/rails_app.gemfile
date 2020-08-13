@@ -7,5 +7,6 @@ gem "minitest-line"
 gem "dry-validation"
 gem "rails", "6.0.3.1"
 gem "sqlite3", "~> 1.4"
+gem "trailblazer-operation"
 
 gemspec path: "../"
