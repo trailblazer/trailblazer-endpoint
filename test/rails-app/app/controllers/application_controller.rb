@@ -13,14 +13,19 @@ class ApplicationController < ActionController::Base
 
   Protocol = Class.new(Trailblazer::Endpoint::Protocol) do
     # no {:seq} dependency
-    def authenticate(ctx, authenticate: true, **)
-      authenticate
+    def authenticate(ctx, domain_ctx:, **)
+      # puts domain_ctx[:params].inspect
+
+puts "TODO: should we always inject params into the endpoint_ctx?"
+      domain_ctx[:params][:authenticate] == "false" ? false : true
     end
 
-    def policy(ctx, policy: true, **)
-      policy
+    def policy(ctx, domain_ctx:, **)
+      domain_ctx[:params][:policy] == "false" ? false : true
     end
   end
 
-  endpoint protocol: ApplicationController::Protocol, adapter: Trailblazer::Endpoint::Adapter::Web
+  endpoint protocol: ApplicationController::Protocol, adapter: Trailblazer::Endpoint::Adapter::Web do
+    raise inspect
+  end
 end

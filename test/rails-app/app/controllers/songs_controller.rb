@@ -10,7 +10,7 @@ class SongsController < ApplicationController
   def create_with_options
     endpoint "Create", process_model: "yay!" do |ctx, model:, endpoint_ctx:, **|
       # TODO test process_model
-      render json: model
+      render json: [model, endpoint_ctx[:process_model]]
     end
   end
 
