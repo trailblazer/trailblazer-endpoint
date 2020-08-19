@@ -26,6 +26,9 @@ puts "TODO: should we always inject params into the endpoint_ctx?"
   end
 
   endpoint protocol: ApplicationController::Protocol, adapter: Trailblazer::Endpoint::Adapter::Web do
-    raise inspect
+    {Output(:not_found) => Track(:not_found)}
   end
 end
+
+
+# directive

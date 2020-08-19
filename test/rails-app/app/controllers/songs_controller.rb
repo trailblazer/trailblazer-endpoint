@@ -1,5 +1,5 @@
 class SongsController < ApplicationController
-  endpoint("Create", domain_activity: Song::Operation::Create)
+  endpoint("Create", domain_activity: Song::Operation::Create) do {} end
 
   # directive :options_for_domain_ctx, ->(ctx, **) { {seq: []} }
 

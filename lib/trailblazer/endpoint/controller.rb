@@ -53,7 +53,9 @@ module Trailblazer
             extended.directive(:endpoints, ->(*) { {} })
           end
 
-          def endpoint(name, **options)
+          def endpoint(name, **options, &block)
+            options = options.merge(protocol_block: block) if block_given?
+
             return generic_endpoint_config(**name, **options) if name.is_a?(Hash)
             endpoint_config(name, **options)
           end
@@ -71,11 +73,9 @@ module Trailblazer
           end
 
           def endpoint_config(name, **options)
-            build_options = options_for(:generic_options, {}).merge(options)
+            build_options = options_for(:generic_options, {}).merge(options) # DISCUSS: why don't we add this as another directive option/step?
 
-            endpoint = Trailblazer::Endpoint.build(build_options) do
-              {}
-            end
+            endpoint = Trailblazer::Endpoint.build(build_options)
 
             directive :endpoints, ->(*) { {name => endpoint} }
           end
@@ -91,6 +91,7 @@ module Trailblazer
         end
 
         def endpoint_for(name)
+            # options = options.merge(protocol_block: block || ->(*) { {} })
           self.class.options_for(:endpoints, {})[name]
         end
 

@@ -2,7 +2,8 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil,  &block)
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: nil, &block)
+      protocol_block ||= block
 
       # special considerations around the {domain_activity} and its taskWrap:
       #
@@ -30,7 +31,7 @@ module Trailblazer
 # FIXME: where does this go?
         }.
           merge(extensions_options).
-          merge(instance_exec(&block)) # the block is evaluated in the {Protocol} context.
+          merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
         )
       end
 
