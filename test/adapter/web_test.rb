@@ -19,11 +19,8 @@ class AdapterWebTest < Minitest::Spec
         protocol: protocol, # do we cover all usual routes?
         adapter:  Trailblazer::Endpoint::Adapter::Web,
         scope_domain_ctx: false,
-    ) do
-
-
-      {Output(:not_found) => Track(:not_found)}
-    end
+        protocol_block: -> { {Output(:not_found) => Track(:not_found)} }
+    )
 
   # success
     assert_route(endpoint, {}, :authenticate, :policy, :model, :validate, :success)

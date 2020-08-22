@@ -1,5 +1,5 @@
 class SongsController < ApplicationController
-  endpoint("Create", domain_activity: Song::Operation::Create) do {} end
+  endpoint("Create", domain_activity: Song::Operation::Create) do {} end # FIXME: we still need to provide an empty hash here if we want to override the not_found behavior.
 
   # directive :options_for_domain_ctx, ->(ctx, **) { {seq: []} }
 

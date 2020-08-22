@@ -2,9 +2,7 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: nil, &block)
-      protocol_block ||= block
-
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new })
       # special considerations around the {domain_activity} and its taskWrap:
       #
       #  1. domain_ctx_filter (e.g. to filter {current_user})

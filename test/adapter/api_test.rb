@@ -12,11 +12,8 @@ class AdapterAPITest < Minitest::Spec
         protocol: protocol, # do we cover all usual routes?
         adapter:  Trailblazer::Endpoint::Adapter::API,
         scope_domain_ctx: false,
-    ) do
-
-
-      {Output(:not_found) => Track(:not_found)}
-    end
+        protocol_block: -> { {Output(:not_found) => Track(:not_found)} }
+    )
 
   # success
     assert_route endpoint, {}, :authenticate, :policy, :model, :validate, :success, status: 200
@@ -47,12 +44,8 @@ class AdapterAPITest < Minitest::Spec
         protocol: protocol, # do we cover all usual routes?
         adapter: adapter,
         scope_domain_ctx: false,
-
-    ) do
-
-
-      {Output(:not_found) => Track(:not_found)}
-    end
+        protocol_block: -> { {Output(:not_found) => Track(:not_found)} }
+    )
 
     class TestErrors < Struct.new(:message)
       def ==(b)

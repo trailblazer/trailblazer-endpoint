@@ -91,7 +91,6 @@ module Trailblazer
         end
 
         def endpoint_for(name)
-            # options = options.merge(protocol_block: block || ->(*) { {} })
           self.class.options_for(:endpoints, {})[name]
         end
 
