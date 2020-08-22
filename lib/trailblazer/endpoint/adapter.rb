@@ -46,8 +46,8 @@ module Trailblazer
       class API < Web
         step :_200_status, after: :protocol
 
-        def _200_status(ctx, **)
-          ctx[:status] = 200
+        def _200_status(ctx, success_status: 200, **) # FIXME: test!
+          ctx[:status] = success_status
         end
 
         fail :_422_status, before: "End.failure"

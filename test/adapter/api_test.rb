@@ -17,6 +17,8 @@ class AdapterAPITest < Minitest::Spec
 
   # success
     assert_route endpoint, {}, :authenticate, :policy, :model, :validate, :success, status: 200
+  # created, when passing 201
+    assert_route endpoint, {success_status: 201}, :authenticate, :policy, :model, :validate, :success, status: 201
   # authentication error
     assert_route endpoint, {authenticate: false}, :authenticate, :fail_fast, status: 401           # fail_fast == protocol error
   # policy error
