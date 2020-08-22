@@ -2,6 +2,7 @@ require "trailblazer/endpoint/controller"
 
 class ApplicationController < ActionController::Base
   extend Trailblazer::Endpoint::Controller
+  include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
   include Trailblazer::Endpoint::Controller::Rails
   extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
   extend Trailblazer::Endpoint::Controller::Rails::DefaultParams

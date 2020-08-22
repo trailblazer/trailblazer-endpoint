@@ -30,6 +30,10 @@ class DocsControllerTest < Minitest::Spec
 
 
     extend Trailblazer::Endpoint::Controller
+
+    # include Trailblazer::Endpoint::Controller::InstanceMethods      # {#endpoint_for}
+    include Trailblazer::Endpoint::Controller::InstanceMethods::DSL # {#endpoint}
+
     include Trailblazer::Endpoint::Controller::Rails
     include Trailblazer::Endpoint::Controller::Rails::Process
 
@@ -285,7 +289,7 @@ class DocsControllerTest < Minitest::Spec
     def endpoint(name, &block)
       action_options = {seq: []}
 
-      advance_endpoint_for_controller(endpoint: endpoint_for(name), block_options: self.class.options_for(:options_for_block_options, {controller: self}), **action_options)
+      Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(endpoint: endpoint_for(name), block_options: self.class.options_for(:options_for_block_options, {controller: self}), config_source: self.class, **action_options)
     end
 
     def head(status)
