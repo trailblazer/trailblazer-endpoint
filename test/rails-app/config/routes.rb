@@ -3,4 +3,6 @@ Rails.application.routes.draw do
   resources :songs
   post "/songs/create_with_options", to: "songs#create_with_options"
   post "/songs/create_with_or", to: "songs#create_with_or"
+
+  post "/v1/songs", to: "api/v1/songs#create"
 end
