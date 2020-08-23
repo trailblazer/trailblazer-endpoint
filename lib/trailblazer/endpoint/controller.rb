@@ -102,7 +102,7 @@ module Trailblazer
         end
 
         module API
-          def endpoint(name, config_source: self, **action_options)
+          def endpoint(name, config_source: self.class, **action_options)
             endpoint = endpoint_for(name, config_source: config_source)
 
             signal, (ctx, _) = Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(
