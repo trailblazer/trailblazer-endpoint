@@ -29,10 +29,10 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
     # raise jwt(1).inspect
     yogi_jwt = jwt(1)
 
-    post_json "/v1/songs", {params: {id: 1}}, yogi_jwt
+    post_json "/v1/songs", {id: 1}, yogi_jwt
   # default {success} block doesn't do anything
     assert_response 200
-    assert_equal "", response.body
+    assert_equal "{\"id\":1}", response.body
 
 raise
     post "/songs", params: {}

@@ -7,11 +7,11 @@ class Auth::Operation::Authenticate < Trailblazer::Activity::Railway
   def verify_token(ctx, request:, **)
     auth_header = request.headers['Authorization']
     jwt_encoded_token = auth_header.split(' ').last
-    ctx['encoded_jwt_token'] = jwt_encoded_token
+    ctx[:encoded_jwt_token] = jwt_encoded_token
 
       # FIXME
     #raise StandardError if JwtService.expired?(jwt_encoded_token)
-    ctx['decoded_jwt_token'] = JwtService.decode(jwt_encoded_token)
+    ctx[:decoded_jwt_token] = Auth::Jwt.decode(jwt_encoded_token)
   end
 
   def is_token_expired?(ctx, decoded_jwt_token:, **)
