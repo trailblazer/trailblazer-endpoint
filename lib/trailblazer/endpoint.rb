@@ -23,6 +23,9 @@ module Trailblazer
       domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
       extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
 
+      puts Trailblazer::Developer.render(protocol)
+      puts
+
       app_protocol = Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
 
@@ -32,6 +35,8 @@ module Trailblazer
           merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
         )
       end
+
+      puts Trailblazer::Developer.render(app_protocol)
 
       Class.new(adapter) do
         step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})

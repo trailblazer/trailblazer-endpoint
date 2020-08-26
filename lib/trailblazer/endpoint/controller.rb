@@ -73,6 +73,7 @@ module Trailblazer
           end
 
           def endpoint_config(name, **options)
+            puts "~~~~~~~~~~~~~~~config"
             build_options = options_for(:generic_options, {}).merge(options) # DISCUSS: why don't we add this as another directive option/step?
 
             endpoint = Trailblazer::Endpoint.build(build_options)
@@ -91,6 +92,8 @@ module Trailblazer
 
         module DSL
           def endpoint(name, **action_options, &block)
+            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {DSL#endpoint}
+
             endpoint = endpoint_for(name)
 
             invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
@@ -104,6 +107,8 @@ module Trailblazer
         module API
           def endpoint(name, config_source: self.class, **action_options)
             endpoint = endpoint_for(name, config_source: config_source)
+
+            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {DSL#endpoint}
 
             signal, (ctx, _) = Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(
               endpoint:       endpoint,

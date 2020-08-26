@@ -26,24 +26,25 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
 
 
   test "create 200" do
-    # raise jwt(1).inspect
     yogi_jwt = jwt(1)
 
     post_json "/v1/songs", {id: 1}, yogi_jwt
-  # default {success} block doesn't do anything
+
+  # default {success}
     assert_response 200
     assert_equal "{\"id\":1}", response.body
 
-raise
-    post "/songs", params: {}
-  # default {failure} block doesn't do anything
+    # no proper input/params
+    post_json "/v1/songs", {}, yogi_jwt
+  # default {failure}
     assert_response 422
-    assert_equal "", response.body
+    assert_equal "{\"errors\":{\"message\":\"The submitted data is invalid.\"}}", response.body
 
   # 401
-    post "/songs", params: {authenticate: false}
+    post_json "/v1/songs", {authenticate: false}
     assert_response 401
-    assert_equal "", response.body
+    assert_equal "sdf", response.body
+raise
 
   # 403
     post "/songs", params: {policy: false}

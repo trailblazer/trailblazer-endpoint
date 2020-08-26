@@ -4,8 +4,6 @@ require "jwt"
 # Thanks to pocketrocket GmbH for providing this sample code.
 module Auth
   class Jwt
-    DecodingError = Class.new(StandardError) # FIXME: remove
-
     # Generate a JWT from arguments
     def self.generate(encoding_key, encoding_value, payload)
       # expiration_time = Rails.application.credentials[:jwt_expiration_time].hours.from_now.to_i # TODO: show how to inject config options
@@ -30,8 +28,8 @@ module Auth
 
     def self.decode(token)
       JWT.decode(token, Rails.application.credentials[:secret_key_base], true, { algorithm: 'HS512'})
-    rescue => err
-      raise DecodingError.new
+    rescue => err # FIXME: is there any way to call {JWT.decode} without an exception?
+      nil
     end
   end
 end

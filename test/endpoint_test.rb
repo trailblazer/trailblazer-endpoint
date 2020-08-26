@@ -261,7 +261,7 @@ class EndpointTest < Minitest::Spec
   class MyApiAdapter < Trailblazer::Endpoint::Adapter::API
   # example how to add your own step to a certain path
                       # FIXME: :after doesn't work
-    step :my_401_handler, before: :_401_status, magnetic_to: :_401, Output(:success) => Track(:_401), Output(:failure) => Track(:_401)
+    step :my_401_handler, before: :_401_status, magnetic_to: :_401, Output(:success) => Track(:_401)
 
     # def render_success(ctx, **)
     #   ctx[:json] = %{#{ctx[:representer]}.new(#{ctx[:model]})}

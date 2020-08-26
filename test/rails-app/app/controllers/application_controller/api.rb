@@ -16,6 +16,8 @@ class ApplicationController::Api < ApplicationController
   def self.options_for_endpoint(ctx, controller:, **)
     {
       request: controller.request,
+      errors_representer_class: App::Api::V1::Representer::Errors,
+      errors: Trailblazer::Endpoint::Adapter::API::Errors.new,
     }
   end
 
@@ -30,7 +32,7 @@ class ApplicationController::Api < ApplicationController
   directive :options_for_domain_ctx,    method(:options_for_domain_ctx)
 
   Protocol = Class.new(Trailblazer::Endpoint::Protocol) do
-    step Auth::Operation::Authenticate, inherit: true, id: :authenticate, replace: :authenticate
+    step Subprocess(Auth::Operation::Authenticate), inherit: true, id: :authenticate, replace: :authenticate
 
     def policy(ctx, domain_ctx:, **)
       domain_ctx[:params][:policy] == "false" ? false : true
@@ -40,15 +42,26 @@ class ApplicationController::Api < ApplicationController
   module Adapter
     class Representable < Trailblazer::Endpoint::Adapter::API
       step :render # added before End.success
+      step :render_errors, after: :_422_status, magnetic_to: :failure, Output(:success) => Track(:failure)
 
       def render(ctx, domain_ctx:, representer_class:, **) # this is what usually happens in your {Responder}.
         ctx[:representer] = representer_class.new(domain_ctx[:model] || raise("no model found!"))
       end
+
+      def render_errors(ctx, errors:, errors_representer_class:, **) # TODO: extract with {render}
+        ctx[:representer] = errors_representer_class.new(errors)
+      end
     end
+
+    RepresentableWithErrors = Trailblazer::Endpoint::Adapter::API.insert_error_handler_steps(Representable)
+    RepresentableWithErrors.include(Trailblazer::Endpoint::Adapter::API::Errors::Handlers)
 
   end
 
-  endpoint protocol: Protocol, adapter: Adapter::Representable do
+
+      # puts Trailblazer::Developer.render(Adapter::Representable)
+
+  endpoint protocol: Protocol, adapter: Adapter::RepresentableWithErrors do
     # {Output(:not_found) => Track(:not_found)}
     {}
   end

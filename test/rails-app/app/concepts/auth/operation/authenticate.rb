@@ -5,7 +5,7 @@ class Auth::Operation::Authenticate < Trailblazer::Activity::Railway
   step :set_current_user
 
   def verify_token(ctx, request:, **)
-    auth_header = request.headers['Authorization']
+    auth_header = request.headers['Authorization'] || ""
     jwt_encoded_token = auth_header.split(' ').last
     ctx[:encoded_jwt_token] = jwt_encoded_token
 
@@ -27,5 +27,6 @@ class Auth::Operation::Authenticate < Trailblazer::Activity::Railway
     ctx[:current_user] = User.find_by(
       id: user_id
     )
+    true # FIXME
   end
 end
