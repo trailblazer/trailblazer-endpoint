@@ -35,7 +35,7 @@ class ApplicationController::Api < ApplicationController
     step Subprocess(Auth::Operation::Authenticate), inherit: true, id: :authenticate, replace: :authenticate
 
     def policy(ctx, domain_ctx:, **)
-      domain_ctx[:params][:policy] == "false" ? false : true
+      domain_ctx[:params][:policy] == false ? false : true
     end
   end
 
@@ -43,6 +43,7 @@ class ApplicationController::Api < ApplicationController
     class Representable < Trailblazer::Endpoint::Adapter::API
       step :render # added before End.success
       step :render_errors, after: :_422_status, magnetic_to: :failure, Output(:success) => Track(:failure)
+      step :render_errors, after: :protocol_failure, magnetic_to: :fail_fast, Output(:success) => Track(:fail_fast), id: :render_protocol_failure_errors
 
       def render(ctx, domain_ctx:, representer_class:, **) # this is what usually happens in your {Responder}.
         ctx[:representer] = representer_class.new(domain_ctx[:model] || raise("no model found!"))
@@ -55,7 +56,6 @@ class ApplicationController::Api < ApplicationController
 
     RepresentableWithErrors = Trailblazer::Endpoint::Adapter::API.insert_error_handler_steps(Representable)
     RepresentableWithErrors.include(Trailblazer::Endpoint::Adapter::API::Errors::Handlers)
-
   end
 
 

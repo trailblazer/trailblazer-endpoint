@@ -43,14 +43,14 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
   # 401
     post_json "/v1/songs", {authenticate: false}
     assert_response 401
-    assert_equal "sdf", response.body
-raise
+    assert_equal "{\"errors\":{\"message\":\"Authentication credentials were not provided or are invalid.\"}}", response.body
 
   # 403
-    post "/songs", params: {policy: false}
+    post_json "/v1/songs", {id: 1, policy: false}, yogi_jwt
     assert_response 403
-    assert_equal "", response.body
+    assert_equal "{\"errors\":{\"message\":\"Action not allowed due to a policy setting.\"}}", response.body
 
+raise
     post "/songs/create_with_options", params: {id: 1}
   # {success} block renders model
     assert_response 200
