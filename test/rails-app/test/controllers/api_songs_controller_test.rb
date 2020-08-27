@@ -11,6 +11,10 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
   def post_json(endpoint, params_hash, api_token = nil, headers={})
     post endpoint, params: params_hash.to_json, headers: request_headers(api_token).merge(headers)
   end
+  def get_json(endpoint, params = nil, api_token = nil)
+    get endpoint, params: params, headers: request_headers(api_token)
+  end
+
   def request_headers(api_token = nil)
     headers = {
       'Content-Type' => 'application/json'
@@ -50,26 +54,15 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
     assert_response 403
     assert_equal "{\"errors\":{\"message\":\"Action not allowed due to a policy setting.\"}}", response.body
 
-raise
-    post "/songs/create_with_options", params: {id: 1}
-  # {success} block renders model
+  # 200 / GET
+    get_json "/v1/songs/1", {}, yogi_jwt
     assert_response 200
-    assert_equal "[\"1\",\"yay!\"]", response.body
+    assert_equal "{\"id\":\"1\"}", response.body
 
-    post "/songs/create_with_options", params: {}
-  # default {failure} block doesn't do anything
-    assert_response 422
-    assert_equal "", response.body
-
-    post "/songs/create_with_or", params: {id: 1}
-  # {success} block renders model
-    assert_response 200
-    assert_equal "{\"or\":\"1\"}", response.body
-
-    post "/songs/create_with_or", params: {}
-  # default {failure} block doesn't do anything
-    assert_response 422
-    assert_equal "null", response.body
+  # 404
+    get_json "/v1/songs/0", {}, yogi_jwt
+    assert_response 404
+    assert_equal "{\"errors\":{}}", response.body
 
   end
 end

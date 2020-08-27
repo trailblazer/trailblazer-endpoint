@@ -5,4 +5,5 @@ Rails.application.routes.draw do
   post "/songs/create_with_or", to: "songs#create_with_or"
 
   post "/v1/songs", to: "api/v1/songs#create"
+  get "/v1/songs/:id", to: "api/v1/songs#show"
 end
