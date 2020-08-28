@@ -16,6 +16,19 @@ module Trailblazer
         extended.directive :options_for_domain_ctx,   ->(*) { Hash.new }
       end
 
+      # @experimental
+      def self.module(framework: :rails, api: false)
+        if api
+          Module.new do
+            def self.included(includer)
+              includer.extend(Controller)
+              includer.include(InstanceMethods)
+              includer.include(InstanceMethods::API)
+            end
+          end
+        end
+      end
+
       module Rails
         module Process
           def send_action(action_name)
