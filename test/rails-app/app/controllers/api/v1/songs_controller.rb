@@ -1,3 +1,4 @@
+#:controller
 module Api
   module V1
     class SongsController < ApplicationController::Api
@@ -14,3 +15,4 @@ module Api
     end
   end
 end
+#:controller end

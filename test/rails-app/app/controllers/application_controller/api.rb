@@ -1,18 +1,23 @@
+#:app-controller
 class ApplicationController::Api < ApplicationController
-  extend Trailblazer::Endpoint::Controller
-  include Trailblazer::Endpoint::Controller::InstanceMethods
-  include Trailblazer::Endpoint::Controller::InstanceMethods::API
+  include Trailblazer::Endpoint::Controller.module(api: true)
 
-  # directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
-  # directive :options_for_flow_options, method(:options_for_flow_options)
   def self.options_for_block_options(ctx, controller:, **)
+    response_block = ->(ctx, endpoint_ctx:, **) do
+      controller.render json: endpoint_ctx[:representer], status: endpoint_ctx[:status]
+    end
+
     {
-      success_block: success_block = ->(ctx, endpoint_ctx:, **) { controller.render json: endpoint_ctx[:representer], status: endpoint_ctx[:status] },
-      failure_block: success_block,
-      protocol_failure_block: success_block
+      success_block:          response_block,
+      failure_block:          response_block,
+      protocol_failure_block: response_block
     }
   end
 
+  directive :options_for_block_options, method(:options_for_block_options)
+#:app-controller end
+
+#:options_for_endpoint
   def self.options_for_endpoint(ctx, controller:, **)
     {
       request: controller.request,
@@ -21,24 +26,27 @@ class ApplicationController::Api < ApplicationController
     }
   end
 
+  directive :options_for_endpoint, method(:options_for_endpoint)
+#:options_for_endpoint end
+
+#:options_for_domain_ctx
   def self.options_for_domain_ctx(ctx, controller:, **) # TODO: move to ApplicationController
     {
       params: controller.params,
     }
   end
 
-  directive :options_for_block_options, method(:options_for_block_options)
-  directive :options_for_endpoint, method(:options_for_endpoint)
   directive :options_for_domain_ctx,    method(:options_for_domain_ctx)
+#:options_for_domain_ctx end
 
-  Protocol = Class.new(Trailblazer::Endpoint::Protocol) do
+  #:protocol
+  class Protocol < Trailblazer::Endpoint::Protocol
+    step Auth::Operation::Policy, inherit: true, id: :policy, replace: :policy
     step Subprocess(Auth::Operation::Authenticate), inherit: true, id: :authenticate, replace: :authenticate
-
-    def policy(ctx, domain_ctx:, **)
-      domain_ctx[:params][:policy] == false ? false : true
-    end
   end
+  #:protocol end
 
+  #:adapter
   module Adapter
     class Representable < Trailblazer::Endpoint::Adapter::API
       step :render # added before End.success
@@ -57,9 +65,7 @@ class ApplicationController::Api < ApplicationController
     RepresentableWithErrors = Trailblazer::Endpoint::Adapter::API.insert_error_handler_steps(Representable)
     RepresentableWithErrors.include(Trailblazer::Endpoint::Adapter::API::Errors::Handlers)
   end
-
-
-      # puts Trailblazer::Developer.render(Adapter::Representable)
+  #:adapter end
 
   endpoint protocol: Protocol, adapter: Adapter::RepresentableWithErrors do
     # {Output(:not_found) => Track(:not_found)}
