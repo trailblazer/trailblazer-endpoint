@@ -53,7 +53,8 @@ module Trailblazer
 
         ctx = Trailblazer::Context(runtime_options, {})
 
-        signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
+        # signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
+        signal, (ctx, ) = Trailblazer::Activity::TaskWrap.invoke(normalizer, [ctx])
 
         _, options = ctx.decompose
         options
