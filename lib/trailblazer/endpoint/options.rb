@@ -51,7 +51,7 @@ module Trailblazer
       def options_for(directive_name, runtime_options)
         normalizer = @normalizers[directive_name]
 
-        ctx = Trailblazer::Context::IndifferentAccess.build(runtime_options, {}, [{}, {}], {}) # FIXME: easier {::build}, please!
+        ctx = Trailblazer::Context(runtime_options, {})
 
         signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
 
