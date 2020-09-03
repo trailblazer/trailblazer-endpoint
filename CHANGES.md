@@ -1,3 +1,8 @@
+# 0.0.4
+
+* Use new `context-0.3.1`.
+* Don't use `wtf?`.
+
 # 0.0.3
 
 * Introduce `Options`.
