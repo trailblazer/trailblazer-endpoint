@@ -69,8 +69,14 @@ module Trailblazer
         end
 
 
-        def self.insert_error_handler_steps(adapter)
+        def self.insert_error_handler_steps(adapter) # TODO: evaluate if needed?
           adapter = Class.new(adapter) do
+            API.insert_error_handler_steps!(self)
+          end
+        end
+
+        def self.insert_error_handler_steps!(adapter)
+          adapter.instance_exec do
             step :handle_not_authenticated, magnetic_to: :not_authenticated, Output(:success) => Track(:not_authenticated), before: :_401_status
             step :handle_not_authorized, magnetic_to: :not_authorized, Output(:success) => Track(:not_authorized), before: :_403_status
             # step :handle_not_found, magnetic_to: :not_found, Output(:success) => Track(:not_found), Output(:failure) => Track(:not_found)
