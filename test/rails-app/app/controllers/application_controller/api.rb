@@ -60,18 +60,46 @@ class ApplicationController::Api < ApplicationController
       def render_errors(ctx, errors:, errors_representer_class:, **) # TODO: extract with {render}
         ctx[:representer] = errors_representer_class.new(errors)
       end
-    end
 
-    RepresentableWithErrors = Trailblazer::Endpoint::Adapter::API.insert_error_handler_steps(Representable)
-    RepresentableWithErrors.include(Trailblazer::Endpoint::Adapter::API::Errors::Handlers)
+      Trailblazer::Endpoint::Adapter::API.insert_error_handler_steps!(self)
+      include Trailblazer::Endpoint::Adapter::API::Errors::Handlers # handler methods to set an error message.
+    end # Representable
   end
   #:adapter end
 
-  endpoint protocol: Protocol, adapter: Adapter::RepresentableWithErrors do
+puts Trailblazer::Developer.render(Adapter::Representable)
+
+  #:endpoint
+  # app/controllers/application_controller/api.rb
+  endpoint protocol: Protocol, adapter: Adapter::Representable do
     # {Output(:not_found) => Track(:not_found)}
     {}
   end
+  #:endpoint end
 end
 
 
 # header 'Authorization', "Bearer #{result['jwt_token']}" if result['jwt_token']
+
+
+# ΓΞΞ Protocol ΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˥
+# | (Start)--->[Authenticate]-->[Policy]-->[Show]----------->((success))  |
+# |                 |            |          | L------------->((failure))  |
+# |                 |            |          L------------->((not_found))  |
+# |                 |            L------------------->((not_authorized))  |
+# |                 L----------------------------->((not_authenticated))  |
+# |                                                     ((invalid_data))  |
+# LΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˩
+#--˥˩   ˪
+
+# ΓΞΞ Adapter::Representable ΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˥
+# |                                                                                                                                                                                                |
+# | (Start)---> ΓΞΞ Protocol ΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˥                                                                                                          |
+#               | (Start)--->[Authenticate]-->[Policy]-->[Show]----------->((success))  |--->[_200_status]--->[render]---------------------------------------------------------------->((success)) |
+#               |                 |            |          | L------------->((failure))  |-˥                                                                                                        |
+#               |                 |            |          L------------->((not_found))  |-|------------------------------->[_404_status]-----------v                                               |
+#               |                 |            L------------------->((not_authorized))  |-|->[handle_not_authorized]------>[_403_status]--->[protocol_failure]--->[render_errors]--->((fail_fast)) |
+#               |                 L----------------------------->((not_authenticated))  |-|->[handle_not_authenticated]--->[_401_status]-----------^                                               |
+#               |                                                     ((invalid_data))  |-┴->[handle_invalid_data]-------->[_422_status]--->[render_errors]--------------------------->((failure)) |
+#               LΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˩                                                                                                          |
+# LΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞΞ˩

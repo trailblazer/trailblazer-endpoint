@@ -29,7 +29,7 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
   end
 
 
-  test "create 200" do
+  test "API interface" do
     yogi_jwt = jwt(1)
 
     post_json "/v1/songs", {id: 1}, yogi_jwt
@@ -64,6 +64,12 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
     assert_response 404
     assert_equal "{\"errors\":{}}", response.body
 
+  # TODO: CHANGE/customize block
+  end
+
+  test "allows overriding {:success_block} and friends" do
+    get_json "/v1/songs_with_options/1"
+    assert_response 204
   end
 end
 
