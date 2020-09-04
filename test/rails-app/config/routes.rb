@@ -7,5 +7,5 @@ Rails.application.routes.draw do
   post "/v1/songs", to: "api/v1/songs#create"
   get "/v1/songs/:id", to: "api/v1/songs#show"
 
-  get "/v1/songs_with_options/:id", to: "api/v1/songs#show_with_options"
+  get "/v1/songs_with_options/:id", to: "api/v1/songs_controller/with_options#show"
 end

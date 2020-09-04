@@ -68,8 +68,15 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "allows overriding {:success_block} and friends" do
+    yogi_jwt = jwt(1)
+
+  # Not authenticated, 401, overridden {:protocol_failure_block} kicks in
     get_json "/v1/songs_with_options/1"
-    assert_response 204
+    assert_response 402
+
+  # All good, default block
+    get_json "/v1/songs_with_options/1", yogi_jwt
+
   end
 end
 
