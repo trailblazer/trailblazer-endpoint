@@ -38,7 +38,15 @@ module Trailblazer
         _, options = ctx.decompose
         options
       end
-    end
+
+
+      # Merge {merged} into {hash}, but only keys that exist in {hash}.
+      def self.merge_with(merged, hash)
+        keys = hash.keys
+        merged = keys.collect { |key| merged.key?(key) ? [key, merged[key]] : nil }.compact.to_h
+        hash.merge(merged)
+      end
+    end # Options
 
     module Normalizer
       def self.Options(directive_name, *callables, base_class: Trailblazer::Activity::Path)

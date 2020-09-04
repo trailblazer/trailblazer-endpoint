@@ -107,3 +107,14 @@ class RuntimeOptionsTest < Minitest::Spec
     ApplicationController.options_for(:options_for_endpoint, controller: {params: {id: 1}}).inspect.must_equal %{{:option=>nil, :params=>{:id=>1}, :my_params=>\"{:id=>1}\"}}
   end
 end
+
+class OptionsTest < Minitest::Spec
+  # Options#merge_with
+  it "works with empty {merged}" do
+    Trailblazer::Endpoint::Options.merge_with({}, {a: 1, b: 2}).inspect.must_equal %{{:a=>1, :b=>2}}
+  end
+
+  it "keys in merged have precedence, but unknown {merged} keys are discarded" do
+    Trailblazer::Endpoint::Options.merge_with({a: 3, d: 4}, {a: 1, b: 2}).inspect.must_equal %{{:a=>3, :b=>2}}
+  end
+end
