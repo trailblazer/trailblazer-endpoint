@@ -18,13 +18,8 @@ module Trailblazer
       class Noop < Trailblazer::Activity::Railway
       end
 
-      class Failure < Trailblazer::Activity::End # DISCUSS: move to Act::Railway?
-        # class Authentication < Failure
-        # end
-      end
-
       def self._Path(semantic:, &block) # DISCUSS: the problem with Path currently is https://github.com/trailblazer/trailblazer-activity-dsl-linear/issues/27
-        Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Failure.new(semantic: semantic), &block)
+        Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Activity::End.new(semantic: semantic), &block)
       end
 
       step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
@@ -45,8 +40,8 @@ module Trailblazer
       # termini for the Adapter this is the only way to get it working right now.
       # FIXME: is this really the only way to add an {End} to all this?
       @state.update_sequence do |sequence:, **|
-        sequence = Activity::Path::DSL.append_end(sequence, task: Failure.new(semantic: :not_found), magnetic_to: :not_found, id: "End.not_found")
-        sequence = Activity::Path::DSL.append_end(sequence, task: Failure.new(semantic: :invalid_data), magnetic_to: :invalid_data, id: "End.invalid_data")
+        sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :not_found), magnetic_to: :not_found, id: "End.not_found")
+        sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :invalid_data), magnetic_to: :invalid_data, id: "End.invalid_data")
 
         recompile_activity!(sequence)
 

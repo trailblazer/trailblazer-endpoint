@@ -63,10 +63,11 @@ module Trailblazer
 
     # Runtime
     # Invokes the endpoint for you and runs one of the three outcome blocks.
-    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:)
+    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:, invoke: Trailblazer::Developer.method(:wtf?))
       # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
-      signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
+      # signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
+      signal, (endpoint_ctx, _ ) = invoke.call(activity, args) # translates to Trailblazer::Developer.wtf?(activity, args)
 
       # this ctx is passed to the controller block.
       block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors? status?

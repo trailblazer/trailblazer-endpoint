@@ -31,9 +31,10 @@ module Trailblazer
       def options_for(directive_name, runtime_options)
         normalizer = @normalizers.fetch(directive_name)
 
-        ctx = Trailblazer::Context::IndifferentAccess.build(runtime_options, {}, [{}, {}], {}) # FIXME: easier {::build}, please!
+        ctx = Trailblazer::Context(runtime_options, {})
 
-        signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
+        # signal, (ctx, ) = Trailblazer::Developer.wtf?(normalizer, [ctx])
+        signal, (ctx, ) = Trailblazer::Activity::TaskWrap.invoke(normalizer, [ctx])
 
         _, options = ctx.decompose
         options

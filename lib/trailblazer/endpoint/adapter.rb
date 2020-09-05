@@ -17,8 +17,8 @@ module Trailblazer
 
         # FIXME: is this really the only way to add an {End} to all this?
         @state.update_sequence do |sequence:, **|
-          sequence = Activity::Path::DSL.append_end(sequence, task: Trailblazer::Endpoint::Protocol::Failure.new(semantic: :fail_fast), magnetic_to: :fail_fast, id: "End.fail_fast") # TODO: rename to {protocol_failure}
-          sequence = Activity::Path::DSL.append_end(sequence, task: Trailblazer::Endpoint::Protocol::Failure.new(semantic: :failure), magnetic_to: :failure, id: "End.failure")
+          sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :fail_fast), magnetic_to: :fail_fast, id: "End.fail_fast") # TODO: rename to {protocol_failure}
+          sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :failure), magnetic_to: :failure, id: "End.failure")
 
           recompile_activity!(sequence)
 

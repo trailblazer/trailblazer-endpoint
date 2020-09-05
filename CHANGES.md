@@ -1,3 +1,13 @@
+# 0.0.5
+
+* Removed `Protocol::Failure`. Until we have `Railway::End::Failure`, use a normal `Activity::End` everywhere instead of introducing our own.
+
+# 0.0.4
+
+* Use new `context-0.3.1`.
+* Don't use `wtf?`.
+* Don't create a `Context` anymore in `Endpoint.arguments_for`.
+
 # 0.0.3
 
 * Introduce `Options`.
