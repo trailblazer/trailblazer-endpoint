@@ -35,7 +35,7 @@ module Trailblazer
         def endpoint_for(id:, builder:, default_options:, **config)
           options = build_options_for(builder: builder, **config)
 
-          return id, Trailblazer::Endpoint.build(default_options.merge(options[:options_for_build]), &options[:protocol_block])
+          return id, Trailblazer::Endpoint.build(default_options.merge(options[:options_for_build]).merge(protocol_block: options[:protocol_block]))
         end
 
         # {dsl_options} being something like
