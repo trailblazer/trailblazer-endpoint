@@ -17,6 +17,10 @@ class ConfigTest < Minitest::Spec
     ApeBabeController.options_for(:options_for_endpoint, {}).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
     ApeBabeController.options_for(:options_for_domain_ctx, {}).inspect.must_equal %{{:current_user=>\"Yo\"}}
 
+    # 4t-h level, also inherit everything from 2-nd level
+    ApeBabeKidController.options_for(:options_for_endpoint, {}).inspect.must_equal %{{:find_process_model=>true, :request=>true}}
+    ApeBabeKidController.options_for(:options_for_domain_ctx, {}).inspect.must_equal %{{:current_user=>\"Yo\"}}
+
     BoringController.options_for(:options_for_endpoint, {}).inspect.must_equal %{{:find_process_model=>true, :request=>true, :xml=>"<XML"}}
     BoringController.options_for(:options_for_domain_ctx, {}).inspect.must_equal %{{:policy=>\"Ehm\"}}
 
@@ -62,6 +66,10 @@ class ConfigTest < Minitest::Spec
     # end
 
     # directive :options_for_domain_ctx, method(:options_for_domain_ctx)
+  end
+
+  class ApeBabeKidController < ApeController
+
   end
 
   class BoringController < ApplicationController
