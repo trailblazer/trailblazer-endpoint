@@ -1,6 +1,7 @@
 # 0.0.5
 
 * Removed `Protocol::Failure`. Until we have `Railway::End::Failure`, use a normal `Activity::End` everywhere instead of introducing our own.
+* Default `with_or_etc:invoke` is `TaskWrap.invoke`.
 
 # 0.0.4
 
