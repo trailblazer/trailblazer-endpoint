@@ -17,13 +17,24 @@ module Trailblazer
       end
 
       # @experimental
-      def self.module(framework: :rails, api: false)
+      def self.module(framework: :rails, api: false, dsl: false, application_controller: false)
         if api
           Module.new do
             def self.included(includer)
               includer.extend(Controller)
               includer.include(InstanceMethods)
               includer.include(InstanceMethods::API)
+            end
+          end
+        elsif dsl and !application_controller
+          Module.new do
+            def self.included(includer)
+              # includer.extend Trailblazer::Endpoint::Controller
+              includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
+              includer.include Trailblazer::Endpoint::Controller::Rails
+              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
+              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
+              includer.include Trailblazer::Endpoint::Controller::Rails::Process
             end
           end
         end

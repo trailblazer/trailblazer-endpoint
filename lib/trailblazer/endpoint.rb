@@ -23,8 +23,8 @@ module Trailblazer
       domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
       extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
 
-      puts Trailblazer::Developer.render(protocol)
-      puts
+      # puts Trailblazer::Developer.render(protocol)
+      # puts
 
       app_protocol = Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
@@ -36,7 +36,7 @@ module Trailblazer
         )
       end
 
-      puts Trailblazer::Developer.render(app_protocol)
+      # puts Trailblazer::Developer.render(app_protocol)
 
       Class.new(adapter) do
         step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})
@@ -63,7 +63,7 @@ module Trailblazer
 
     # Runtime
     # Invokes the endpoint for you and runs one of the three outcome blocks.
-    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:, invoke: Trailblazer::Developer.method(:wtf?))
+    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:, invoke: Trailblazer::Activity::TaskWrap.method(:invoke)) # invoke: Trailblazer::Developer.method(:wtf?)
       # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
 
       # signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
