@@ -25,7 +25,7 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/create_with_options", params: {id: 1}
   # {success} block renders model
     assert_response 200
-    assert_equal "[\"1\",\"yay!\"]", response.body
+    assert_equal "[{\"id\":\"1\"},\"yay!\"]", response.body
 
     post "/songs/create_with_options", params: {}
   # default {failure} block doesn't do anything
@@ -35,13 +35,33 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/create_with_or", params: {id: 1}
   # {success} block renders model
     assert_response 200
-    assert_equal "{\"or\":\"1\"}", response.body
+    assert_equal "{\"or\":{\"id\":\"1\"}}", response.body
 
     post "/songs/create_with_or", params: {}
   # default {failure} block doesn't do anything
     assert_response 422
-    assert_equal "null", response.body
+    assert_equal "[\"domain_ctx\",\"controller\",\"config_source\",\"domain_activity_return_signal\"]", response.body
 
+  end
+
+  test "override protocol_failure" do
+    post "/songs/create_with_protocol_failure", params: {}
+    assert_response 500
+  end
+
+  test "sign_in" do
+  # wrong credentials
+    post "/auth/sign_in", params: {}
+    assert_response 401
+    assert_equal "", response.body
+    assert_nil session[:user_id]
+
+  # valid signin
+    post "/auth/sign_in", params: {username: "yogi@trb.to", password: "secret"}
+    assert_response 302
+    # assert_equal "", response.body
+    assert_equal 1, session[:user_id]
+    assert_redirected_to "/"
   end
 end
 

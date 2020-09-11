@@ -1,10 +1,5 @@
 class ApplicationController::Web < ApplicationController
-  extend Trailblazer::Endpoint::Controller
-  include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
-  include Trailblazer::Endpoint::Controller::Rails
-  extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
-  extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
-  include Trailblazer::Endpoint::Controller::Rails::Process
+  include Trailblazer::Endpoint::Controller.module(dsl: true, application_controller: true)
 
   # directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
   # directive :options_for_flow_options, method(:options_for_flow_options)
@@ -24,7 +19,8 @@ puts "TODO: should we always inject params into the endpoint_ctx?"
     end
   end
 
-  endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web do
-    {Output(:not_found) => Track(:not_found)}
-  end
+  endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web,
+    domain_ctx_filter: ApplicationController.current_user_in_domain_ctx do
+      {Output(:not_found) => Track(:not_found)}
+    end
 end

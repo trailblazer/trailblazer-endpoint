@@ -1,6 +1,6 @@
 #:app-controller
 class ApplicationController::Api < ApplicationController
-  include Trailblazer::Endpoint::Controller.module(api: true)
+  include Trailblazer::Endpoint::Controller.module(api: true, application_controller: true)
 
   def self.options_for_block_options(ctx, controller:, **)
     response_block = ->(ctx, endpoint_ctx:, **) do
