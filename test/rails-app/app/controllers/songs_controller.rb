@@ -27,7 +27,7 @@ class SongsController < ApplicationController::Web
     endpoint "Create" do |ctx, **|
       redirect_to dashboard_path
     end.protocol_failure do |ctx, **|
-      render text: "wrong login"
+      render html: "wrong login, app crashed", status: 500
     end
   end
 end

@@ -1,17 +1,22 @@
 class ApplicationController::Web < ApplicationController
   include Trailblazer::Endpoint::Controller.module(dsl: true, application_controller: true)
 
-  # directive :options_for_endpoint, method(:options_for_endpoint), method(:request_options)
+  def self.options_for_endpoint(ctx, controller:, **)
+    {
+      session: controller.session,
+    }
+  end
+
+  directive :options_for_endpoint, method(:options_for_endpoint)
   # directive :options_for_flow_options, method(:options_for_flow_options)
   # directive :options_for_block_options, method(:options_for_block_options)
 
   Protocol = Class.new(Trailblazer::Endpoint::Protocol) do
-    # no {:seq} dependency
-    def authenticate(ctx, domain_ctx:, **)
+    def authenticate(ctx, session:, **)
       # puts domain_ctx[:params].inspect
+      puts "@@@@@ #{session.inspect}"
 
-puts "TODO: should we always inject params into the endpoint_ctx?"
-      domain_ctx[:params][:authenticate] == "false" ? false : true
+      ctx[:current_user] = User.find_by(id: session[:user_id])
     end
 
     def policy(ctx, domain_ctx:, **)

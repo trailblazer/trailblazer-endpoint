@@ -1,7 +1,16 @@
 require "test_helper"
 
 class SongsControllerTest < ActionDispatch::IntegrationTest
-  test "create 200" do
+  test "all possible outcomes with {Create}" do
+  # 401
+    post "/songs", params: {}
+    assert_response 401
+    assert_equal "", response.body
+
+  # sign in
+    post "/auth/sign_in", params: {username: "yogi@trb.to", password: "secret"}
+    assert_equal 1, session[:user_id]
+
     post "/songs", params: {id: 1}
   # default {success} block doesn't do anything
     assert_response 200
@@ -10,11 +19,6 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs", params: {}
   # default {failure} block doesn't do anything
     assert_response 422
-    assert_equal "", response.body
-
-  # 401
-    post "/songs", params: {authenticate: false}
-    assert_response 401
     assert_equal "", response.body
 
   # 403
@@ -47,6 +51,7 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
   test "override protocol_failure" do
     post "/songs/create_with_protocol_failure", params: {}
     assert_response 500
+    assert_equal "wrong login, app crashed", response.body
   end
 
   test "sign_in" do
