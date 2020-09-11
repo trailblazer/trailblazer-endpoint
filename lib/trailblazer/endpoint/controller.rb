@@ -26,15 +26,28 @@ module Trailblazer
               includer.include(InstanceMethods::API)
             end
           end
-        elsif dsl and !application_controller
-          Module.new do
-            def self.included(includer)
-              # includer.extend Trailblazer::Endpoint::Controller
-              includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
-              includer.include Trailblazer::Endpoint::Controller::Rails
-              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
-              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
-              includer.include Trailblazer::Endpoint::Controller::Rails::Process
+        elsif dsl
+          if application_controller
+            Module.new do
+              def self.included(includer)
+                includer.extend Trailblazer::Endpoint::Controller
+                includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
+                includer.include Trailblazer::Endpoint::Controller::Rails
+                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
+                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
+                includer.include Trailblazer::Endpoint::Controller::Rails::Process
+              end
+            end
+          else
+            Module.new do
+              def self.included(includer)
+                # includer.extend Trailblazer::Endpoint::Controller
+                includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
+                includer.include Trailblazer::Endpoint::Controller::Rails
+                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
+                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
+                includer.include Trailblazer::Endpoint::Controller::Rails::Process
+              end
             end
           end
         end
