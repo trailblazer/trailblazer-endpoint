@@ -10,6 +10,8 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
   # sign in
     post "/auth/sign_in", params: {username: "yogi@trb.to", password: "secret"}
     assert_equal 1, session[:user_id]
+    # follow_redirect!
+    assert_equal 1, session[:user_id]
 
     post "/songs", params: {id: 1}
   # default {success} block doesn't do anything
@@ -44,7 +46,7 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/create_with_or", params: {}
   # default {failure} block doesn't do anything
     assert_response 422
-    assert_equal "[\"domain_ctx\",\"controller\",\"config_source\",\"domain_activity_return_signal\"]", response.body
+    assert_equal "[\"domain_ctx\",\"session\",\"controller\",\"config_source\",\"current_user\",\"domain_activity_return_signal\"]", response.body
 
   end
 

@@ -32,6 +32,7 @@ class AuthController < ApplicationController::Web
       session[:user_id] = current_user.id # Working on {session} is HTTP-specific and done in the controller.
 
       redirect_to dashboard_path
+      # render html: "Yes!"
     end
   end
 
