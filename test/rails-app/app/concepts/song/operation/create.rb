@@ -1,6 +1,6 @@
 module Song::Operation
   class Create < Trailblazer::Operation
-    # include Trailblazer::Activity::Testing.def_steps(:model, :validate, :save)
+    step :contract
     step :model
     # step :validate
     # step :save
@@ -8,6 +8,10 @@ module Song::Operation
     def model(ctx, params:, **)
       return unless params[:id]
       ctx[:model] = Song.new(params[:id])
+    end
+
+    def contract(ctx, **)
+      ctx[:contract] = Struct.new(:errors).new()
     end
   end
 end

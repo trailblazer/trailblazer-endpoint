@@ -31,7 +31,7 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/create_with_options", params: {id: 1}
   # {success} block renders model
     assert_response 200
-    assert_equal "[{\"id\":\"1\"},\"yay!\"]", response.body
+    assert_equal "<div>#<struct Song id=\"1\">#<struct User id=2, email=\"seuros@trb.to\"></div>\n", response.body
 
     post "/songs/create_with_options", params: {}
   # default {failure} block doesn't do anything
@@ -41,13 +41,22 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/create_with_or", params: {id: 1}
   # {success} block renders model
     assert_response 200
-    assert_equal "{\"or\":{\"id\":\"1\"}}", response.body
+    assert_equal "<div>#<struct Song id=\"1\">#<struct User id=1, email=\"yogi@trb.to\"></div>\n", response.body
 
     post "/songs/create_with_or", params: {}
-  # default {failure} block doesn't do anything
-    assert_response 422
-    assert_equal "[\"domain_ctx\",\"session\",\"controller\",\"config_source\",\"current_user\",\"domain_activity_return_signal\"]", response.body
+    assert_response 200
+    assert_equal %{<div>#<struct errors=nil></div>\n}, response.body
 
+  # Or { render status: 422 }
+    post "/songs/create_or", params: {}
+    assert_response 422
+    assert_equal %{null}, response.body
+
+  # {:endpoint_ctx} is available in blocks
+    post "/songs/endpoint_ctx", params: {id: 1}
+    assert_response 200
+    assert_equal "Created", response.body
+    # assert_equal "[\"domain_ctx\",\"session\",\"controller\",\"config_source\",\"current_user\",\"domain_activity_return_signal\"]", response.body
   end
 
   test "override protocol_failure" do

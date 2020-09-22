@@ -1,8 +1,10 @@
 Rails.application.routes.draw do
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
-  resources :songs
-  post "/songs/create_with_options", to: "songs#create_with_options"
-  post "/songs/create_with_or", to: "songs#create_with_or"
+  post "/songs/create_with_options", to: "songs_controller/create_with_options#create"
+  post "/songs/create_or", to: "songs_controller/create_or#create"
+  post "/songs/endpoint_ctx", to: "songs_controller/create_endpoint_ctx#create"
+  post "/songs/create_with_or", to: "songs#create"
+  post "/songs", to: "songs#create_without_block"
   post "/songs/create_with_protocol_failure", to: "songs#create_with_protocol_failure"
   post "/auth/sign_in", to: "auth#sign_in"
 
