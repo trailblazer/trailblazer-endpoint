@@ -109,13 +109,12 @@ module Trailblazer
             directive :generic_options, method(:generic_options) # FIXME: do we need this?
           end
 
-          def endpoint_config(name, **options)
-            puts "~~~~~~~~~~~~~~~config"
-            build_options = options_for(:generic_options, {}).merge(options) # DISCUSS: why don't we add this as another directive option/step?
+          def endpoint_config(name, domain_activity: name, **options)
+            build_options = options_for(:generic_options, {}).merge(domain_activity: domain_activity, **options) # DISCUSS: why don't we add this as another directive option/step?
 
             endpoint = Trailblazer::Endpoint.build(build_options)
 
-            directive :endpoints, ->(*) { {name => endpoint} }
+            directive :endpoints, ->(*) { {name.to_s => endpoint} }
           end
 
         end
@@ -124,7 +123,7 @@ module Trailblazer
       module InstanceMethods
 
         def endpoint_for(name, config_source: self.class)
-          config_source.options_for(:endpoints, {}).fetch(name) # TODO: test non-existant endpoint
+          config_source.options_for(:endpoints, {}).fetch(name.to_s) # TODO: test non-existant endpoint
         end
 
         module DSL

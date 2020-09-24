@@ -311,4 +311,63 @@ class DocsControllerTest < Minitest::Spec
   end
 end
 
+class ControllerEndpointMethodTest < Minitest::Spec
+# Test {Controller::endpoint}
+
+  class Protocol < Trailblazer::Endpoint::Protocol
+    def policy(*); true; end
+    def authenticate(*); true; end
+  end
+
+  class BasicController
+    include Trailblazer::Endpoint::Controller.module(api: true, application_controller: true)
+
+    directive :options_for_block_options, Trailblazer::Endpoint::Controller.method(:options_for_block_options)
+
+    endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web
+
+    def head(status)
+      @status = status
+    end
+
+    def self.options_for_block_options(ctx, controller:, **)
+      {
+        success_block:          ->(ctx, endpoint_ctx:, **) { controller.head("#{ctx[:op]}") },
+        failure_block:          ->(ctx, status:, **) {  },
+        protocol_failure_block: ->(ctx, status:, **) {  }
+      }
+    end
+
+    directive :options_for_block_options, method(:options_for_block_options)
+  end
+
+  class RodaController < BasicController
+    class Create < Trailblazer::Activity::Railway
+      def save(ctx, **); ctx[:op] = self.class; end;
+      step :save
+    end
+    class Update < Create
+    end
+
+  # {Controller::endpoint}: {:domain_activity} defaults to {name} when not given
+    endpoint Create                           # class {name}s are ok
+    endpoint :update, domain_activity: Update # symbol {name} is ok
+
+    def show
+      endpoint Create
+      @status
+    end
+
+    def update
+      endpoint :update
+      @status
+    end
+  end
+
+
+  it "what" do
+    RodaController.new.show.must_equal %{ControllerEndpointMethodTest::RodaController::Create}
+    RodaController.new.update.must_equal %{ControllerEndpointMethodTest::RodaController::Update}
+  end
+end
 

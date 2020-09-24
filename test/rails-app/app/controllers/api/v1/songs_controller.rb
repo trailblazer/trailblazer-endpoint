@@ -11,6 +11,7 @@ module Api
       end
       #:create end
 
+      #~empty
       def show
         endpoint Song::Operation::Show.to_s, representer_class: Song::Representer
       end
@@ -29,6 +30,7 @@ module Api
         end
         #:show-options end
       end
+      #~empty end
     end
   end
 end

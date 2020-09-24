@@ -1,8 +1,8 @@
 PATH
   remote: ../..
   specs:
-    trailblazer-endpoint (0.0.3)
-      trailblazer-activity-dsl-linear (>= 0.2.9, < 0.4.0)
+    trailblazer-endpoint (0.0.5)
+      trailblazer-activity-dsl-linear (>= 0.3.0, < 0.4.0)
 
 GEM
   remote: https://rubygems.org/
@@ -63,18 +63,34 @@ GEM
       tzinfo (~> 1.1)
       zeitwerk (~> 2.2, >= 2.2.2)
     builder (3.2.4)
-    concurrent-ruby (1.1.6)
+    cells (4.1.7)
+      declarative-builder (< 0.2.0)
+      declarative-option (< 0.2.0)
+      tilt (>= 1.4, < 3)
+      uber (< 0.2.0)
+    cells-erb (0.1.0)
+      cells (~> 4.0)
+      erbse (>= 0.1.1)
+    cells-rails (0.1.1)
+      actionpack (>= 5.0)
+      cells (>= 4.1.6, < 5.0.0)
+    concurrent-ruby (1.1.7)
     crass (1.0.6)
     declarative (0.0.20)
+    declarative-builder (0.1.0)
+      declarative-option (< 0.2.0)
     declarative-option (0.1.0)
+    erbse (0.1.4)
+      temple
     erubi (1.9.0)
     globalid (0.4.2)
       activesupport (>= 4.2.0)
+    hashie (4.1.0)
     hirb (0.7.3)
     i18n (1.8.5)
       concurrent-ruby (~> 1.0)
-    jwt (2.2.1)
-    loofah (2.6.0)
+    jwt (2.2.2)
+    loofah (2.7.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.5.9)
     mail (2.7.1)
@@ -85,7 +101,9 @@ GEM
     mimemagic (0.3.5)
     mini_mime (1.0.2)
     mini_portile2 (2.4.0)
-    minitest (5.14.1)
+    minitest (5.14.2)
+    minitest-line (0.6.5)
+      minitest (~> 5.0)
     multi_json (1.15.0)
     nio4r (2.5.2)
     nokogiri (1.10.10)
@@ -132,21 +150,26 @@ GEM
       activesupport (>= 4.0)
       sprockets (>= 3.0.0)
     sqlite3 (1.4.2)
+    temple (0.8.2)
     thor (1.0.1)
     thread_safe (0.3.6)
-    trailblazer-activity (0.11.0)
-      trailblazer-context (>= 0.3.0, < 0.4.0)
-    trailblazer-activity-dsl-linear (0.2.9)
-      trailblazer-activity (>= 0.9.1, < 1.0.0)
-    trailblazer-context (0.3.0)
-    trailblazer-developer (0.0.15)
+    tilt (2.0.10)
+    trailblazer-activity (0.11.3)
+      trailblazer-context (>= 0.3.1, < 0.4.0)
+    trailblazer-activity-dsl-linear (0.3.2)
+      trailblazer-activity (>= 0.11.2, < 1.0.0)
+    trailblazer-cells (0.0.3)
+      cells (>= 4.1.0.rc1, < 5.0.0)
+    trailblazer-context (0.3.1)
+      hashie (~> 4.1)
+    trailblazer-developer (0.0.16)
       hirb
       representable
       trailblazer-activity (>= 0.11.0, < 1.0.0)
       trailblazer-activity-dsl-linear
-    trailblazer-operation (0.6.2)
-      trailblazer-activity (>= 0.10.0, < 1.0.0)
-      trailblazer-activity-dsl-linear (>= 0.2.6, < 1.0.0)
+    trailblazer-operation (0.6.5)
+      trailblazer-activity (>= 0.11.2, < 1.0.0)
+      trailblazer-activity-dsl-linear (>= 0.3.2, < 1.0.0)
       trailblazer-developer (>= 0.0.8)
     tzinfo (1.2.7)
       thread_safe (~> 0.1)
@@ -160,10 +183,14 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  cells-erb
+  cells-rails
   jwt
+  minitest-line
   multi_json
   rails (~> 6.0.3, >= 6.0.3.1)
   sqlite3 (~> 1.4)
+  trailblazer-cells
   trailblazer-endpoint!
   trailblazer-operation
 

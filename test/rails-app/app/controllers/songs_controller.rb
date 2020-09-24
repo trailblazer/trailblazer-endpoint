@@ -35,9 +35,11 @@ class SongsController < ApplicationController::Web
       endpoint "Create" do |ctx, endpoint_ctx:, **|
         render html: "Created", status: endpoint_ctx[:status]
       end.Or do |ctx, **| # validation failure
-    #:endpoint_ctx end
+        #~empty
+        #~empty end
       end
     end
+    #:endpoint_ctx end
   end
 
   # end.Or do |ctx, endpoint_ctx:, **| # validation failure
