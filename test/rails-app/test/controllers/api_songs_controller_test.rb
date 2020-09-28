@@ -32,11 +32,13 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
   test "API interface" do
     yogi_jwt = jwt(1)
 
+  # default {success}
+    #:success
     post_json "/v1/songs", {id: 1}, yogi_jwt
 
-  # default {success}
     assert_response 200
     assert_equal "{\"id\":1}", response.body
+    #:success end
 
     # no proper input/params
     post_json "/v1/songs", {}, yogi_jwt
@@ -45,9 +47,11 @@ class ApiSongsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "{\"errors\":{\"message\":\"The submitted data is invalid.\"}}", response.body
 
   # 401
-    post_json "/v1/songs", {authenticate: false}
+    #:not_authenticated
+    post_json "/v1/songs", {} # no token
     assert_response 401
     assert_equal "{\"errors\":{\"message\":\"Authentication credentials were not provided or are invalid.\"}}", response.body
+    #:not_authenticated end
 
   # 403
     post_json "/v1/songs", {id: 1, policy: false}, yogi_jwt
