@@ -5,7 +5,7 @@ Rails.application.routes.draw do
   post "/songs/endpoint_ctx", to: "songs_controller/create_endpoint_ctx#create"
   post "/songs/create_with_or", to: "songs#create"
   post "/songs", to: "songs#create_without_block"
-  post "/songs/create_with_protocol_failure", to: "songs#create_with_protocol_failure"
+  post "/songs/create_with_protocol_failure", to: "songs_controller/create_with_protocol_failure#create_with_protocol_failure"
   post "/auth/sign_in", to: "auth#sign_in"
 
   post "/v1/songs", to: "api/v1/songs#create"
