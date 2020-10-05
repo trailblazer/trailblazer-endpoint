@@ -1,11 +1,38 @@
 # Trailblazer::Endpoint
 
-*Generic HTTP handlers for operation results.*
+*Endpoints handle authentication, authorization, calling the business logic and response rendering.*
 
-Decouple finding out *what happened* from *what to do*.
+## Overview
 
-t test/controllers/songs_controller_test.rb --backtrace
+An endpoint links your routing with your business code. The idea is that your controllers are pure HTTP routers, calling the respective endpoint for each action. From there, the endpoint takes over, handles authentication, policies, executing the domain code, interpreting the result, and providing hooks to render a response.
 
-## TODO
+Instead of dealing with a mix of `before_filter`s, Rack-middlewares, controller code and callbacks, an endpoint is just another activity and allows to be customized with the well-established Trailblazer mechanics.
 
-* make travis build run `cd test/rails-app/ && rake`
+
+In a Rails controller, a controller action could look as follows.
+
+    class DiagramsController < ApplicationController
+      endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
+
+      def create
+        endpoint Diagram::Operation::Create do |ctx|
+          redirect_to diagram_path(ctx[:diagram].id)
+        end.Or do |ctx|
+          render :form
+        end
+      end
+    end
+
+While routing and redirecting/rendering still happens in Rails, all remaining steps are handled in the endpoint.
+
+An API controller action, where the rendering is done generically, could look much simpler.
+
+    class API::V1::DiagramsController < ApplicationController
+      endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
+
+      def create
+        endpoint Diagram::Operation::Create
+      end
+    end
+
+Endpoints are easily customized but their main intent is to reduce fuzzy controller code and providing best practices for both HTML-rendering controllers and APIs.
