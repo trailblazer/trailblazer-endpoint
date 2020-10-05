@@ -128,7 +128,7 @@ module Trailblazer
 
         module DSL
           def endpoint(name, **action_options, &block)
-            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {DSL#endpoint}
+            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {API#endpoint}
 
             endpoint = endpoint_for(name)
 
@@ -144,7 +144,7 @@ module Trailblazer
           def endpoint(name, config_source: self.class, **action_options)
             endpoint = endpoint_for(name, config_source: config_source)
 
-            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {DSL#endpoint}
+            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {InstanceMethods#endpoint}
 
             block_options = config_source.options_for(:options_for_block_options, **action_options)
             block_options = Trailblazer::Endpoint::Options.merge_with(action_options, block_options)

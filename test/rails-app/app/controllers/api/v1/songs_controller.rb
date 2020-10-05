@@ -1,11 +1,13 @@
 #:controller
 module Api
   module V1
+    #:endpoint
     class SongsController < ApplicationController::Api
       endpoint Song::Operation::Create
       endpoint Song::Operation::Show do
         {Output(:not_found) => Track(:not_found)}  # add additional wiring to {domain_activity}
       end
+    #:endpoint end
 
       #:create
       def create

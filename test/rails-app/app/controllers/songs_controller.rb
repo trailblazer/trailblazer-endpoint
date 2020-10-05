@@ -42,6 +42,16 @@ end
   end
 
 
+  class CreateWithOptionsForDomainCtxController < SongsController
+    #:domain_ctx
+    def create
+      endpoint Song::Operation::Create, options_for_domain_ctx: {params: {id: 999}} do |ctx, model:, **|
+        render html: cell(Song::Cell::Create, model)
+      end
+    end
+    #:domain_ctx end
+  end
+
   class CreateEndpointCtxController < SongsController
     #:endpoint_ctx
     def create

@@ -57,6 +57,11 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     assert_response 200
     assert_equal "Created", response.body
     # assert_equal "[\"domain_ctx\",\"session\",\"controller\",\"config_source\",\"current_user\",\"domain_activity_return_signal\"]", response.body
+
+    # {:options_for_domain_ctx} overrides domain_ctx
+    post "/songs/create_with_options_for_domain_ctx", params: {id: 1} # params get overridden
+    assert_response 200
+    assert_equal "<div>#<struct Song id=999></div>\n", response.body
   end
 
   test "override protocol_failure" do
