@@ -16,9 +16,9 @@ class DiagramsController < ApplicationController
   endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
 
   def create
-    endpoint Diagram::Operation::Create do |ctx|
+    endpoint Diagram::Operation::Create do |ctx, **|
       redirect_to diagram_path(ctx[:diagram].id)
-    end.Or do |ctx|
+    end.Or do |ctx, **|
       render :form
     end
   end
