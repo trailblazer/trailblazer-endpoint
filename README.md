@@ -11,28 +11,36 @@ Instead of dealing with a mix of `before_filter`s, Rack-middlewares, controller 
 
 In a Rails controller, a controller action could look as follows.
 
-    class DiagramsController < ApplicationController
-      endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
+```ruby
+class DiagramsController < ApplicationController
+  endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
 
-      def create
-        endpoint Diagram::Operation::Create do |ctx|
-          redirect_to diagram_path(ctx[:diagram].id)
-        end.Or do |ctx|
-          render :form
-        end
-      end
+  def create
+    endpoint Diagram::Operation::Create do |ctx|
+      redirect_to diagram_path(ctx[:diagram].id)
+    end.Or do |ctx|
+      render :form
     end
+  end
+end
+```
 
 While routing and redirecting/rendering still happens in Rails, all remaining steps are handled in the endpoint.
 
 An API controller action, where the rendering is done generically, could look much simpler.
 
-    class API::V1::DiagramsController < ApplicationController
-      endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
+```ruby
+class API::V1::DiagramsController < ApplicationController
+  endpoint Diagram::Operation::Create, [:is_logged_in?, :can_add_diagram?]
 
-      def create
-        endpoint Diagram::Operation::Create
-      end
-    end
+  def create
+    endpoint Diagram::Operation::Create
+  end
+end
+```
 
 Endpoints are easily customized but their main intent is to reduce fuzzy controller code and providing best practices for both HTML-rendering controllers and APIs.
+
+## Documentation
+
+Read the [full documentation for endpoint](https://trailblazer.to/2.1/docs/endpoint.html) on our website.
