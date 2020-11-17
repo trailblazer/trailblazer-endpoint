@@ -27,19 +27,29 @@ module Trailblazer
       # puts
 
       app_protocol = Class.new(protocol) do
-        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
+        domain_activity_args = { inherit: true, id: :domain_activity, replace: :domain_activity }
+        domain_activity_args.merge!(extensions_options)
 
-# FIXME: where does this go?
-        }.
-          merge(extensions_options).
-          merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
+        # protocol_block is evaluated in the {Protocol} context.
+        domain_activity_args.merge!(instance_exec(&protocol_block))
+
+        # Forward protocol specific stop_events from domain_activity
+        domain_activity_args.merge!(
+          Endpoint.wire_additonal_stop_events_from(domain_activity, output_mappings: Endpoint::Protocol::ADDITIONAL_WIRINGS)
         )
+
+        step(Subprocess(domain_activity), domain_activity_args)
       end
 
       # puts Trailblazer::Developer.render(app_protocol)
 
       Class.new(adapter) do
-        step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})
+        app_protocol_args = { inherit: true, id: :protocol, replace: :protocol }
+        app_protocol_args.merge!(
+          Endpoint.wire_additonal_stop_events_from(app_protocol, output_mappings: Endpoint::Adapter::Web::ADDITIONAL_WIRINGS)
+        )
+
+        step(Subprocess(app_protocol), app_protocol_args)
       end # app_adapter
 
     end
@@ -116,7 +126,7 @@ module Trailblazer
     end
 
     # FIXME: name will change! this is for controllers, only!
-    def self.advance_from_controller(endpoint, success_block:, failure_block:, protocol_failure_block: protocol_failure_block, **argument_options)
+    def self.advance_from_controller(endpoint, success_block:, failure_block:, protocol_failure_block:, **argument_options)
       args = Trailblazer::Endpoint.arguments_for(argument_options)
 
       signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
@@ -129,6 +139,17 @@ module Trailblazer
       )
 
       ctx
+    end
+
+    # Returns any additional stop_events mappings based on activity's wiring.
+    # This is used to add additional protocol or adapter's wiring at runtime based on the {stop_event} presence.
+    def self.wire_additonal_stop_events_from(activity, output_mappings:)
+      graph     = Trailblazer::Activity::Introspect::Graph(activity)
+      semantics = graph.stop_events.collect{ |se| se.to_h[:semantic] }
+
+      output_mappings.select do |output, _stop_event|
+        semantics.include?(output.value)
+      end
     end
   end
 end

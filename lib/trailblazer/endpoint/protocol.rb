@@ -1,4 +1,5 @@
 require "trailblazer/activity/dsl/linear"
+require "trailblazer/activity/introspect"
 
 module Trailblazer
   class Endpoint
@@ -15,6 +16,10 @@ module Trailblazer
     #   not_authenticated: 401
     #   not_authorized: 403
     class Protocol < Trailblazer::Activity::Railway
+      ADDITIONAL_WIRINGS = {
+        Output(:not_found) => End(:not_found)
+      }
+
       class Noop < Trailblazer::Activity::Railway
       end
 
@@ -32,21 +37,8 @@ module Trailblazer
 
       # Here, we test a domain OP with ADDITIONAL explicit ends that get wired to the Adapter (vaidation_error => failure).
       # We still need to test the other way round: wiring a "normal" failure to, say, not_found, by inspecting the ctx.
-      step Subprocess(Noop), id: :domain_activity
-
-
-
-      # add the {End.not_found} terminus to this Protocol. I'm not sure that's the final style, but since a {Protocol} needs to provide all
-      # termini for the Adapter this is the only way to get it working right now.
-      # FIXME: is this really the only way to add an {End} to all this?
-      @state.update_sequence do |sequence:, **|
-        sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :not_found), magnetic_to: :not_found, id: "End.not_found")
-        sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :invalid_data), magnetic_to: :invalid_data, id: "End.invalid_data")
-
-        recompile_activity!(sequence)
-
-        sequence
-      end
+      step Subprocess(Noop), id: :domain_activity,
+        Output(:failure) => End(:invalid_data)
 
       # Best-practices of useful routes and handlers that work with 2.1-OPs.
       class Standard < Protocol
@@ -113,7 +105,6 @@ module Trailblazer
           [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:terminus_handler)]]]
         end
       end
-
     end
   end
 end
