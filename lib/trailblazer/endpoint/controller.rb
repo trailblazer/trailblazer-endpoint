@@ -2,9 +2,9 @@ module Trailblazer
   class Endpoint
     module Controller
       def self.extended(extended)
-        extended.extend Trailblazer::Endpoint::Options::DSL
+        extended.extend Trailblazer::Endpoint::Options::DSL           # ::directive
         extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
-        extended.extend Trailblazer::Endpoint::Options
+        extended.extend Trailblazer::Endpoint::Options                # ::options_for
         extended.extend DSL::Endpoint
 
         extended.include InstanceMethods # {#endpoint_for}

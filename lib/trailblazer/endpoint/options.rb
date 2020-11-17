@@ -67,29 +67,6 @@ module Trailblazer
         target.instance_variable_set(:@config, config)
       end
 
-      class State < Module
-        def initialize(normalizer, config)
-          @normalizer = normalizer
-          @config = config
-        end
-
-        # called once when extended in {ApplicationController}.
-        def extended(extended)
-          super
-
-          extended.extend(Inherited)
-          Normalizer.add_normalizer!(extended, @normalizer, @config)
-        end
-
-      end
-      module Inherited
-        def inherited(subclass)
-          super
-
-          Normalizer.add_normalizer!(subclass, @normalizer, @config)
-        end
-      end
-
       def self.add(normalizer, directive_name, options)
         Class.new(normalizer) do
           options.collect do |callable|
