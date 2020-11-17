@@ -17,6 +17,8 @@ module Trailblazer
       end
 
       # @experimental
+      # TODO: test application_controller with and without dsl/api
+
       def self.module(framework: :rails, api: false, dsl: false, application_controller: false)
         if application_controller && !api && !dsl # FIXME: not tested! this is useful for an actual AppController with block_options or flow_options settings, "globally"
           Module.new do
@@ -24,8 +26,7 @@ module Trailblazer
               includer.extend(Controller) # only ::directive and friends.
             end
           end
-        end
-        if api
+        elsif api
           Module.new do
             @application_controller = application_controller
             def self.included(includer)
@@ -49,6 +50,8 @@ module Trailblazer
               includer.include Trailblazer::Endpoint::Controller::Rails::Process
             end
           end # Module
+        else
+          raise
         end
       end
 
