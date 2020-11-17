@@ -22,7 +22,6 @@ module Trailblazer
           Module.new do
             def self.included(includer)
               includer.extend(Controller)
-              includer.include(InstanceMethods)
               includer.include(InstanceMethods::API)
             end
           end
@@ -30,7 +29,7 @@ module Trailblazer
           if application_controller
             Module.new do
               def self.included(includer)
-                includer.extend Trailblazer::Endpoint::Controller
+                includer.extend Controller
                 includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
                 includer.include Trailblazer::Endpoint::Controller::Rails
                 includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
