@@ -18,37 +18,37 @@ module Trailblazer
 
       # @experimental
       def self.module(framework: :rails, api: false, dsl: false, application_controller: false)
-        if api
+        if application_controller && !api && !dsl # FIXME: not tested! this is useful for an actual AppController with block_options or flow_options settings, "globally"
           Module.new do
             def self.included(includer)
-              includer.extend(Controller)
+              includer.extend(Controller) # only ::directive and friends.
+            end
+          end
+        end
+        if api
+          Module.new do
+            @application_controller = application_controller
+            def self.included(includer)
+              if @application_controller
+                includer.extend Controller
+              end
               includer.include(InstanceMethods::API)
             end
           end
         elsif dsl
-          if application_controller
-            Module.new do
-              def self.included(includer)
+          Module.new do
+            @application_controller = application_controller
+            def self.included(includer)
+              if @application_controller
                 includer.extend Controller
-                includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
-                includer.include Trailblazer::Endpoint::Controller::Rails
-                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
-                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
-                includer.include Trailblazer::Endpoint::Controller::Rails::Process
               end
+              includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
+              includer.include Trailblazer::Endpoint::Controller::Rails
+              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
+              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
+              includer.include Trailblazer::Endpoint::Controller::Rails::Process
             end
-          else
-            Module.new do
-              def self.included(includer)
-                # includer.extend Trailblazer::Endpoint::Controller
-                includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
-                includer.include Trailblazer::Endpoint::Controller::Rails
-                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
-                includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
-                includer.include Trailblazer::Endpoint::Controller::Rails::Process
-              end
-            end
-          end
+          end # Module
         end
       end
 
