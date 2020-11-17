@@ -1,3 +1,9 @@
+# 0.0.6
+
+* `Controller::endpoint` short form introduced.
+* Minor changes for `Controller.module`.
+* Lots of cleanups.
+
 # 0.0.5
 
 * Removed `Protocol::Failure`. Until we have `Railway::End::Failure`, use a normal `Activity::End` everywhere instead of introducing our own.
