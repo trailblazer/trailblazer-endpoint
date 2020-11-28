@@ -71,17 +71,33 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "serializing" do
-  # 401
-    post "/songs/serialize/"
-    assert_response 401
+  # # 401
+  #   post "/songs/serialize/"
+  #   assert_response 401
 
   # sign in
     post "/auth/sign_in", params: {username: "yogi@trb.to", password: "secret"}
     assert_equal 1, session[:user_id]
 
-    post "/songs/serialize/"
-    assert_response 200
 
+  # When {:encrypted_resume_data} is {nil} the entire deserialize cycle is skipped.
+  # Nothing gets serialized.
+    post "/songs/serialize1/", params: {} # encrypted_resume_data: nil
+    assert_response 200
+    assert_equal "false/nil/", response.body
+
+  # Nothing deserialized, but {:remember} serialized
+  # "confirm_delete form"
+    post "/songs/serialize2/", params: {} # {:remember} serialized
+    assert_response 200
+    encrypted_string = "0109C4E535EDA2CCE8CD69E50C179F5950CC4A2A898504F951C995B6BCEAFE1D77252DBFA014052D"
+    assert_equal "false/nil/#{encrypted_string}", response.body
+
+  # {:remember} deserialized
+  # "submit confirm_delete"
+    post "/songs/serialize3/", params: {encrypted_resume_data: encrypted_string} # {:remember} serialized
+    assert_response 200
+    assert_equal "false/{\"remember\"=>\"#<OpenStruct id=1>\"}/", response.body
   end
 
   test "sign_in" do

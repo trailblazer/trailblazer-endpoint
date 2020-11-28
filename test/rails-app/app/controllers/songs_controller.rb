@@ -85,8 +85,18 @@ end
 
   # serialize suspend_data and deserialize resume_data
   class SerializeController < SongsController
+   def self.process_model_in_domain_ctx
+      ->(_ctx, ((ctx, a), b)) {
+        ctx[:domain_ctx][:model]  = ctx[:process_model] if ctx.key?(:process_model)
+        ctx[:domain_ctx][:memory] = ctx[:resume_data] #if ctx.key?(:memory)
+
+        [_ctx, [[ctx, a], b]]
+      } # FIXME: extract to lib?
+    end
+
     endpoint Song::Operation::Create,
-      protocol: ApplicationController::Web::SerializingProtocol#,
+      protocol: ApplicationController::Web::SerializingProtocol,
+      domain_ctx_filter: process_model_in_domain_ctx
       # serialize: true
 
     def self.options_for_block_options(ctx, **)
@@ -95,20 +105,78 @@ end
       }
     end
 
-    directive :options_for_block_options, method(:options_for_block_options)
 
+    def self.options_for_endpoint(ctx, controller:, **)
+      {
+        cipher_key: Rails.application.config.cipher_key,
+
+        encrypted_resume_data: controller.params[:encrypted_resume_data],
+      }
+    end
+
+    directive :options_for_block_options, method(:options_for_block_options)
+    directive :options_for_endpoint, method(:options_for_endpoint)
 
     def create
-
-      cipher_key = "e1e1cc87asdfasdfasdfasfdasdfasdfasvhnfvbdb"
-
       encrypted_value = Trailblazer::Workflow::Cipher.encrypt_value({}, cipher_key: cipher_key, value: JSON.dump({id: "findings received", class: Object}))
 
-      endpoint Song::Operation::Create, cipher_key: cipher_key, encrypted_resume_data: encrypted_value, process_model_from_resume_data: false do |ctx, current_user:, endpoint_ctx:, **|
+      endpoint Song::Operation::Create, encrypted_resume_data: encrypted_value, process_model_from_resume_data: false do |ctx, current_user:, endpoint_ctx:, **|
         render html: cell(Song::Cell::Create, model, current_user: current_user)
       end.Or do |ctx, contract:, **| # validation failure
         render html: cell(Song::Cell::New, contract)
       end
     end
   end
+
+  # TODO: not really a doc test.
+# When {:encrypted_resume_data} is {nil} the entire deserialize cycle is skipped.
+  class Serialize1Controller < SerializeController
+    class Create < Trailblazer::Operation
+      pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
+    end
+
+    endpoint "Create",
+      domain_activity: Create,
+      protocol: ApplicationController::Web::SerializingProtocol,
+      domain_ctx_filter: process_model_in_domain_ctx
+
+    def create
+      # {:model} and {:memory} are from the domain_ctx.
+      # {:encrypted_suspend_data} from endpoint.
+      endpoint "Create" do |ctx, model:, memory:, endpoint_ctx:, **|
+        render html: "#{model.inspect}/#{memory.inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
+      end.Or do |ctx, **| # validation failure
+        raise
+      end
+    end
+  end
+
+    # TODO: not really a doc test.
+# ---------deserialize cycle is skipped.
+# we serialize {:remember}.
+  class Serialize2Controller < Serialize1Controller # "render confirm page"
+    class Create < Trailblazer::Operation
+      pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
+      step ->(ctx, **) { ctx[:suspend_data] = {remember: OpenStruct.new(id: 1)} }   # write to domain_ctx[:suspend_data]
+    end
+
+    endpoint "Create",
+      domain_activity: Create,
+      protocol: ApplicationController::Web::SerializingProtocol,
+      domain_ctx_filter: process_model_in_domain_ctx
+  end
+
+  class Serialize3Controller < Serialize1Controller # "process submitted confirm page"
+    class Create < Trailblazer::Operation
+      pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
+      # pass ->(ctx, **) { ctx[:remember] = ctx[:model] : false }
+      # step ->(ctx, **) { ctx[:suspend_data] = {remember: OpenStruct.new(id: 1)} }   # write to domain_ctx[:suspend_data]
+    end
+
+    endpoint "Create",
+      domain_activity: Create,
+      protocol: ApplicationController::Web::SerializingProtocol,
+      domain_ctx_filter: process_model_in_domain_ctx
+  end
+
 end

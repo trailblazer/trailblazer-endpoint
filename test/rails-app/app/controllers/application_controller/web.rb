@@ -53,13 +53,12 @@ class ApplicationController::Web < ApplicationController
           process_model_from_resume_data
         end
 
-        def deserialize_process_model(ctx, resume_data:, **)
+        def deserialize_process_model_id(ctx, resume_data:, **)
           ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}?
         end
 
-        def encrypt?(ctx, returned:, **)
-          application_ctx = returned[1]
-          ctx[:suspend_data] = application_ctx[:suspend_data]
+        def encrypt?(ctx, domain_ctx:, **)
+          ctx[:suspend_data] = domain_ctx[:suspend_data]
         end
 
         def serialize_suspend_data(ctx, suspend_data:, **)
@@ -75,8 +74,8 @@ class ApplicationController::Web < ApplicationController
 
             step Advance___::Controller.method(:deserialize_resume_data), id: :deserialize_resume_data
             # DISCUSS: unmarshall?
-            step Advance___::Controller.method(:deserialize_process_model?), id: :deserialize_process_model?, activity.Output(Trailblazer::Activity::Left, :failure) => activity.Id(around_activity_id)
-            step Advance___::Controller.method(:deserialize_process_model), id: :deserialize_process_model
+            # step Advance___::Controller.method(:deserialize_process_model_id?), id: :deserialize_process_model_id?, activity.Output(Trailblazer::Activity::Left, :failure) => activity.Id(around_activity_id)
+            # step Advance___::Controller.method(:deserialize_process_model_id), id: :deserialize_process_model_id
           end
 
           # step Subprocess(around_activity), id: around_activity_id, Trailblazer::Activity::Railway.Output(:not_found) => End(:not_found)
