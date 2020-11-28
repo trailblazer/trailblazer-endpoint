@@ -15,4 +15,6 @@ Rails.application.routes.draw do
   get "/v1/songs_with_options/:id", to: "api/v1/songs_controller/with_options#show"
 
   get "/", to: "home#dashboard"
+
+  post "/songs/serialize", to: "songs_controller/serialize#create"
 end

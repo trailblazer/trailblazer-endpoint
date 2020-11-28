@@ -21,3 +21,7 @@ gem "minitest-line"
 gem "trailblazer-cells"
 gem "cells-erb"
 gem "cells-rails"
+
+
+# FIXME
+gem "trailblazer-workflow", path: "../../../trailblazer-workflow"

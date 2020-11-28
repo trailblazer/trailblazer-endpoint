@@ -81,4 +81,34 @@ end
   end
   #:protocol_failure end
   end
+
+
+  # serialize suspend_data and deserialize resume_data
+  class SerializeController < SongsController
+    endpoint Song::Operation::Create,
+      protocol: ApplicationController::Web::SerializingProtocol#,
+      # serialize: true
+
+    def self.options_for_block_options(ctx, **)
+      {
+        invoke: Trailblazer::Developer.method(:wtf?) # FIXME
+      }
+    end
+
+    directive :options_for_block_options, method(:options_for_block_options)
+
+
+    def create
+
+      cipher_key = "e1e1cc87asdfasdfasdfasfdasdfasdfasvhnfvbdb"
+
+      encrypted_value = Trailblazer::Workflow::Cipher.encrypt_value({}, cipher_key: cipher_key, value: JSON.dump({id: "findings received", class: Object}))
+
+      endpoint Song::Operation::Create, cipher_key: cipher_key, encrypted_resume_data: encrypted_value, process_model_from_resume_data: false do |ctx, current_user:, endpoint_ctx:, **|
+        render html: cell(Song::Cell::Create, model, current_user: current_user)
+      end.Or do |ctx, contract:, **| # validation failure
+        render html: cell(Song::Cell::New, contract)
+      end
+    end
+  end
 end

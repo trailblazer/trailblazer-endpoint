@@ -1,7 +1,15 @@
 PATH
+  remote: ../../../trailblazer-workflow
+  specs:
+    trailblazer-workflow (0.0.8)
+      trailblazer-activity
+      trailblazer-activity-implementation
+      trailblazer-developer (>= 0.0.10)
+
+PATH
   remote: ../..
   specs:
-    trailblazer-endpoint (0.0.5)
+    trailblazer-endpoint (0.0.6)
       trailblazer-activity-dsl-linear (>= 0.3.0, < 0.4.0)
 
 GEM
@@ -158,6 +166,9 @@ GEM
       trailblazer-context (>= 0.3.1, < 0.4.0)
     trailblazer-activity-dsl-linear (0.3.2)
       trailblazer-activity (>= 0.11.2, < 1.0.0)
+    trailblazer-activity-implementation (0.0.3)
+      trailblazer-activity (>= 0.8.0)
+      trailblazer-activity-dsl-linear
     trailblazer-cells (0.0.3)
       cells (>= 4.1.0.rc1, < 5.0.0)
     trailblazer-context (0.3.1)
@@ -193,6 +204,7 @@ DEPENDENCIES
   trailblazer-cells
   trailblazer-endpoint!
   trailblazer-operation
+  trailblazer-workflow!
 
 BUNDLED WITH
    2.1.4

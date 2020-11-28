@@ -70,6 +70,20 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "wrong login, app crashed", response.body
   end
 
+  test "serializing" do
+  # 401
+    post "/songs/serialize/"
+    assert_response 401
+
+  # sign in
+    post "/auth/sign_in", params: {username: "yogi@trb.to", password: "secret"}
+    assert_equal 1, session[:user_id]
+
+    post "/songs/serialize/"
+    assert_response 200
+
+  end
+
   test "sign_in" do
   # wrong credentials
     post "/auth/sign_in", params: {}
