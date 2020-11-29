@@ -87,8 +87,8 @@ end
   class SerializeController < SongsController
    def self.process_model_in_domain_ctx
       ->(_ctx, ((ctx, a), b)) {
-        ctx[:domain_ctx][:model]  = ctx[:process_model] if ctx.key?(:process_model)
-        ctx[:domain_ctx][:memory] = ctx[:resume_data] #if ctx.key?(:memory)
+        ctx[:domain_ctx][:model]       = ctx[:process_model] if ctx.key?(:process_model)
+        ctx[:domain_ctx][:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
 
         [_ctx, [[ctx, a], b]]
       } # FIXME: extract to lib?
@@ -143,8 +143,8 @@ end
     def create
       # {:model} and {:memory} are from the domain_ctx.
       # {:encrypted_suspend_data} from endpoint.
-      endpoint "Create" do |ctx, model:, memory:, endpoint_ctx:, **|
-        render html: "#{model.inspect}/#{memory.inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
+      endpoint "Create" do |ctx, model:, endpoint_ctx:, **|
+        render html: "#{model.inspect}/#{ctx[:memory].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
       end.Or do |ctx, **| # validation failure
         raise
       end
@@ -169,7 +169,7 @@ end
   class Serialize3Controller < Serialize1Controller # "process submitted confirm page"
     class Create < Trailblazer::Operation
       pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
-      # pass ->(ctx, **) { ctx[:remember] = ctx[:model] : false }
+      pass ->(ctx, **) { ctx[:memory] = ctx[:resume_data] }
       # step ->(ctx, **) { ctx[:suspend_data] = {remember: OpenStruct.new(id: 1)} }   # write to domain_ctx[:suspend_data]
     end
 
