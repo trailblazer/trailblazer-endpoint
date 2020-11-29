@@ -67,10 +67,10 @@ class ApplicationController::Web < ApplicationController
 
       def insert_serializing!(activity, around_activity_id:, deserialize_before: :policy, serialize_after: :domain_activity)
         activity.module_eval do
-          step Advance___::Controller.method(:decrypt?), Trailblazer::Activity::Railway.Output(:failure) => Trailblazer::Activity::Railway.Id(around_activity_id), id: :decrypt?        , before: deserialize_before
+          step Advance___::Controller.method(:decrypt?), Trailblazer::Activity::Railway.Output(:failure) => Trailblazer::Activity::Railway.Id(deserialize_before), id: :decrypt?        , before: deserialize_before
           step Trailblazer::Workflow::Cipher.method(:decrypt_value), id: :decrypt,
               input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}                   , before: deserialize_before,
-              Output(:failure) => Track(:success), Trailblazer::Activity::Railway.Output(:success) => Path(connect_to: Id(around_activity_id)) do
+              Output(:failure) => Track(:success), Trailblazer::Activity::Railway.Output(:success) => Path(connect_to: Id(deserialize_before)) do
 
             step Advance___::Controller.method(:deserialize_resume_data), id: :deserialize_resume_data
             # DISCUSS: unmarshall?
@@ -100,6 +100,18 @@ class ApplicationController::Web < ApplicationController
     #   Output(:not_found)=>End(:not_found),Output(:not_authenticated)=>End(:not_authenticated),Output(:not_authorized)=>End(:not_authorized)
 
     Advance___::Controller.insert_serializing!(self, around_activity_id: :domain_activity)
+
+    pass :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
+
+    def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
+      domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
+    end
+
+    # TODO: only in a suspendresume protocol
+    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
+      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
+    end
   end
 
   puts Trailblazer::Developer.render(SerializingProtocol)

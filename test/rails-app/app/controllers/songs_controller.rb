@@ -83,21 +83,26 @@ end
   end
 
 
+  # endpoint_ctx
+  #   :resume_data
+  #   domain_ctx
+  #     :resume_data (copy)
+
+
+  # authenticate
+
+  # deserialize ==> {resume_data: {id: 1}}
+  # deserialize_process_model_id_from_resume_data
+
+  # find_process_model
+  # policy
+  # domain_activity
+
   # serialize suspend_data and deserialize resume_data
   class SerializeController < SongsController
-   def self.process_model_in_domain_ctx
-      ->(_ctx, ((ctx, a), b)) {
-        ctx[:domain_ctx][:model]       = ctx[:process_model] if ctx.key?(:process_model)
-        ctx[:domain_ctx][:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
-
-        [_ctx, [[ctx, a], b]]
-      } # FIXME: extract to lib?
-    end
-
     endpoint Song::Operation::Create,
-      protocol: ApplicationController::Web::SerializingProtocol,
-      domain_ctx_filter: process_model_in_domain_ctx
-      # serialize: true
+      protocol: ApplicationController::Web::SerializingProtocol
+            # serialize: true
 
     def self.options_for_block_options(ctx, **)
       {
@@ -137,8 +142,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol,
-      domain_ctx_filter: process_model_in_domain_ctx
+      protocol: ApplicationController::Web::SerializingProtocol
 
     def create
       # {:model} and {:memory} are from the domain_ctx.
@@ -162,8 +166,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol,
-      domain_ctx_filter: process_model_in_domain_ctx
+      protocol: ApplicationController::Web::SerializingProtocol
   end
 
   class Serialize3Controller < Serialize1Controller # "process submitted confirm page"
@@ -175,8 +178,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol,
-      domain_ctx_filter: process_model_in_domain_ctx
+      protocol: ApplicationController::Web::SerializingProtocol
   end
 
 end
