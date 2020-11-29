@@ -70,12 +70,14 @@ class ApplicationController::Web < ApplicationController
           step Advance___::Controller.method(:decrypt?), Trailblazer::Activity::Railway.Output(:failure) => Trailblazer::Activity::Railway.Id(deserialize_before), id: :decrypt?        , before: deserialize_before
           step Trailblazer::Workflow::Cipher.method(:decrypt_value), id: :decrypt,
               input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}                   , before: deserialize_before,
-              Output(:failure) => Track(:success), Trailblazer::Activity::Railway.Output(:success) => Path(connect_to: Id(deserialize_before)) do
+              Output(:failure) => Track(:success), Trailblazer::Activity::Railway.Output(:success) => Path(connect_to: Id(deserialize_before), track_color: :deserialize) do
 
             step Advance___::Controller.method(:deserialize_resume_data), id: :deserialize_resume_data
             # DISCUSS: unmarshall?
             # step Advance___::Controller.method(:deserialize_process_model_id?), id: :deserialize_process_model_id?, activity.Output(Trailblazer::Activity::Left, :failure) => activity.Id(around_activity_id)
             # step Advance___::Controller.method(:deserialize_process_model_id), id: :deserialize_process_model_id
+
+            step ->(*) { true } # FIXME: otherwise we can't insert an element AFTER :deserialize_resume_data
           end
 
           # step Subprocess(around_activity), id: around_activity_id, Trailblazer::Activity::Railway.Output(:not_found) => End(:not_found)
@@ -95,10 +97,6 @@ class ApplicationController::Web < ApplicationController
 
   require "trailblazer/workflow"
   class SerializingProtocol < Protocol
-    # merge!(Protocol)
-    # step Subprocess(Protocol), replace: :advance, id: :advance, inherit: true,
-    #   Output(:not_found)=>End(:not_found),Output(:not_authenticated)=>End(:not_authenticated),Output(:not_authorized)=>End(:not_authorized)
-
     Advance___::Controller.insert_serializing!(self, around_activity_id: :domain_activity)
 
     pass :copy_process_model_to_domain_ctx, before: :domain_activity
@@ -108,7 +106,7 @@ class ApplicationController::Web < ApplicationController
       domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
     end
 
-    # TODO: only in a suspendresume protocol
+    # TODO: only in a suspend/resume protocol
     def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
       domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
     end

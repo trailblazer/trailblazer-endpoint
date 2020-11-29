@@ -90,14 +90,20 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
   # "confirm_delete form"
     post "/songs/serialize2/", params: {} # {:remember} serialized
     assert_response 200
-    encrypted_string = "0109C4E535EDA2CCE8CD69E50C179F5950CC4A2A898504F951C995B6BCEAFE1D77252DBFA014052D"
+    encrypted_string = "0109C4E535EDA2CCE8CD69E50C179F5950CC4A2A898504F951C995B6BCEAFE1DFAB02894854B96B9D11C23E25DB5FB03"
     assert_equal "false/nil/#{encrypted_string}", response.body
 
   # {:remember} deserialized
   # "submit confirm_delete"
     post "/songs/serialize3/", params: {encrypted_resume_data: encrypted_string} # {:remember} serialized
     assert_response 200
-    assert_equal "false/{\"remember\"=>\"#<OpenStruct id=1>\"}/", response.body
+    assert_equal "false/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
+
+  # retrieve process_model via id in {:resume_data}
+  # we can see {endpoint_ctx[:process_model_id]}
+    post "/songs/serialize4/", params: {encrypted_resume_data: encrypted_string}
+    assert_response 200
+    assert_equal "9/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
   end
 
   test "sign_in" do
