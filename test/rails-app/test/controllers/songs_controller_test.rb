@@ -70,7 +70,7 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "wrong login, app crashed", response.body
   end
 
-  test "serializing" do
+  test "serializing/deserializing/find_process_model_from_resume_data" do
   # # 401
   #   post "/songs/serialize/"
   #   assert_response 401
@@ -104,6 +104,11 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/serialize4/", params: {encrypted_resume_data: encrypted_string}
     assert_response 200
     assert_equal "9/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
+
+  # retrieve process_model via {:resume_data}'s serialized id.
+    post "/songs/serialize5/", params: {encrypted_resume_data: encrypted_string}
+    assert_response 200
+    assert_equal "#<struct Song id=9>/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
   end
 
   test "sign_in" do

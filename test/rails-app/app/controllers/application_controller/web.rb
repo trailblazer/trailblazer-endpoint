@@ -70,7 +70,7 @@ class ApplicationController::Web < ApplicationController
           step Advance___::Controller.method(:decrypt?), Trailblazer::Activity::Railway.Output(:failure) => Trailblazer::Activity::Railway.Id(deserialize_before), id: :decrypt?        , before: deserialize_before
           step Trailblazer::Workflow::Cipher.method(:decrypt_value), id: :decrypt,
               input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}                   , before: deserialize_before,
-              Output(:failure) => Track(:success), Trailblazer::Activity::Railway.Output(:success) => Path(connect_to: Id(deserialize_before), track_color: :deserialize) do
+              Output(:failure) => Track(:success), Output(:success) => Path(connect_to: Track(:success), track_color: :deserialize, before: deserialize_before) do # usually, Path goes into {policy}
 
             step Advance___::Controller.method(:deserialize_resume_data), id: :deserialize_resume_data
             # DISCUSS: unmarshall?
