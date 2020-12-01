@@ -22,4 +22,5 @@ Rails.application.routes.draw do
   post "/songs/serialize3", to: "songs_controller/serialize3#create"
   post "/songs/serialize4", to: "songs_controller/serialize4#create"
   post "/songs/serialize5", to: "songs_controller/serialize5#create"
+  post "/songs/serialize6", to: "songs_controller/serialize6#create"
 end

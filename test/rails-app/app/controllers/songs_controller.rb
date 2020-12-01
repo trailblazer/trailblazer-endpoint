@@ -150,7 +150,7 @@ end
       endpoint "Create" do |ctx, model:, endpoint_ctx:, **|
         render html: "#{model.inspect}/#{ctx[:memory].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
       end.Or do |ctx, **| # validation failure
-        raise
+        render html: "xxx", status: 500
       end
     end
   end
@@ -166,7 +166,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol
+      protocol: ApplicationController::Web::OnlySerializingProtocol
   end
 
   # we can read from {:resume_data}
@@ -178,7 +178,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol
+      protocol: ApplicationController::Web::OnlyDeserializingProtocol
   end
 
 # find process_model via id in suspend/resume data (used to be called {process_model_from_resume_data})
@@ -195,7 +195,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol do
+      protocol: ApplicationController::Web::OnlyDeserializingProtocol do
         step Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
         {}
       end
@@ -209,19 +209,9 @@ end
 
   # find process_model from resume
   class Serialize5Controller < Serialize1Controller
-    # class Create < Trailblazer::Operation
-    #   pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
-    #   pass ->(ctx, **) { ctx[:memory] = ctx[:resume_data] }                           # read/process the suspended data
-    # end
-
-        # def self.deserialize_process_model_id_from_resume_data(ctx, resume_data:, **)
-        #   # DISCUSS: should we warn when overriding an existing {process_model_id}?
-        #   ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}? # FIXME: stolen from Advance___::Controller
-        # end
-
     endpoint "Create",
       domain_activity: Serialize4Controller::Create,
-      protocol: ApplicationController::Web::SerializingProtocol do
+      protocol: ApplicationController::Web::OnlyDeserializingProtocol do
         step Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
 
         Trailblazer::Endpoint::Protocol.insert_find_process_model!(self, before: :policy)
@@ -237,4 +227,21 @@ end
   end
 
   # find process_model from action_options
+  class Serialize6Controller < Serialize1Controller
+    endpoint "Create",
+      domain_activity: Serialize4Controller::Create,
+      protocol: ApplicationController::Web::Protocol do
+        Trailblazer::Endpoint::Protocol.insert_find_process_model!(self, before: :policy)
+
+        # puts Trailblazer::Developer.render(self)
+        # raise
+        {}
+      end
+
+    def create
+      endpoint "Create", find_process_model: true, process_model_class: Song, process_model_id: params[:id] do |ctx, model:, endpoint_ctx:, **|
+        render html: "#{model.inspect}/#{endpoint_ctx[:process_model].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
+      end
+    end
+  end
 end

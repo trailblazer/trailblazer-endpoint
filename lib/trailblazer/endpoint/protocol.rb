@@ -120,7 +120,13 @@ module Trailblazer
           step Subprocess(FindProcessModel), Output(:failure) => End(:not_found),
           **options
             # after: :authenticate
+
+          pass method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
+      end
+
+      def self.copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
+        domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
       end
 
     end # Protocol

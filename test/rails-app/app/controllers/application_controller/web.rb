@@ -65,12 +65,17 @@ class ApplicationController::Web < ApplicationController
           ctx[:serialized_suspend_data] = JSON.dump(suspend_data)
         end
 
-      def insert_serializing!(activity, around_activity_id:, deserialize_before: :policy, serialize_after: :domain_activity)
+        def copy_suspend_data_to_endpoint_ctx(ctx, domain_ctx:, **)
+          ctx[:suspend_data] = domain_ctx[:suspend_data]
+        end
+
+      def insert_deserialize_steps!(activity, around_activity_id:, deserialize_before: :policy)
         activity.module_eval do
-          step Advance___::Controller.method(:decrypt?), Trailblazer::Activity::Railway.Output(:failure) => Trailblazer::Activity::Railway.Id(deserialize_before), id: :decrypt?        , before: deserialize_before
+          step Advance___::Controller.method(:decrypt?), id: :decrypt?, before: deserialize_before # error out if no serialized_resume_data given.
           step Trailblazer::Workflow::Cipher.method(:decrypt_value), id: :decrypt,
-              input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}                   , before: deserialize_before,
-              Output(:failure) => Track(:success), Output(:success) => Path(connect_to: Track(:success), track_color: :deserialize, before: deserialize_before) do # usually, Path goes into {policy}
+              input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}    , before: deserialize_before,
+              # Output(:failure) => Track(:success),
+              Output(:success) => Path(connect_to: Track(:success), track_color: :deserialize, before: deserialize_before) do # usually, Path goes into {policy}
 
             step Advance___::Controller.method(:deserialize_resume_data), id: :deserialize_resume_data
             # DISCUSS: unmarshall?
@@ -79,27 +84,28 @@ class ApplicationController::Web < ApplicationController
 
             step ->(*) { true } # FIXME: otherwise we can't insert an element AFTER :deserialize_resume_data
           end
+        end
+      end
 
-          # step Subprocess(around_activity), id: around_activity_id, Trailblazer::Activity::Railway.Output(:not_found) => End(:not_found)
-
-
+      def insert_serialize_steps!(activity, around_activity_id:, serialize_after: :domain_activity)
+        activity.module_eval do
             # FIXME: reverse order for insertion
           step Trailblazer::Workflow::Cipher.method(:encrypt_value), id: :encrypt                                                , after: serialize_after,
               input: {cipher_key: :cipher_key, serialized_suspend_data: :value}, output: {encrypted_value: :encrypted_suspend_data}
           step Advance___::Controller.method(:serialize_suspend_data), id: :serialize_suspend_data                                , after: serialize_after
-          step Advance___::Controller.method(:encrypt?), id: :encrypt?                                                            , after: serialize_after,
-            Output(:failure) => End(:success)
+          pass Advance___::Controller.method(:copy_suspend_data_to_endpoint_ctx), id: :copy_suspend_data_to_endpoint_ctx          , after: serialize_after
         end
       end
     end
-    # end
   end
 
   require "trailblazer/workflow"
   class SerializingProtocol < Protocol
-    Advance___::Controller.insert_serializing!(self, around_activity_id: :domain_activity)
+    # Advance___::Controller.insert_serializing!(self, around_activity_id: :domain_activity)
+    Advance___::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
+    Advance___::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
 
-    pass :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
     pass :copy_resume_data_to_domain_ctx, before: :domain_activity
 
     def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
@@ -110,6 +116,35 @@ class ApplicationController::Web < ApplicationController
     def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
       domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
     end
+  end
+
+  class OnlyDeserializingProtocol < Protocol
+    Advance___::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
+
+    # pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
+
+    # TODO: only in a suspend/resume protocol
+    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
+      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
+    end
+  end
+
+  class OnlySerializingProtocol < Protocol
+    Advance___::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
+
+    pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
+
+    def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
+      domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
+    end
+
+    # TODO: only in a suspend/resume protocol
+    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
+      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
+    end
+
   end
 
   puts Trailblazer::Developer.render(SerializingProtocol)

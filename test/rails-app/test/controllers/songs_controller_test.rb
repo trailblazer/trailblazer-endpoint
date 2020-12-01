@@ -82,9 +82,10 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
 
   # When {:encrypted_resume_data} is {nil} the entire deserialize cycle is skipped.
   # Nothing gets serialized.
+  # This is considered an error since we're expecting resume data.
     post "/songs/serialize1/", params: {} # encrypted_resume_data: nil
-    assert_response 200
-    assert_equal "false/nil/", response.body
+    assert_response 500
+    assert_equal "xxx", response.body # DISCUSS: is this an application or a protocol error?
 
   # Nothing deserialized, but {:remember} serialized
   # "confirm_delete form"
@@ -95,20 +96,29 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
 
   # {:remember} deserialized
   # "submit confirm_delete"
+  # We're expecting serialized data and don't serialize anything.
     post "/songs/serialize3/", params: {encrypted_resume_data: encrypted_string} # {:remember} serialized
     assert_response 200
     assert_equal "false/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
 
   # retrieve process_model via id in {:resume_data}
   # we can see {endpoint_ctx[:process_model_id]}
+  # We're expecting serialized data and don't serialize anything.
     post "/songs/serialize4/", params: {encrypted_resume_data: encrypted_string}
     assert_response 200
     assert_equal "9/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
 
   # retrieve process_model via {:resume_data}'s serialized id.
+  # We're expecting serialized data and don't serialize anything.
     post "/songs/serialize5/", params: {encrypted_resume_data: encrypted_string}
     assert_response 200
     assert_equal "#<struct Song id=9>/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
+
+  # find model without serialize from params, no serialized stuff passed
+  # DISCUSS: this could be a different test
+    post "/songs/serialize6/", params: {id: 1}
+    assert_response 200
+    assert_equal "#<struct Song id=\"1\">/#<struct Song id=\"1\">/", response.body
   end
 
   test "sign_in" do
