@@ -196,7 +196,7 @@ end
     endpoint "Create",
       domain_activity: Create,
       protocol: ApplicationController::Web::OnlyDeserializingProtocol do
-        step Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
+        pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
         {}
       end
 
@@ -212,7 +212,7 @@ end
     endpoint "Create",
       domain_activity: Serialize4Controller::Create,
       protocol: ApplicationController::Web::OnlyDeserializingProtocol do
-        step Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
+        pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
 
         Trailblazer::Endpoint::Protocol.insert_find_process_model!(self, before: :policy)
 

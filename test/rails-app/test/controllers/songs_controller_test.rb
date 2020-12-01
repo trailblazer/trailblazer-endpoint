@@ -113,12 +113,20 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
     post "/songs/serialize5/", params: {encrypted_resume_data: encrypted_string}
     assert_response 200
     assert_equal "#<struct Song id=9>/{\"remember\"=>\"#<OpenStruct id=1>\", \"id\"=>9}/", response.body
+    # model not found
+    post "/songs/serialize5/", params: {encrypted_resume_data: "36C61CCE30E6CFDE637DF0DA9257CC49"}
+    assert_response 404
+    assert_equal "", response.body
 
   # find model without serialize from params, no serialized stuff passed
   # DISCUSS: this could be a different test
     post "/songs/serialize6/", params: {id: 1}
     assert_response 200
     assert_equal "#<struct Song id=\"1\">/#<struct Song id=\"1\">/", response.body
+    # model not foung
+    post "/songs/serialize6/", params: {id: nil}
+    assert_response 404
+    assert_equal "", response.body
   end
 
   test "sign_in" do
