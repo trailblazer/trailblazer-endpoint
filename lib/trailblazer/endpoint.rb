@@ -2,7 +2,10 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new })
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new },
+      serialize: false, # TODO: plug-in, not hardcoded!
+      deserialize: false # TODO: plug-in, not hardcoded!
+      )
       # special considerations around the {domain_activity} and its taskWrap:
       #
       #  1. domain_ctx_filter (e.g. to filter {current_user})
@@ -26,7 +29,36 @@ module Trailblazer
       # puts Trailblazer::Developer.render(protocol)
       # puts
 
-      app_protocol = Class.new(protocol) do
+      app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize)
+
+      # puts Trailblazer::Developer.render(app_protocol)
+
+      Class.new(adapter) do
+        step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})
+      end # app_adapter
+
+    end
+
+    # @private
+    def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:)
+      Class.new(protocol) do
+        if serialize
+          Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
+
+          # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+        end
+
+        if deserialize
+          Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
+
+          # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+        end
+
+        if serialize || deserialize
+          pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
+        end
+
+
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
 
 # FIXME: where does this go?
@@ -35,13 +67,6 @@ module Trailblazer
           merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
         )
       end
-
-      # puts Trailblazer::Developer.render(app_protocol)
-
-      Class.new(adapter) do
-        step(Subprocess(app_protocol), {inherit: true, id: :protocol, replace: :protocol})
-      end # app_adapter
-
     end
 
     def self.options_for_scope_domain_ctx()

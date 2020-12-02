@@ -101,7 +101,7 @@ end
   # serialize suspend_data and deserialize resume_data
   class SerializeController < SongsController
     endpoint Song::Operation::Create,
-      protocol: ApplicationController::Web::SerializingProtocol
+      protocol: ApplicationController::Web::Protocol
             # serialize: true
 
     def self.options_for_block_options(ctx, **)
@@ -134,7 +134,7 @@ end
   end
 
   # TODO: not really a doc test.
-# When {:encrypted_resume_data} is {nil} the entire deserialize cycle is skipped.
+# the entire deserialize cycle is skipped since we only use {:serialize}
   class Serialize1Controller < SerializeController
     class Create < Trailblazer::Operation
       pass ->(ctx, **) { ctx[:model] = ctx.key?(:model) ? ctx[:model] : false }
@@ -142,7 +142,8 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::SerializingProtocol
+      serialize: true,
+      deserialize: true
 
     def create
       # {:model} and {:memory} are from the domain_ctx.
@@ -166,7 +167,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::OnlySerializingProtocol
+      serialize: true
   end
 
   # we can read from {:resume_data}
@@ -178,7 +179,7 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::OnlyDeserializingProtocol
+      deserialize: true
   end
 
 # find process_model via id in suspend/resume data (used to be called {process_model_from_resume_data})
@@ -195,7 +196,8 @@ end
 
     endpoint "Create",
       domain_activity: Create,
-      protocol: ApplicationController::Web::OnlyDeserializingProtocol do
+      deserialize: true do
+        # TODO: keep a test where we add a step in protocol_block that targets a specific deserialize step.
         pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
         {}
       end
@@ -211,7 +213,7 @@ end
   class Serialize5Controller < Serialize1Controller
     endpoint "Create",
       domain_activity: Serialize4Controller::Create,
-      protocol: ApplicationController::Web::OnlyDeserializingProtocol do
+      deserialize: true do
         pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
 
         Trailblazer::Endpoint::Protocol::Controller.insert_find_process_model!(self, before: :policy)

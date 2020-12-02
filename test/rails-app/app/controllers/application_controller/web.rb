@@ -36,34 +36,6 @@ class ApplicationController::Web < ApplicationController
 #~gskip end
   endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web,
     domain_ctx_filter: ApplicationController.current_user_in_domain_ctx
-
-
-
-
-  require "trailblazer/workflow"
-  class SerializingProtocol < Protocol
-    Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
-    Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
-
-    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
-  end
-
-  class OnlyDeserializingProtocol < Protocol
-    Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
-
-    # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
-  end
-
-  class OnlySerializingProtocol < Protocol
-    Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
-
-    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
-  end
-
-  puts Trailblazer::Developer.render(SerializingProtocol)
 end
 #:generic end
 

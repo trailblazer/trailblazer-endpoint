@@ -92,6 +92,7 @@ module Trailblazer
             extended.directive(:endpoints, ->(*) { {} })
           end
 
+          # Builds and registers an endpoint in a controller class.
           def endpoint(name, **options, &block)
             options = options.merge(protocol_block: block) if block_given?
 
