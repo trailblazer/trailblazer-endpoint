@@ -45,46 +45,22 @@ class ApplicationController::Web < ApplicationController
     Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
     Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
 
-    pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
-
-    def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
-      domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
-    end
-
-    # TODO: only in a suspend/resume protocol
-    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
-      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
-    end
+    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
   end
 
   class OnlyDeserializingProtocol < Protocol
     Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
 
-    # pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
-
-    # TODO: only in a suspend/resume protocol
-    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
-      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
-    end
+    # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
   end
 
   class OnlySerializingProtocol < Protocol
     Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
 
-    pass Trailblazer::Endpoint::Protocol.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
-    pass :copy_resume_data_to_domain_ctx, before: :domain_activity
-
-    def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
-      domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
-    end
-
-    # TODO: only in a suspend/resume protocol
-    def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
-      domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
-    end
-
+    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+    pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
   end
 
   puts Trailblazer::Developer.render(SerializingProtocol)

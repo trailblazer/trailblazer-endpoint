@@ -5,33 +5,43 @@ module Trailblazer
     # What else?
     module Controller
       module_function
-        def decrypt?(ctx, encrypted_resume_data:, **)
-          encrypted_resume_data
-        end
 
-        def deserialize_resume_data(ctx, decrypted_value:, **)
-          ctx[:resume_data] = JSON.parse(decrypted_value)
-        end
+      def decrypt?(ctx, encrypted_resume_data:, **)
+        encrypted_resume_data
+      end
 
-        def deserialize_process_model?(ctx, process_model_from_resume_data:, **)
-          process_model_from_resume_data
-        end
+      def deserialize_resume_data(ctx, decrypted_value:, **)
+        ctx[:resume_data] = JSON.parse(decrypted_value)
+      end
 
-        def deserialize_process_model_id(ctx, resume_data:, **)
-          ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}?
-        end
+      def deserialize_process_model?(ctx, process_model_from_resume_data:, **)
+        process_model_from_resume_data
+      end
 
-        def encrypt?(ctx, domain_ctx:, **)
-          ctx[:suspend_data] = domain_ctx[:suspend_data]
-        end
+      def deserialize_process_model_id(ctx, resume_data:, **)
+        ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}?
+      end
 
-        def serialize_suspend_data(ctx, suspend_data:, **)
-          ctx[:serialized_suspend_data] = JSON.dump(suspend_data)
-        end
+      def encrypt?(ctx, domain_ctx:, **)
+        ctx[:suspend_data] = domain_ctx[:suspend_data]
+      end
 
-        def copy_suspend_data_to_endpoint_ctx(ctx, domain_ctx:, **)
-          ctx[:suspend_data] = domain_ctx[:suspend_data]
-        end
+      def serialize_suspend_data(ctx, suspend_data:, **)
+        ctx[:serialized_suspend_data] = JSON.dump(suspend_data)
+      end
+
+      def copy_suspend_data_to_endpoint_ctx(ctx, domain_ctx:, **)
+        ctx[:suspend_data] = domain_ctx[:suspend_data]
+      end
+
+      # TODO: only in a suspend/resume protocol
+      def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
+        domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
+      end
+
+      def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
+        domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
+      end
 
       def insert_deserialize_steps!(activity, around_activity_id:, deserialize_before: :policy)
         activity.module_eval do
@@ -58,6 +68,17 @@ module Trailblazer
               input: {cipher_key: :cipher_key, serialized_suspend_data: :value}, output: {encrypted_value: :encrypted_suspend_data}
           step Controller.method(:serialize_suspend_data), id: :serialize_suspend_data                                , after: serialize_after
           pass Controller.method(:copy_suspend_data_to_endpoint_ctx), id: :copy_suspend_data_to_endpoint_ctx          , after: serialize_after
+        end
+      end
+
+      # Insert the "experimental" {find_process_model} steps
+      def insert_find_process_model!(protocol, **options)
+        protocol.module_eval do
+          step Subprocess(FindProcessModel), Output(:failure) => End(:not_found),
+          **options
+            # after: :authenticate
+
+          pass Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
       end
     end
