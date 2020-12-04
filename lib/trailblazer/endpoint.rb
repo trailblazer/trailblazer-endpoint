@@ -4,7 +4,9 @@ module Trailblazer
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
     def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new },
       serialize: false, # TODO: plug-in, not hardcoded!
-      deserialize: false # TODO: plug-in, not hardcoded!
+      deserialize: false,# TODO: plug-in, not hardcoded!
+      find_process_model: false, # TODO: plug-in, not hardcoded!
+      deserialize_process_model_id_from_resume_data: false # TODO: plug-in, not hardcoded!
       )
       # special considerations around the {domain_activity} and its taskWrap:
       #
@@ -29,7 +31,9 @@ module Trailblazer
       # puts Trailblazer::Developer.render(protocol)
       # puts
 
-      app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize)
+      app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize,
+        find_process_model: find_process_model, deserialize_process_model_id_from_resume_data: deserialize_process_model_id_from_resume_data
+        )
 
       # puts Trailblazer::Developer.render(app_protocol)
 
@@ -40,24 +44,31 @@ module Trailblazer
     end
 
     # @private
-    def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:)
+    def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:, find_process_model:, deserialize_process_model_id_from_resume_data:)
       Class.new(protocol) do
         if serialize
-          Trailblazer::Endpoint::Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
+          Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
 
-          # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+          # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
 
         if deserialize
-          Trailblazer::Endpoint::Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
+          Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
 
-          # pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+          # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
 
         if serialize || deserialize
-          pass Trailblazer::Endpoint::Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
+          pass Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
         end
 
+        if find_process_model
+          Protocol::Controller.insert_find_process_model!(self, before: :domain_activity)
+        end
+
+        if deserialize_process_model_id_from_resume_data
+          pass Protocol::Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
+        end
 
         step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
 

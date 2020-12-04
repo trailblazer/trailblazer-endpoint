@@ -189,40 +189,30 @@ end
       pass ->(ctx, **) { ctx[:memory] = ctx[:resume_data] }                           # read/process the suspended data
     end
 
-        def self.deserialize_process_model_id_from_resume_data(ctx, resume_data:, **)
-          # DISCUSS: should we warn when overriding an existing {process_model_id}?
-          ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}? # FIXME: stolen from Advance___::Controller
-        end
-
     endpoint "Create",
       domain_activity: Create,
-      deserialize: true do
-        # TODO: keep a test where we add a step in protocol_block that targets a specific deserialize step.
-        pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
-        {}
-      end
+      deserialize: true,
+      find_process_model: true,
+      deserialize_process_model_id_from_resume_data: true
 
     def create
-      endpoint "Create" do |ctx, endpoint_ctx:, **|
+      endpoint "Create", process_model_class: Song do |ctx, endpoint_ctx:, **|
         render html: "#{endpoint_ctx[:process_model_id].inspect}/#{ctx[:memory].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
       end
     end
   end
 
   # find process_model from resume
+  # FIXME: what is the diff to Controller4?
   class Serialize5Controller < Serialize1Controller
     endpoint "Create",
       domain_activity: Serialize4Controller::Create,
-      deserialize: true do
-        pass Serialize4Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
-
-        Trailblazer::Endpoint::Protocol::Controller.insert_find_process_model!(self, before: :policy)
-
-        {}
-      end
+      deserialize: true,
+      find_process_model: true,
+      deserialize_process_model_id_from_resume_data: true
 
     def create
-      endpoint "Create", find_process_model: true, process_model_class: Song do |ctx, model:, endpoint_ctx:, **|
+      endpoint "Create", find_process_model: true, process_model_class: Song, process_model_id: params[:id] do |ctx, model:, endpoint_ctx:, **|
         render html: "#{model.inspect}/#{ctx[:memory].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
       end
     end
@@ -232,13 +222,8 @@ end
   class Serialize6Controller < Serialize1Controller
     endpoint "Create",
       domain_activity: Serialize4Controller::Create,
-      protocol: ApplicationController::Web::Protocol do
-        Trailblazer::Endpoint::Protocol::Controller.insert_find_process_model!(self, before: :policy)
-
-        # puts Trailblazer::Developer.render(self)
-        # raise
-        {}
-      end
+      protocol: ApplicationController::Web::Protocol,
+      find_process_model: true
 
     def create
       endpoint "Create", find_process_model: true, process_model_class: Song, process_model_id: params[:id] do |ctx, model:, endpoint_ctx:, **|

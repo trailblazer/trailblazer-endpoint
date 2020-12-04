@@ -43,6 +43,12 @@ module Trailblazer
         domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
       end
 
+# FIXME: use Model() mechanics.
+      def deserialize_process_model_id_from_resume_data(ctx, resume_data:, **)
+        # DISCUSS: should we warn when overriding an existing {process_model_id}?
+        ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}? # FIXME: stolen from Advance___::Controller
+      end
+
       def insert_deserialize_steps!(activity, around_activity_id:, deserialize_before: :policy)
         activity.module_eval do
           step Controller.method(:decrypt?), id: :decrypt?, before: deserialize_before # error out if no serialized_resume_data given.
@@ -75,6 +81,7 @@ module Trailblazer
       def insert_find_process_model!(protocol, **options)
         protocol.module_eval do
           step Subprocess(FindProcessModel), Output(:failure) => End(:not_found),
+          id: :find_process_model,
           **options
             # after: :authenticate
 
