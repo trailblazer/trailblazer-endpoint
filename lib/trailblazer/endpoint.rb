@@ -24,12 +24,9 @@ module Trailblazer
       # scoping: {:domain_ctx} becomes ctx
       extensions_options.merge!(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
 
-
+# FIXME: separate step!
       domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
       extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
-
-      # puts Trailblazer::Developer.render(protocol)
-      # puts
 
       app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize,
         find_process_model: find_process_model, deserialize_process_model_id_from_resume_data: deserialize_process_model_id_from_resume_data
@@ -63,7 +60,7 @@ module Trailblazer
         end
 
         if find_process_model
-          Protocol::Controller.insert_find_process_model!(self, before: :domain_activity)
+          Protocol::Controller.insert_find_process_model!(self, before: :policy) # TODO: test before: :policy
         end
 
         if deserialize_process_model_id_from_resume_data
