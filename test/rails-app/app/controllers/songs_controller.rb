@@ -231,4 +231,28 @@ end
       end
     end
   end
+
+# Configure only {:find_process_model} and {:protocol}.
+  class Serialize7Controller < Serialize1Controller
+    endpoint find_process_model: true # generic setting for all endpoints in this controller.
+
+    endpoint "Create", # no need to specify {:find_process_model}
+      domain_activity: Serialize4Controller::Create
+
+    endpoint "New",
+      find_process_model: false,
+      domain_activity: Serialize4Controller::Create
+
+    def create
+      endpoint "Create", process_model_class: Song, process_model_id: params[:id] do |ctx, model:, endpoint_ctx:, **|
+        render html: "#{model.inspect}/#{endpoint_ctx[:process_model].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
+      end
+    end
+
+    def new
+      endpoint "New", process_model_class: Song, process_model_id: params[:id] do |ctx, model:, endpoint_ctx:, **|
+        render html: "#{model.inspect}/#{endpoint_ctx[:process_model].inspect}/#{endpoint_ctx[:encrypted_suspend_data]}".html_safe
+      end
+    end
+  end
 end

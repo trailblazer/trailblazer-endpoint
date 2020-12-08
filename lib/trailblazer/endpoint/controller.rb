@@ -100,11 +100,10 @@ module Trailblazer
             build_endpoint(name, **options)
           end
 
-          def generic_endpoint_config(protocol:, adapter:, **options)
+          # Configures generic {:adapter}, {:protocol}, etc.
+          def generic_endpoint_config(**options)
             self.singleton_class.define_method :generic_options do |ctx,**|
               {
-                protocol: protocol,
-                adapter: adapter,
                 **options
               }
             end
