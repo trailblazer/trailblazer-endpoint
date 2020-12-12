@@ -2,7 +2,7 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new },
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, protocol_block: ->(*) { Hash.new },
       serialize: false, # TODO: plug-in, not hardcoded!
       deserialize: false,# TODO: plug-in, not hardcoded!
       find_process_model: false, # TODO: plug-in, not hardcoded!
@@ -24,10 +24,6 @@ module Trailblazer
       # scoping: {:domain_ctx} becomes ctx
       extensions_options.merge!(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
 
-# FIXME: separate step!
-      domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
-      extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
-
       app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize,
         find_process_model: find_process_model, deserialize_process_model_id_from_resume_data: deserialize_process_model_id_from_resume_data
         )
@@ -45,18 +41,14 @@ module Trailblazer
       Class.new(protocol) do
         if serialize
           Protocol::Controller.insert_serialize_steps!(self)
-
-          # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
 
         if deserialize
           Protocol::Controller.insert_deserialize_steps!(self)
-
-          # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
 
         if serialize || deserialize
-          pass Protocol::Controller.method(:copy_resume_data_to_domain_ctx), before: :domain_activity
+          Protocol::Controller.insert_copy_to_domain_ctx!(self, :resume_data => :resume_data)
         end
 
         if find_process_model
@@ -82,16 +74,6 @@ module Trailblazer
         input:  ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
         output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
       }
-    end
-
-    def self.domain_ctx_filter(variables)
-      ->(_ctx, ((ctx, a), b)) do # taskWrap interface
-        variables.each do |variable|
-          ctx[:domain_ctx][variable] = ctx[variable]
-        end
-
-        [_ctx, [[ctx, a], b]]
-      end
     end
 
     # Runtime

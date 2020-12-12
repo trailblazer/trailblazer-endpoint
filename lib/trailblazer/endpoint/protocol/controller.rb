@@ -34,15 +34,6 @@ module Trailblazer
         ctx[:suspend_data] = domain_ctx[:suspend_data]
       end
 
-      # TODO: only in a suspend/resume protocol
-      def copy_resume_data_to_domain_ctx(ctx, domain_ctx:, **)
-        domain_ctx[:resume_data] = ctx[:resume_data] # FIXME: this should be done in endpoint/suspendresume
-      end
-
-      def copy_process_model_to_domain_ctx(ctx, domain_ctx:, **)
-        domain_ctx[:model]       = ctx[:process_model] if ctx.key?(:process_model)
-      end
-
 # FIXME: use Model() mechanics.
       def deserialize_process_model_id_from_resume_data(ctx, resume_data:, **)
         # DISCUSS: should we warn when overriding an existing {process_model_id}?
@@ -84,8 +75,17 @@ module Trailblazer
           id: :find_process_model,
           **options
             # after: :authenticate
+        end
 
-          pass Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
+        insert_copy_to_domain_ctx!(protocol, :process_model => :model)
+      end
+
+      def insert_copy_to_domain_ctx!(protocol, variables)
+        variables.each do |original_name, domain_name|
+          protocol.module_eval do
+            pass ->(ctx, domain_ctx:, **) { domain_ctx[domain_name] = ctx[original_name] if ctx.key?(original_name) },
+              id: :"copy_[#{original_name.inspect}]_to_domain_ctx[#{domain_name.inspect}]", before: :domain_activity
+          end
         end
       end
     end

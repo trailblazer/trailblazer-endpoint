@@ -1,3 +1,7 @@
+# 0.1.0
+
+* Remove `domain_ctx_filter` in favor of `Controller.insert_copy_to_domain_ctx!`.
+
 # 0.0.6
 
 * `Controller::endpoint` short form introduced.

@@ -30,12 +30,13 @@ class ApplicationController::Web < ApplicationController
     def policy(ctx, domain_ctx:, **)
       Policy.(domain_ctx)
     end
+
+    Trailblazer::Endpoint::Protocol::Controller.insert_copy_to_domain_ctx!(self, :current_user => :current_user)
   end
 #:protocol end
   Policy = ->(domain_ctx) { domain_ctx[:params][:policy] == "false" ? false : true }
 #~gskip end
-  endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web,
-    domain_ctx_filter: ApplicationController.current_user_in_domain_ctx
+  endpoint protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter::Web
 end
 #:generic end
 
