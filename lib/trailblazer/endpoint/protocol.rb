@@ -113,7 +113,6 @@ module Trailblazer
           [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:terminus_handler)]]]
         end
       end
-
     end # Protocol
   end
 end

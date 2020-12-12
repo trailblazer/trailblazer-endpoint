@@ -44,13 +44,13 @@ module Trailblazer
     def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:, find_process_model:, deserialize_process_model_id_from_resume_data:)
       Class.new(protocol) do
         if serialize
-          Protocol::Controller.insert_serialize_steps!(self, around_activity_id: :domain_activity)
+          Protocol::Controller.insert_serialize_steps!(self)
 
           # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
 
         if deserialize
-          Protocol::Controller.insert_deserialize_steps!(self, around_activity_id: :domain_activity)
+          Protocol::Controller.insert_deserialize_steps!(self)
 
           # pass Protocol::Controller.method(:copy_process_model_to_domain_ctx), id: :copy_process_model_to_domain_ctx, before: :domain_activity
         end
@@ -181,3 +181,4 @@ require "trailblazer/endpoint/controller"
 require "trailblazer/endpoint/options"
 require "trailblazer/endpoint/protocol/controller"
 require "trailblazer/endpoint/protocol/find_process_model"
+require "trailblazer/endpoint/protocol/cipher"
