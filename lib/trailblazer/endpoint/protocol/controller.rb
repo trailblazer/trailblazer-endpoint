@@ -49,10 +49,10 @@ module Trailblazer
         ctx[:process_model_id] = resume_data["id"] # DISCUSS: overriding {:process_model_id}? # FIXME: stolen from Advance___::Controller
       end
 
-      def insert_deserialize_steps!(activity, around_activity_id:, deserialize_before: :policy)
+      def insert_deserialize_steps!(activity, deserialize_before: :policy)
         activity.module_eval do
           step Controller.method(:decrypt?), id: :decrypt?, before: deserialize_before # error out if no serialized_resume_data given.
-          step Trailblazer::Workflow::Cipher.method(:decrypt_value), id: :decrypt,
+          step Controller::Cipher.method(:decrypt_value), id: :decrypt,
               input: {cipher_key: :cipher_key, encrypted_resume_data: :encrypted_value}    , before: deserialize_before,
               # Output(:failure) => Track(:success),
               Output(:success) => Path(connect_to: Track(:success), track_color: :deserialize, before: deserialize_before) do # usually, Path goes into {policy}
@@ -67,10 +67,10 @@ module Trailblazer
         end
       end
 
-      def insert_serialize_steps!(activity, around_activity_id:, serialize_after: :domain_activity)
+      def insert_serialize_steps!(activity, serialize_after: :domain_activity)
         activity.module_eval do
             # FIXME: reverse order for insertion
-          step Trailblazer::Workflow::Cipher.method(:encrypt_value), id: :encrypt                                                , after: serialize_after,
+          step Controller::Cipher.method(:encrypt_value), id: :encrypt                                                , after: serialize_after,
               input: {cipher_key: :cipher_key, serialized_suspend_data: :value}, output: {encrypted_value: :encrypted_suspend_data}
           step Controller.method(:serialize_suspend_data), id: :serialize_suspend_data                                , after: serialize_after
           pass Controller.method(:copy_suspend_data_to_endpoint_ctx), id: :copy_suspend_data_to_endpoint_ctx          , after: serialize_after
