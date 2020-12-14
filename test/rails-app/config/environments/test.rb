@@ -35,4 +35,6 @@ Rails.application.configure do
 
   # Raises error for missing translations.
   # config.action_view.raise_on_missing_translations = true
+
+  config.cipher_key = "e1e1cc87asdfasdfasdfasfdasdfasdfasvhnfvbdb" # FIXME: this usually happens via the new key mechanism in Rails 6
 end

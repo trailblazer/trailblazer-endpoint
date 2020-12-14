@@ -19,9 +19,11 @@ module Trailblazer
         # #call
         def to_args(default_block_options)
           return options,
+          default_block_options.merge( # this adds :invoke.
             success_block:          success_block || default_block_options[:success_block],
             failure_block:          failure_block || default_block_options[:failure_block],
             protocol_failure_block: protocol_failure_block || default_block_options[:protocol_failure_block]
+          )
         end
       end
     end

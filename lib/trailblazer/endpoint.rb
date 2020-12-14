@@ -2,7 +2,12 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, domain_ctx_filter: nil, protocol_block: ->(*) { Hash.new })
+    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, protocol_block: ->(*) { Hash.new },
+      serialize: false, # TODO: plug-in, not hardcoded!
+      deserialize: false,# TODO: plug-in, not hardcoded!
+      find_process_model: false, # TODO: plug-in, not hardcoded!
+      deserialize_process_model_id_from_resume_data: false # TODO: plug-in, not hardcoded!
+      )
       # special considerations around the {domain_activity} and its taskWrap:
       #
       #  1. domain_ctx_filter (e.g. to filter {current_user})
@@ -19,22 +24,9 @@ module Trailblazer
       # scoping: {:domain_ctx} becomes ctx
       extensions_options.merge!(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
 
-
-      domain_ctx_filter_callable = [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_before), "task_wrap.call_task", ["endpoint.domain_ctx_filter", domain_ctx_filter]]]
-      extensions_options[:extensions] << Trailblazer::Activity::TaskWrap::Extension(merge: domain_ctx_filter_callable) if domain_ctx_filter
-
-      # puts Trailblazer::Developer.render(protocol)
-      # puts
-
-      app_protocol = Class.new(protocol) do
-        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
-
-# FIXME: where does this go?
-        }.
-          merge(extensions_options).
-          merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
+      app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize,
+        find_process_model: find_process_model, deserialize_process_model_id_from_resume_data: deserialize_process_model_id_from_resume_data
         )
-      end
 
       # puts Trailblazer::Developer.render(app_protocol)
 
@@ -44,21 +36,44 @@ module Trailblazer
 
     end
 
+    # @private
+    def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:, find_process_model:, deserialize_process_model_id_from_resume_data:)
+      Class.new(protocol) do
+        if serialize
+          Protocol::Controller.insert_serialize_steps!(self)
+        end
+
+        if deserialize
+          Protocol::Controller.insert_deserialize_steps!(self)
+        end
+
+        if serialize || deserialize
+          Protocol::Controller.insert_copy_to_domain_ctx!(self, :resume_data => :resume_data)
+        end
+
+        if find_process_model
+          Protocol::Controller.insert_find_process_model!(self, before: :policy) # TODO: test before: :policy
+        end
+
+        if deserialize_process_model_id_from_resume_data
+          pass Protocol::Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
+        end
+
+        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
+
+# FIXME: where does this go?
+        }.
+          merge(extensions_options).
+          merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
+        )
+      end
+    end
+
     def self.options_for_scope_domain_ctx()
       {
         input:  ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
         output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
       }
-    end
-
-    def self.domain_ctx_filter(variables)
-      ->(_ctx, ((ctx, a), b)) do # taskWrap interface
-        variables.each do |variable|
-          ctx[:domain_ctx][variable] = ctx[variable]
-        end
-
-        [_ctx, [[ctx, a], b]]
-      end
     end
 
     # Runtime
@@ -146,3 +161,6 @@ require "trailblazer/endpoint/adapter"
 require "trailblazer/endpoint/dsl"
 require "trailblazer/endpoint/controller"
 require "trailblazer/endpoint/options"
+require "trailblazer/endpoint/protocol/controller"
+require "trailblazer/endpoint/protocol/find_process_model"
+require "trailblazer/endpoint/protocol/cipher"

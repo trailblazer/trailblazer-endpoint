@@ -24,7 +24,7 @@ module Trailblazer
 
       step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
           # step :handle_not_authenticated
-        end
+      end
 
       step :policy, Output(:failure) => _Path(semantic: :not_authorized) do # user from cookie, etc
         # step :handle_not_authorized
@@ -113,7 +113,6 @@ module Trailblazer
           [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:terminus_handler)]]]
         end
       end
-
-    end
+    end # Protocol
   end
 end

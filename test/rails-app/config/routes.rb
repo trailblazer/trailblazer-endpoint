@@ -15,4 +15,14 @@ Rails.application.routes.draw do
   get "/v1/songs_with_options/:id", to: "api/v1/songs_controller/with_options#show"
 
   get "/", to: "home#dashboard"
+
+  post "/songs/serialize", to: "songs_controller/serialize#create"
+  post "/songs/serialize1", to: "songs_controller/serialize1#create"
+  post "/songs/serialize2", to: "songs_controller/serialize2#create"
+  post "/songs/serialize3", to: "songs_controller/serialize3#create"
+  post "/songs/serialize4", to: "songs_controller/serialize4#create"
+  post "/songs/serialize5", to: "songs_controller/serialize5#create"
+  post "/songs/serialize6", to: "songs_controller/serialize6#create"
+  post "/songs/serialize7", to: "songs_controller/serialize7#create"
+  post "/songs/serialize72", to: "songs_controller/serialize7#new"
 end

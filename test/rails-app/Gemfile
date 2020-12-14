@@ -21,3 +21,9 @@ gem "minitest-line"
 gem "trailblazer-cells"
 gem "cells-erb"
 gem "cells-rails"
+
+
+# FIXME
+gem "trailblazer-workflow", path: "../../../trailblazer-workflow"
+# gem "trailblazer-activity-dsl-linear", path: "../../../trailblazer-activity-dsl-linear"
+gem "trailblazer-activity-dsl-linear", ">= 0.3.4"
