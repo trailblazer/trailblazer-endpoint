@@ -1,6 +1,8 @@
-# 0.1.0
+# 0.0.7
 
-* Remove `domain_ctx_filter` in favor of `Controller.insert_copy_to_domain_ctx!`.
+* BREAKING: Remove `:domain_ctx_filter` in favor of `Controller.insert_copy_to_domain_ctx!`.
+* Add support for serializing `:suspend_data` and deserializing `:resume_data` so session data can get automatically encrypted and passed to the next action. This used to sit in `workflow`.
+* Add `:find_process_model`. This introduces a new protocol step before `policy` to find the "process model" instead of letting the domain operation or even the policy (or both!) find the "current model".
 
 # 0.0.6
 
