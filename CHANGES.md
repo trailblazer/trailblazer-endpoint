@@ -1,3 +1,7 @@
+# 0.0.8
+
+* Add `Protocol.insert_copy_from_domain_ctx!` to copy from `domain_ctx` to the `endpoint_ctx`.
+
 # 0.0.7
 
 * BREAKING: Remove `:domain_ctx_filter` in favor of `Controller.insert_copy_to_domain_ctx!`.
