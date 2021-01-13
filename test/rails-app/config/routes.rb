@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   get "/", to: "home#dashboard"
 
   post "/songs/serialize", to: "songs_controller/serialize#create"
+  post "/songs/copy_from_domain_ctx", to: "songs_controller/create1#create"
   post "/songs/serialize1", to: "songs_controller/serialize1#create"
   post "/songs/serialize2", to: "songs_controller/serialize2#create"
   post "/songs/serialize3", to: "songs_controller/serialize3#create"

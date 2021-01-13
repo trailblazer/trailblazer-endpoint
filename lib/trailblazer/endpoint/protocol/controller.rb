@@ -31,7 +31,7 @@ module Trailblazer
       end
 
       def copy_suspend_data_to_endpoint_ctx(ctx, domain_ctx:, **)
-        ctx[:suspend_data] = domain_ctx[:suspend_data]
+        ctx[:suspend_data] = domain_ctx[:suspend_data] # FIXME: use {#insert_copy_from_domain_ctx!}
       end
 
 # FIXME: use Model() mechanics.
@@ -80,11 +80,20 @@ module Trailblazer
         insert_copy_to_domain_ctx!(protocol, :process_model => :model)
       end
 
-      def insert_copy_to_domain_ctx!(protocol, variables)
+      def insert_copy_to_domain_ctx!(protocol, variables, before: :domain_activity) # FIXME: `:before` untested!
         variables.each do |original_name, domain_name|
           protocol.module_eval do
             pass ->(ctx, domain_ctx:, **) { domain_ctx[domain_name] = ctx[original_name] if ctx.key?(original_name) },
-              id: :"copy_[#{original_name.inspect}]_to_domain_ctx[#{domain_name.inspect}]", before: :domain_activity
+              id: :"copy_[#{original_name.inspect}]_to_domain_ctx[#{domain_name.inspect}]", before: before
+          end
+        end
+      end
+
+      def insert_copy_from_domain_ctx!(protocol, variables, after: :domain_activity) # FIXME: `:after` untested!
+        variables.each do |domain_name, endpoint_name|
+          protocol.module_eval do
+            pass ->(ctx, domain_ctx:, **) { ctx[endpoint_name] = domain_ctx[domain_name] if domain_ctx.key?(domain_name) },
+              id: :"copy_[#{endpoint_name.inspect}]_from_domain_ctx[#{domain_name.inspect}]", after: after
           end
         end
       end

@@ -82,6 +82,15 @@ end
   #:protocol_failure end
   end
 
+  # {:process_model} is copied from {domain_ctx[:model]} via {#insert_copy_from_domain_ctx!}.
+  class Create1Controller < SongsController
+  def create
+    endpoint Song::Operation::Create do |ctx, endpoint_ctx:, **|
+      render html: endpoint_ctx[:process_model].inspect.html_safe
+    end
+  end
+  end
+
 
   # endpoint_ctx
   #   :resume_data

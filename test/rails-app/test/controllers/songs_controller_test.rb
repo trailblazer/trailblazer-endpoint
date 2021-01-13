@@ -135,8 +135,13 @@ class SongsControllerTest < ActionDispatch::IntegrationTest
   # {find_process_model: false} overrides controller setting
     post "/songs/serialize72/", params: {id: 1}
     assert_response 200
-    assert_equal "false/nil/", response.body
+    assert_equal "false/false/", response.body
 
+
+# {#insert_copy_from_domain_ctx!} provides {:process_model}
+    post "/songs/copy_from_domain_ctx", params: {id: 1}
+    assert_response 200
+    assert_equal %{#<struct Song id="1">}, response.body
   end
 
   test "sign_in" do

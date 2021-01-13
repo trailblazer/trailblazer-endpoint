@@ -32,6 +32,7 @@ class ApplicationController::Web < ApplicationController
     end
 
     Trailblazer::Endpoint::Protocol::Controller.insert_copy_to_domain_ctx!(self, :current_user => :current_user)
+    Trailblazer::Endpoint::Protocol::Controller.insert_copy_from_domain_ctx!(self, :model => :process_model)
   end
 #:protocol end
   Policy = ->(domain_ctx) { domain_ctx[:params][:policy] == "false" ? false : true }
