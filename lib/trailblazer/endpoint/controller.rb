@@ -93,10 +93,11 @@ module Trailblazer
           end
 
           # Builds and registers an endpoint in a controller class.
-          def endpoint(name, **options, &block)
+          def endpoint(name=nil, **options, &block)
             options = options.merge(protocol_block: block) if block_given?
 
-            return generic_endpoint_config(**name, **options) if name.is_a?(Hash)
+            return generic_endpoint_config(**options) if name.nil?
+
             build_endpoint(name, **options)
           end
 
@@ -114,7 +115,7 @@ module Trailblazer
           def build_endpoint(name, domain_activity: name, **options)
             build_options = options_for(:generic_options, {}).merge(domain_activity: domain_activity, **options) # DISCUSS: why don't we add this as another directive option/step?
 
-            endpoint = Trailblazer::Endpoint.build(build_options)
+            endpoint = Trailblazer::Endpoint.build(**build_options)
 
             directive :endpoints, ->(*) { {name.to_s => endpoint} }
           end

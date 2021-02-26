@@ -48,7 +48,7 @@ module Trailblazer
         end
 
         if serialize || deserialize
-          Protocol::Controller.insert_copy_to_domain_ctx!(self, :resume_data => :resume_data)
+          Protocol::Controller.insert_copy_to_domain_ctx!(self, {:resume_data => :resume_data})
         end
 
         if find_process_model
@@ -131,7 +131,7 @@ module Trailblazer
     end
 
     # FIXME: name will change! this is for controllers, only!
-    def self.advance_from_controller(endpoint, success_block:, failure_block:, protocol_failure_block: protocol_failure_block, **argument_options)
+    def self.advance_from_controller(endpoint, success_block:, failure_block:, protocol_failure_block:, **argument_options)
       args = Trailblazer::Endpoint.arguments_for(argument_options)
 
       signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(

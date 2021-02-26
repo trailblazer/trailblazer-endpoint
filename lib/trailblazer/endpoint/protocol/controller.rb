@@ -77,7 +77,7 @@ module Trailblazer
             # after: :authenticate
         end
 
-        insert_copy_to_domain_ctx!(protocol, :process_model => :model)
+        insert_copy_to_domain_ctx!(protocol, {:process_model => :model})
       end
 
       def insert_copy_to_domain_ctx!(protocol, variables, before: :domain_activity) # FIXME: `:before` untested!
