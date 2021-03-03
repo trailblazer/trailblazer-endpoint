@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["apotonick@gmail.com"]
   spec.description   = %q{Endpoints handle authentication, policies, run your domain operation and set up the rendering.}
   spec.summary       = %q{Endpoints handle authentication, policies, run your domain operation and set up the rendering.}
-  spec.homepage      = "http://trailblazer.to/gems/operation/endpoint.html"
+  spec.homepage      = "http://trailblazer.to/"
   spec.license       = "LGPL-3.0"
 
   spec.files         = `git ls-files`.split($/)
@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "trailblazer-activity-dsl-linear", ">= 0.3.4", "< 0.4.0"
+  spec.add_dependency "trailblazer-activity-dsl-linear", ">= 0.4.0", "< 0.5.0"
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
