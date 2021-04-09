@@ -124,8 +124,12 @@ module Trailblazer
       end
 
       module InstanceMethods
+        # Returns object link between compile-time and run-time config
+        def config_source
+          self.class
+        end
 
-        def endpoint_for(name, config_source: self.class)
+        def endpoint_for(name)
           config_source.options_for(:endpoints, {}).fetch(name.to_s) # TODO: test non-existant endpoint
         end
 
@@ -144,9 +148,8 @@ module Trailblazer
         end
 
         module API
-          def endpoint(name, config_source: self.class, **action_options)
-            endpoint = endpoint_for(name, config_source: config_source)
-
+          def endpoint(name, **action_options)
+            endpoint = endpoint_for(name)
             action_options = {controller: self}.merge(action_options) # FIXME: redundant with {InstanceMethods#endpoint}
 
             block_options = config_source.options_for(:options_for_block_options, **action_options)
