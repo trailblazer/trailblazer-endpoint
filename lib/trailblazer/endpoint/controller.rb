@@ -58,7 +58,7 @@ module Trailblazer
       module Rails
         module Process
           def send_action(action_name)
-      puts "@@@@@>>>>>>> #{action_name.inspect}"
+            # puts "@@@@@>>>>>>> #{action_name.inspect}"
 
             dsl = send(action_name) # call the actual controller action.
 
