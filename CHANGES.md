@@ -1,3 +1,8 @@
+# 0.0.9
+
+* Fix Ruby 3.0 code.
+* Update dependencies.
+
 # 0.0.8
 
 * Add `Protocol.insert_copy_from_domain_ctx!` to copy from `domain_ctx` to the `endpoint_ctx`.
