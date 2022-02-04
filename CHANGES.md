@@ -1,3 +1,7 @@
+# 0.0.10
+
+* Require `dsl-linear` >= 0.5.0.
+
 # 0.0.9
 
 * Fix Ruby 3.0 code.
