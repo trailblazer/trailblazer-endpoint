@@ -15,15 +15,8 @@ module Trailblazer
         _403_path = ->(*) { step :_403_status }
         # _422_path = ->(*) { step :_422_status } # TODO: this is currently represented by the {failure} track.
 
-        # FIXME: is this really the only way to add an {End} to all this?
-        @state.update_sequence do |sequence:, **|
-          sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :fail_fast), magnetic_to: :fail_fast, id: "End.fail_fast") # TODO: rename to {protocol_failure}
-          sequence = Activity::Path::DSL.append_end(sequence, task: Activity::End.new(semantic: :failure), magnetic_to: :failure, id: "End.failure")
-
-          recompile_activity!(sequence)
-
-          sequence
-        end
+        terminus :fail_fast
+        terminus :failure
 
         step Subprocess(Protocol), # this will get replaced
           id: :protocol,
