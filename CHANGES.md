@@ -1,3 +1,8 @@
+# 0.0.11
+
+* Require `trailblazer-activity-dsl-linear` >= 1.0.0.
+* Use `#terminus` instead of clumsily adding termini to `Protocol` and `Adapter`.
+
 # 0.0.10
 
 * Require `dsl-linear` >= 0.5.0.
