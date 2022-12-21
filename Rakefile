@@ -9,12 +9,16 @@ Rake::TestTask.new(:test) do |test|
   test.verbose = true
 end
 
+# To run grape app's test, run below command
+# $ appraisal rails-app rake test-rails-app
 Rake::TestTask.new('test-rails-app') do |test|
   test.libs << 'test'
   test.test_files = FileList['test/rails-app/test/test_helper.rb', 'test/rails-app/test/**/*.rb']
   test.verbose = true
 end
 
+# To run grape app's test, run below command
+# $ appraisal grape-app rake test-grape-app
 Rake::TestTask.new('test-grape-app') do |test|
   test.libs << 'test'
   test.test_files = FileList['test/grape-app/test/test_helper.rb', 'test/grape-app/test/**/*.rb']

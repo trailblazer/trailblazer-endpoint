@@ -1,3 +1,5 @@
+require 'representable'
+
 class Song::Representer < Representable::Decorator
   include Representable::JSON
 
