@@ -103,7 +103,7 @@ module Trailblazer
 
         def self.extension_for_terminus_handler
           # this is called after {:output}.
-          [[Trailblazer::Activity::TaskWrap::Pipeline.method(:insert_after), "task_wrap.call_task", ["endpoint.end_signal", method(:terminus_handler)]]]
+          [method(:terminus_handler), id: "endpoint.end_signal", append: "task_wrap.call_task"] # the "friendly interface" for extensions.
         end
       end
     end # Protocol

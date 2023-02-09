@@ -18,7 +18,7 @@ module Trailblazer
 
 
       extensions_options = {
-        extensions: [Trailblazer::Activity::TaskWrap::Extension(merge: Trailblazer::Endpoint::Protocol::Domain.extension_for_terminus_handler)],
+        extensions: [Activity::TaskWrap::Extension.WrapStatic(Trailblazer::Endpoint::Protocol::Domain.extension_for_terminus_handler)],
       }
 
       # scoping: {:domain_ctx} becomes ctx
@@ -59,7 +59,7 @@ module Trailblazer
           pass Protocol::Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
         end
 
-        step(Subprocess(domain_activity), {inherit: true, id: :domain_activity, replace: :domain_activity,
+        step(Subprocess(domain_activity), {inherit: true, replace: :domain_activity,
 
 # FIXME: where does this go?
         }.

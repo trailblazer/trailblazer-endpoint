@@ -1,6 +1,7 @@
 # 0.0.12
 
-* Use `trailblazer-activity-dsl-linear` 1.1.0.
+* Use `trailblazer-activity-dsl-linear` 1.2.0.
+* Remove a deprecation warning by using the `WrapStatic()` extension builder.
 
 # 0.0.11
 
