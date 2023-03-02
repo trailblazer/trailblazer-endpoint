@@ -19,7 +19,7 @@ module Trailblazer
       end
 
       def self._Path(semantic:, &block) # DISCUSS: the problem with Path currently is https://github.com/trailblazer/trailblazer-activity-dsl-linear/issues/27
-        Path(track_color: semantic, end_id: "End.#{semantic}", end_task: Activity::End.new(semantic: semantic), &block)
+        Path(track_color: semantic, terminus: semantic, &block)
       end
 
       step :authenticate, Output(:failure) => _Path(semantic: :not_authenticated) do
