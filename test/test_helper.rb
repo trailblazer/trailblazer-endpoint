@@ -10,6 +10,10 @@ require "trailblazer/endpoint/adapter"
 Minitest::Spec.class_eval do
   T = Trailblazer::Activity::Testing
 
+  def assert_equal(expected, asserted, *args)
+    super(asserted, expected, *args)
+  end
+
   def assert_route(endpoint, ctx_additions, *route, **ctx_assumptions)
     seq = route[0..-2]
     terminus = route[-1]
