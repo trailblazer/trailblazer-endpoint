@@ -2,12 +2,7 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, adapter:, domain_activity:, scope_domain_ctx: true, protocol_block: ->(*) { Hash.new },
-      serialize: false, # TODO: plug-in, not hardcoded!
-      deserialize: false,# TODO: plug-in, not hardcoded!
-      find_process_model: false, # TODO: plug-in, not hardcoded!
-      deserialize_process_model_id_from_resume_data: false # TODO: plug-in, not hardcoded!
-      )
+    def self.build(protocol:, adapter:, domain_activity:, protocol_block: ->(*) { Hash.new })
       # special considerations around the {domain_activity} and its taskWrap:
       #
       #  1. domain_ctx_filter (e.g. to filter {current_user})
@@ -16,17 +11,7 @@ module Trailblazer
       #  4. :output
       #  5. save return signal
 
-
-      extensions_options = {
-        extensions: [Activity::TaskWrap::Extension.WrapStatic(Trailblazer::Endpoint::Protocol::Domain.extension_for_terminus_handler)],
-      }
-
-      # scoping: {:domain_ctx} becomes ctx
-      extensions_options.merge!(Endpoint.options_for_scope_domain_ctx) if scope_domain_ctx # TODO: test flag
-
-      app_protocol = build_protocol(protocol, domain_activity: domain_activity, extensions_options: extensions_options, protocol_block: protocol_block, serialize: serialize, deserialize: deserialize,
-        find_process_model: find_process_model, deserialize_process_model_id_from_resume_data: deserialize_process_model_id_from_resume_data
-        )
+      app_protocol = build_protocol(protocol, domain_activity: domain_activity)
 
       # puts Trailblazer::Developer.render(app_protocol)
 
@@ -37,42 +22,19 @@ module Trailblazer
     end
 
     # @private
-    def self.build_protocol(protocol, domain_activity:, extensions_options:, protocol_block:, serialize:, deserialize:, find_process_model:, deserialize_process_model_id_from_resume_data:)
+    def self.build_protocol(protocol, domain_activity:, protocol_block:)
       Class.new(protocol) do
-        if serialize
-          Protocol::Controller.insert_serialize_steps!(self)
-        end
-
-        if deserialize
-          Protocol::Controller.insert_deserialize_steps!(self)
-        end
-
-        if serialize || deserialize
-          Protocol::Controller.insert_copy_to_domain_ctx!(self, {:resume_data => :resume_data})
-        end
-
-        if find_process_model
-          Protocol::Controller.insert_find_process_model!(self, before: :policy) # TODO: test before: :policy
-        end
-
-        if deserialize_process_model_id_from_resume_data
-          pass Protocol::Controller.method(:deserialize_process_model_id_from_resume_data), after: :deserialize_resume_data, magnetic_to: :deserialize, Output(:success) => Track(:deserialize)
-        end
-
-        step(Subprocess(domain_activity), {inherit: true, replace: :domain_activity,
-
-# FIXME: where does this go?
-        }.
-          merge(extensions_options).
+        step(Subprocess(domain_activity), {inherit: true, replace: :domain_activity,}.
+          # merge(extensions_options).
           merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
         )
       end
     end
 
-    def self.options_for_scope_domain_ctx()
+    def self.scope_domain_ctx
       {
-        input:  ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
-        output: ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
+        Activity::Railway.In()  => ->(ctx, **) { ctx[:domain_ctx] }, # gets automatically Context()'ed.
+        Activity::Railway.Out() => ->(domain_ctx, **) { {:domain_ctx => domain_ctx} }
       }
     end
 
@@ -159,6 +121,7 @@ end
 require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
 require "trailblazer/endpoint/dsl"
+require "trailblazer/endpoint/dsl/matcher"
 require "trailblazer/endpoint/controller"
 require "trailblazer/endpoint/options"
 require "trailblazer/endpoint/protocol/controller"
