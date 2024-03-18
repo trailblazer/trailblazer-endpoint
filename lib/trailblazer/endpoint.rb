@@ -39,37 +39,6 @@ module Trailblazer
       }
     end
 
-    # Runtime
-    # Invokes the endpoint for you and runs one of the three outcome blocks.
-    def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:, invoke: Trailblazer::Activity::TaskWrap.method(:invoke))
-    # def self.with_or_etc(activity, args, failure_block:, success_block:, protocol_failure_block:, invoke: Trailblazer::Developer.method(:wtf?))
-
-      # args[1] = args[1].merge(focus_on: { variables: [:returned], steps: :invoke_workflow })
-
-      # signal, (endpoint_ctx, _ ) = Trailblazer::Developer.wtf?(activity, args)
-      signal, (endpoint_ctx, _ ) = invoke.call(activity, args) # translates to Trailblazer::Developer.wtf?(activity, args)
-
-      # this ctx is passed to the controller block.
-      block_ctx = endpoint_ctx[:domain_ctx].merge(endpoint_ctx: endpoint_ctx, signal: signal, errors: endpoint_ctx[:errors]) # DISCUSS: errors? status?
-
-      # if signal < Trailblazer::Activity::End::Success
-      adapter_terminus_semantic = signal.to_h[:semantic]
-
-      executed_block =
-        if adapter_terminus_semantic    == :success
-          success_block
-        elsif adapter_terminus_semantic == :fail_fast
-          protocol_failure_block
-        else
-          failure_block
-        end
-
-      executed_block.(block_ctx, **block_ctx)
-
-      # we return the original context???
-      return signal, [endpoint_ctx]
-    end
-
     #@ For WORKFLOW and operations. not sure this method will stay here.
     def self.arguments_for(domain_ctx:, flow_options:, circuit_options: {}, **endpoint_options)
       # we don't have to create the Ctx wrapping explicitly here. this is done via `:input`.

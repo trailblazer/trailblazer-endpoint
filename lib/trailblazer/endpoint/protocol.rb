@@ -5,7 +5,7 @@ module Trailblazer
     # The {Protocol} implements auth*, and calls the domain OP/WF.
     # You still have to implement handlers (like {#authorize} and {#handle_not_authorized}) yourself. This might change soon.
     #
-    # Protocol must provide all ends for the Adapter (401,403 and 404 in particular), even if the ran op/workflow doesn't have it.
+    # Protocol must provide all termini for the Adapter (401,403 and 404 in particular), even if the ran op/workflow doesn't have it.
     #   Still thinking about how to do that best.
 
     # Termini and their "pendants" in HTTP, which is unrelated to protocol!! Protocol is application-focused and doesn't know about HTTP.
