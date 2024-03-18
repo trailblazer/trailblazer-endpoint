@@ -30,39 +30,48 @@ class ProtocolTest < Minitest::Spec
       not_authorized: ->(*) { snippet },
     )
 
-    matcher = Trailblazer::Endpoint::Matcher::DSL.new
-
-    matcher.success do |ctx, model:, **|
-      render model.inspect
-    end.failure do |*|
-      render "failure"
-    end.not_authorized do |ctx, model:, **|
-      render "not authorized: #{model}"
-    end
-
-    matcher_value = Trailblazer::Endpoint::Matcher::Value.new(default_matcher, matcher, self)
-
     action_protocol = Trailblazer::Endpoint.build_protocol(Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
+    action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
 
-    action_adapter = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
+    matcher_block = Proc.new do
+      success { |ctx, model:, **| render model.inspect }
+      failure { |*| render "failure" }
+      not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
+    end
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Developer.wtf?(action_adapter, [ctx, {matcher_value: matcher_value}])
+    Trailblazer::Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
 
-    Trailblazer::Developer.wtf?(action_adapter, [ctx.merge(model: false), {matcher_value: matcher_value}])
+    Trailblazer::Endpoint::Runtime.(ctx.merge(model: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(404, false not found)
 
-    Trailblazer::Developer.wtf?(action_adapter, [ctx.merge(save: false), {matcher_value: matcher_value}])
+    Trailblazer::Endpoint::Runtime.(ctx.merge(save: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(failure)
 
-    Trailblazer::Developer.wtf?(action_adapter, [ctx.merge(policy: false), {matcher_value: matcher_value}])
+    Trailblazer::Endpoint::Runtime.(ctx.merge(policy: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(not authorized: Object)
 
     assert_raises KeyError do
-      Trailblazer::Developer.wtf?(action_adapter, [ctx.merge(authenticate: false), {matcher_value: matcher_value}])
+      Trailblazer::Endpoint::Runtime.(ctx.merge(authenticate: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
       # assert_equal @rendered, %(404, false not found)
     end
+
+    # endpoint "bla", ctx: {} do
+    #   success do |ctx, model:, **|
+    #     render model.inspect
+    #   end
+    # end
+
+    # run "bla", ctx: {} do
+    #   render model.inspect
+    # end
+
+    # Trailblazer::Endpoint::Runtime.call ctx, adapter: action_adapter do
+    #   success { |ctx, model:, **| render model.inspect }
+    #   failure { |*| render "failure" }
+    #   not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
+    # end
   end
 end
