@@ -22,6 +22,7 @@ module Trailblazer
     end
 
     # @private
+    # TODO: move to Protocol.
     def self.build_protocol(protocol, domain_activity:, protocol_block:)
       Class.new(protocol) do
         step(Subprocess(domain_activity), {inherit: true, replace: :domain_activity,}.
@@ -120,8 +121,8 @@ end
 
 require "trailblazer/endpoint/protocol"
 require "trailblazer/endpoint/adapter"
-require "trailblazer/endpoint/dsl"
-require "trailblazer/endpoint/dsl/matcher"
+require "trailblazer/endpoint/matcher"
+# require "trailblazer/endpoint/dsl"
 require "trailblazer/endpoint/controller"
 require "trailblazer/endpoint/options"
 require "trailblazer/endpoint/protocol/controller"
