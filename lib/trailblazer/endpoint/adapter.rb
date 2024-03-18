@@ -10,7 +10,7 @@ module Trailblazer
 
     class Adapter < Trailblazer::Activity::Path
       def self.run_matcher(wrap_ctx, original_args)
-        (ctx, flow_options), _ = original_args
+        ctx, flow_options = wrap_ctx[:return_args]
 
         matcher_value = flow_options[:matcher_value]
 
@@ -29,7 +29,7 @@ module Trailblazer
         Class.new(Adapter) do
           step Subprocess(protocol, strict: true), # FIXME: are we connecting all outputs?
             Extension() => Trailblazer::Activity::TaskWrap::Extension::WrapStatic(
-              [Adapter.method(:run_matcher), id: "my_apm.finish_span", append: "task_wrap.call_task"],
+              [Adapter.method(:run_matcher), id: "endpoint.run_matcher", append: "task_wrap.call_task"],
             ),
             Output(:not_found) => Track(:success),
             Output(:not_authenticated) => Track(:success),
