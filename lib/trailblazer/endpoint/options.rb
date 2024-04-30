@@ -77,6 +77,7 @@ module Trailblazer
 
       def self.CallDirective(callable, option_name)
         ->((ctx, flow_options), *) {
+          ctx ||= {}
           config = callable.(ctx, **ctx) # e.g. ApplicationController.options_for_endpoint
 
           # ctx[option_name] = ctx[option_name].merge(config)
