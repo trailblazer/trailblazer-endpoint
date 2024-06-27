@@ -25,6 +25,9 @@ module Trailblazer
       # Build the simplest Adapter possible: run the Protocol and, by leveraging its taskWrap,
       # run the respective matcher block.
       # Note that you could add additional paths and steps here. Let's see what turns out to be useful.
+      #
+      # The point of running the protocol/business logic in a step, then the matcher block, and then still returning a signal is
+      # so we can include this into another activity (e.g. workflow).
       def self.build(protocol)
         Class.new(Adapter) do
           step Subprocess(protocol, strict: true), # FIXME: are we connecting all outputs?
@@ -34,6 +37,9 @@ module Trailblazer
             Output(:not_found) => Track(:success),
             Output(:not_authenticated) => Track(:success),
             Output(:not_authorized) => Track(:success) # FIXME: what goes here?
+
+            # DISCUSS: in a "traditional" adapter, this one block-executing step would just be one step, and then
+            #          we'd just go on the "not_authenticated" path or whatever.
         end
       end
     end # Adapter
