@@ -23,7 +23,7 @@ class ProtocolTest < Minitest::Spec
     include T.def_steps(:authenticate, :policy)
   end
 
-  it "what" do
+  it "{Runtime.call}" do
     default_matcher = Trailblazer::Endpoint::Matcher.new(
       success:    ->(*) { raise },
       not_found:  ->(ctx, model:, **) { render "404, #{model} not found" },
@@ -78,7 +78,7 @@ class ProtocolTest < Minitest::Spec
     # end
   end
 
-  it "accepts {:flow_options} / USES  THE CORRECT ctx in TW" do # FIXME: two tests?
+  it "accepts {:flow_options} / USES  THE CORRECT ctx in TW and can access {:model} from the domain_activity" do # FIXME: two tests?
     protocol = Class.new(Trailblazer::Activity::Railway) do
       step task: :save
       terminus :not_found

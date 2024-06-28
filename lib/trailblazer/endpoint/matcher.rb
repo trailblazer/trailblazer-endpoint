@@ -27,6 +27,8 @@ module Trailblazer
         end
       end
 
+      # This is the runtime interface that executes the respective matcher for the
+      # result outcome.
       class Value
         def initialize(matcher, dsl, exec_context)
           @matcher      = matcher
