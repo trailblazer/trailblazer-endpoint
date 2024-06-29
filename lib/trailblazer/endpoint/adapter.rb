@@ -9,6 +9,19 @@ module Trailblazer
 
 
     class Adapter < Trailblazer::Activity::Path
+      # terminus :fail_fast
+      terminus :failure # DISCUSS: do we actually need that?
+
+# FIXME: what if we want to add our own Adapter class?
+      # step Subprocess(Protocol), # this will get replaced
+      #   id: :protocol,
+      #   Output(:not_authorized)     => Track(:success), # Path(track_color: :not_authorized, connect_to: Id(:protocol_failure)),
+      #   Output(:not_found)          => Track(:success), # Path(track_color: :not_found, connect_to: Id(:protocol_failure)),
+      #   Output(:not_authenticated)  => Track(:success), # Path(track_color: :not_authenticated, connect_to: Id(:protocol_failure)),
+      #   Output(:invalid_data)       => Track(:failure), # application error, since it's usually a failed validation.
+      #   Output(:failure)       => Track(:failure) # application error, since it's usually a failed validation.
+
+
       def self.run_matcher(wrap_ctx, original_args)
         ctx, flow_options = wrap_ctx[:return_args]
 

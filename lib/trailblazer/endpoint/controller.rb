@@ -1,92 +1,150 @@
 module Trailblazer
   class Endpoint
     module Controller
-      def self.extended(extended)
-        extended.extend Trailblazer::Endpoint::Options::DSL           # ::directive
-        extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
-        extended.extend Trailblazer::Endpoint::Options                # ::options_for
-        extended.extend DSL::Endpoint
+      module DSL # Controller.endpoint
+        # def initialize!(state)
+        #   @state = state
+        # end
 
-        extended.include InstanceMethods # {#endpoint_for}
+        # def inherited(inheriter)
+        #   super
 
-        # DISCUSS: hmm
-        extended.directive :generic_options,          ->(*) { Hash.new } # for Controller::endpoint
-        extended.directive :options_for_flow_options, ->(*) { Hash.new }
-        extended.directive :options_for_endpoint,     ->(*) { Hash.new }
-        extended.directive :options_for_domain_ctx,   ->(*) { Hash.new }
-      end
+        #   # Inherits the {State:sequencer} and other options without recomputing anything.
+        #   inheriter.initialize!(@state.copy)
+        # end
 
-      # @experimental
-      # TODO: test application_controller with and without dsl/api
 
-      def self.module(framework: :rails, api: false, dsl: false, application_controller: false)
-        if application_controller && !api && !dsl # FIXME: not tested! this is useful for an actual AppController with block_options or flow_options settings, "globally"
-          Module.new do
-            def self.included(includer)
-              includer.extend(Controller) # only ::directive and friends.
-            end
+        def self.extended(base) # FIXME: move one level up!
+          base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
+            base.instance_variable_set(:@default_matcher, {})  # FIXME: implement inheritance!
+          base.extend(Inherited)
+        end
+
+        # TODO: improve inheritance, because there is none presently.
+        module Inherited
+          def inherited(base) # FIXME: move one level up!
+            base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
+            base.instance_variable_set(:@default_matcher, {})  # FIXME: implement inheritance!
           end
-        elsif api
-          Module.new do
-            @application_controller = application_controller
-            def self.included(includer)
-              if @application_controller
-                includer.extend Controller
-              end
-              includer.include(InstanceMethods::API)
-            end
-          end
-        elsif dsl
-          Module.new do
-            @application_controller = application_controller
-            def self.included(includer)
-              if @application_controller
-                includer.extend Controller
-              end
-              includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
-              includer.include Trailblazer::Endpoint::Controller::Rails
-              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
-              includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
-              includer.include Trailblazer::Endpoint::Controller::Rails::Process
-            end
-          end # Module
-        else
-          raise
+        end
+
+        # Builds and registers an endpoint in a controller class.
+        def endpoint(name=nil, **options, &block)
+          options = options.merge(protocol_block: block) if block_given?
+
+          build_endpoint(name, **options)
+        end
+
+        def build_endpoint(name, domain_activity: name, **options)
+          build_options = options_for_endpoint.merge(domain_activity: domain_activity, **options) # FIXME: this means we must have #options_for_endpoint defined on this class!
+
+          endpoint = Trailblazer::Endpoint.build(**build_options)
+
+          @endpoints[name.to_s] = endpoint
+        end
+      end # DSL
+
+      module Runtime
+        def invoke(operation, **options, &matcher_block)
+          options = options_for_endpoint_ctx.merge(options)
+          ctx = options  # FIXME! add real Context!
+
+          action_adapter = self.class.instance_variable_get(:@endpoints).fetch(operation.to_s)
+
+          # FIXME: do at compile time
+          default_matcher = self.class.instance_variable_get(:@default_matcher)
+          default_matcher = Endpoint::Matcher.new(**default_matcher)
+
+          Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
         end
       end
 
-      module Rails
-        module Process
-          def send_action(action_name)
-      puts "@@@@@>>>>>>> #{action_name.inspect}"
+      # def self.extended(extended)
+      #   extended.extend Trailblazer::Endpoint::Options::DSL           # ::directive
+      #   extended.extend Trailblazer::Endpoint::Options::DSL::Inherit
+      #   extended.extend Trailblazer::Endpoint::Options                # ::options_for
+      #   extended.extend DSL::Endpoint
 
-            dsl = send(action_name) # call the actual controller action.
+      #   extended.include InstanceMethods # {#endpoint_for}
 
-            options, block_options = dsl.to_args(self.class.options_for(:options_for_block_options, controller: self)) # {success_block:, failure_block:, protocol_failure_block:}
-            # now we know the authorative blocks
+      #   # DISCUSS: hmm
+      #   extended.directive :generic_options,          ->(*) { Hash.new } # for Controller::endpoint
+      #   extended.directive :options_for_flow_options, ->(*) { Hash.new }
+      #   extended.directive :options_for_endpoint,     ->(*) { Hash.new }
+      #   extended.directive :options_for_domain_ctx,   ->(*) { Hash.new }
+      # end
 
-            Controller.advance_endpoint_for_controller(**options, block_options: block_options, config_source: self.class, controller: self)
-          end
+      # # @experimental
+      # # TODO: test application_controller with and without dsl/api
 
-        end # Process
+      # def self.module(framework: :rails, api: false, dsl: false, application_controller: false)
+      #   if application_controller && !api && !dsl # FIXME: not tested! this is useful for an actual AppController with block_options or flow_options settings, "globally"
+      #     Module.new do
+      #       def self.included(includer)
+      #         includer.extend(Controller) # only ::directive and friends.
+      #       end
+      #     end
+      #   elsif api
+      #     Module.new do
+      #       @application_controller = application_controller
+      #       def self.included(includer)
+      #         if @application_controller
+      #           includer.extend Controller
+      #         end
+      #         includer.include(InstanceMethods::API)
+      #       end
+      #     end
+      #   elsif dsl
+      #     Module.new do
+      #       @application_controller = application_controller
+      #       def self.included(includer)
+      #         if @application_controller
+      #           includer.extend Controller
+      #         end
+      #         includer.include Trailblazer::Endpoint::Controller::InstanceMethods::DSL
+      #         includer.include Trailblazer::Endpoint::Controller::Rails
+      #         includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultBlocks
+      #         includer.extend Trailblazer::Endpoint::Controller::Rails::DefaultParams
+      #         includer.include Trailblazer::Endpoint::Controller::Rails::Process
+      #       end
+      #     end # Module
+      #   else
+      #     raise
+      #   end
+      # end
 
-        # The three default handlers for {Endpoint::with_or_etc}
-        # @experimental
-        module DefaultBlocks
-          def self.extended(extended)
-            extended.directive :options_for_block_options, Controller.method(:options_for_block_options)
-          end
-        end
-        # @experimental
-        module DefaultParams
-          def self.extended(extended)
-            extended.directive :options_for_domain_ctx, ->(ctx, controller:, **) { {params: controller.params} }
-          end
-        end
+      # module Rails
+      #   module Process
+      #     def send_action(action_name)
+      # puts "@@@@@>>>>>>> #{action_name.inspect}"
 
-      end # Rails
+      #       dsl = send(action_name) # call the actual controller action.
 
-      module DSL
+      #       options, block_options = dsl.to_args(self.class.options_for(:options_for_block_options, controller: self)) # {success_block:, failure_block:, protocol_failure_block:}
+      #       # now we know the authorative blocks
+
+      #       Controller.advance_endpoint_for_controller(**options, block_options: block_options, config_source: self.class, controller: self)
+      #     end
+
+      #   end # Process
+
+      #   # The three default handlers for {Endpoint::with_or_etc}
+      #   # @experimental
+      #   module DefaultBlocks
+      #     def self.extended(extended)
+      #       extended.directive :options_for_block_options, Controller.method(:options_for_block_options)
+      #     end
+      #   end
+      #   # @experimental
+      #   module DefaultParams
+      #     def self.extended(extended)
+      #       extended.directive :options_for_domain_ctx, ->(ctx, controller:, **) { {params: controller.params} }
+      #     end
+      #   end
+
+      # end # Rails
+
+      module X___DSL
         module Endpoint
           def self.extended(extended)
             extended.directive(:endpoints, ->(*) { {} })
@@ -123,104 +181,122 @@ module Trailblazer
         end
       end
 
-      module InstanceMethods
-        # Returns object link between compile-time and run-time config
-        def config_source
-          self.class
-        end
+      # module InstanceMethods
+      #   # Returns object link between compile-time and run-time config
+      #   def config_source
+      #     self.class
+      #   end
 
-        def endpoint_for(name)
-          config_source.options_for(:endpoints, {}).fetch(name.to_s) # TODO: test non-existant endpoint
-        end
+      #   def endpoint_for(name)
+      #     config_source.options_for(:endpoints, {}).fetch(name.to_s) # TODO: test non-existant endpoint
+      #   end
 
-        module DSL
-          def endpoint(name, **action_options, &block)
-            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {API#endpoint}
+      #   module DSL
+      #     def endpoint(name, **action_options, &block)
+      #       action_options = {controller: self}.merge(action_options) # FIXME: redundant with {API#endpoint}
 
-            endpoint = endpoint_for(name)
+      #       endpoint = endpoint_for(name)
 
-            invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
-          end
+      #       # raise name.inspect unless block_given?
+      #       # TODO: check {dsl: false}
+      #       # unless block_given? # FIXME
+      #       #   config_source = self.class # FIXME
+      #       #   block_options = config_source.options_for(:options_for_block_options, **action_options)
+      #       #   block_options = Trailblazer::Endpoint::Options.merge_with(action_options, block_options)
 
-          def invoke_endpoint_with_dsl(options, &block)
-            _dsl = Trailblazer::Endpoint::DSL::Runtime.new(options, block) # provides #Or etc, is returned to {Controller#call}
-          end
-        end
+      #       #   signal, (ctx, _) = Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(
+      #       #     endpoint:       endpoint,
+      #       #     block_options:  block_options,
+      #       #     config_source:  config_source,
+      #       #     **action_options
+      #       #   )
 
-        module API
-          def endpoint(name, **action_options)
-            endpoint = endpoint_for(name)
-            action_options = {controller: self}.merge(action_options) # FIXME: redundant with {InstanceMethods#endpoint}
-
-            block_options = config_source.options_for(:options_for_block_options, **action_options)
-            block_options = Trailblazer::Endpoint::Options.merge_with(action_options, block_options)
-
-            signal, (ctx, _) = Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(
-              endpoint:       endpoint,
-              block_options:  block_options,
-              config_source:  config_source,
-              **action_options
-            )
-
-            ctx
-          end
-        end # API
-      end
+      #       #   return ctx
+      #       # end
 
 
-      def self.advance_endpoint_for_controller(endpoint:, block_options:, **action_options)
-        domain_ctx, endpoint_options, flow_options = compile_options_for_controller(**action_options) # controller-specific, get from directives.
+      #       invoke_endpoint_with_dsl(endpoint: endpoint, **action_options, &block)
+      #     end
 
-        endpoint_options = endpoint_options.merge(action_options) # DISCUSS
+      #     def invoke_endpoint_with_dsl(options, &block)
+      #       _dsl = Trailblazer::Endpoint::DSL::Runtime.new(options, block) # provides #Or etc, is returned to {Controller#call}
+      #     end
+      #   end
 
-        Endpoint::Controller.advance_endpoint(
-          endpoint:      endpoint,
-          block_options: block_options,
+      #   module API
+      #     def endpoint(name, **action_options)
+      #       endpoint = endpoint_for(name)
+      #       action_options = {controller: self}.merge(action_options) # FIXME: redundant with {InstanceMethods#endpoint}
 
-          domain_ctx:       domain_ctx,
-          endpoint_options: endpoint_options,
-          flow_options:     flow_options,
-        )
-      end
+      #       block_options = config_source.options_for(:options_for_block_options, **action_options)
+      #       block_options = Trailblazer::Endpoint::Options.merge_with(action_options, block_options)
 
-      def self.compile_options_for_controller(options_for_domain_ctx: nil, config_source:, **action_options)
-        flow_options     = config_source.options_for(:options_for_flow_options, **action_options)
-        endpoint_options = config_source.options_for(:options_for_endpoint, **action_options) # "class level"
-        domain_ctx       = options_for_domain_ctx || config_source.options_for(:options_for_domain_ctx, **action_options)
+      #       signal, (ctx, _) = Trailblazer::Endpoint::Controller.advance_endpoint_for_controller(
+      #         endpoint:       endpoint,
+      #         block_options:  block_options,
+      #         config_source:  config_source,
+      #         **action_options
+      #       )
 
-        return domain_ctx, endpoint_options, flow_options
-      end
+      #       ctx
+      #     end
+      #   end # API
+      # end
 
-      # Ultimate low-level entry point.
-      # Remember that you don't _have_ to use Endpoint.with_or_etc to invoke an endpoint.
-      def self.advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:, flow_options:)
 
-        # build Context(ctx),
-        args, _ = Trailblazer::Endpoint.arguments_for(
-          domain_ctx:   domain_ctx,
-          flow_options: flow_options,
-          **endpoint_options,
-        )
+      # def self.advance_endpoint_for_controller(endpoint:, block_options:, **action_options)
+      #   domain_ctx, endpoint_options, flow_options = compile_options_for_controller(**action_options) # controller-specific, get from directives.
 
-        signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
-          endpoint,
-          args, # [ctx, flow_options]
+      #   endpoint_options = endpoint_options.merge(action_options) # DISCUSS
 
-          **block_options,
-          # success_block: success_block,
-          # failure_block: failure_block,
-          # protocol_failure_block: protocol_failure_block,
-        )
-      end
+      #   Endpoint::Controller.advance_endpoint(
+      #     endpoint:      endpoint,
+      #     block_options: block_options,
 
-      # Default blocks for the {Adapter}.
-      def self.options_for_block_options(ctx, controller:, **)
-        {
-          success_block:          ->(ctx, endpoint_ctx:, **) { controller.head 200 },
-          failure_block:          ->(ctx, **) { controller.head 422 },
-          protocol_failure_block: ->(ctx, endpoint_ctx:, **) { controller.head endpoint_ctx[:status] }
-        }
-      end
+      #     domain_ctx:       domain_ctx,
+      #     endpoint_options: endpoint_options,
+      #     flow_options:     flow_options,
+      #   )
+      # end
+
+      # def self.compile_options_for_controller(options_for_domain_ctx: nil, config_source:, **action_options)
+      #   flow_options     = config_source.options_for(:options_for_flow_options, **action_options)
+      #   endpoint_options = config_source.options_for(:options_for_endpoint, **action_options) # "class level"
+      #   domain_ctx       = options_for_domain_ctx || config_source.options_for(:options_for_domain_ctx, **action_options)
+
+      #   return domain_ctx, endpoint_options, flow_options
+      # end
+
+      # # Ultimate low-level entry point.
+      # # Remember that you don't _have_ to use Endpoint.with_or_etc to invoke an endpoint.
+      # def self.advance_endpoint(endpoint:, block_options:, domain_ctx:, endpoint_options:, flow_options:)
+
+      #   # build Context(ctx),
+      #   args, _ = Trailblazer::Endpoint.arguments_for(
+      #     domain_ctx:   domain_ctx,
+      #     flow_options: flow_options,
+      #     **endpoint_options,
+      #   )
+
+      #   signal, (ctx, _ ) = Trailblazer::Endpoint.with_or_etc(
+      #     endpoint,
+      #     args, # [ctx, flow_options]
+
+      #     **block_options,
+      #     # success_block: success_block,
+      #     # failure_block: failure_block,
+      #     # protocol_failure_block: protocol_failure_block,
+      #   )
+      # end
+
+      # # Default blocks for the {Adapter}.
+      # def self.options_for_block_options(ctx, controller:, **)
+      #   {
+      #     success_block:          ->(ctx, endpoint_ctx:, **) { controller.head 200 },
+      #     failure_block:          ->(ctx, **) { controller.head 422 },
+      #     protocol_failure_block: ->(ctx, endpoint_ctx:, **) { controller.head endpoint_ctx[:status] }
+      #   }
+      # end
 
     end # Controller
   end
