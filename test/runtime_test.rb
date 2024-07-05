@@ -24,11 +24,11 @@ class ProtocolTest < Minitest::Spec
   end
 
   it "{Runtime.call}" do
-    default_matcher = Trailblazer::Endpoint::Matcher.new(
+    default_matcher = {
       success:    ->(*) { raise },
       not_found:  ->(ctx, model:, **) { render "404, #{model} not found" },
       not_authorized: ->(*) { snippet },
-    )
+    }
 
     action_protocol = Trailblazer::Endpoint.build_protocol(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
     action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
@@ -96,7 +96,7 @@ class ProtocolTest < Minitest::Spec
       success { |ctx, model:, **| render model.inspect }
     end
 
-    default_matcher = Trailblazer::Endpoint::Matcher.new()
+    default_matcher = {}
     adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
 
     # ctx doesn't contain {:model}, yet.

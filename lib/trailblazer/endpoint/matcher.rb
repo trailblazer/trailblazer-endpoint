@@ -1,12 +1,8 @@
 module Trailblazer
   class Endpoint
-    class Matcher < Struct.new(:blocks)
-      def initialize(**blocks)
-        super(blocks)
-      end
-
-      def call(outcome, (ctx, kwargs), merge: {}, exec_context:)
-        block = blocks.merge(merge).fetch(outcome)
+    class Matcher
+      def self.call(outcome, (ctx, kwargs), merge: {}, exec_context:, matcher:)
+        block = matcher.merge(merge).fetch(outcome)
 
         exec_context.instance_exec(ctx, **kwargs, &block)
       end
@@ -37,7 +33,7 @@ module Trailblazer
         end
 
         def call(outcome, args, **kwargs)
-          @matcher.(outcome, args, merge: @dsl_merge, exec_context: @exec_context)
+          Matcher.(outcome, args, matcher: @matcher, merge: @dsl_merge, exec_context: @exec_context)
         end
       end
     end

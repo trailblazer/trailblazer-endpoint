@@ -52,8 +52,8 @@ module Trailblazer
           action_adapter = self.class.instance_variable_get(:@endpoints).fetch(operation.to_s)
 
           # FIXME: do at compile time
-          default_matcher = self.class.instance_variable_get(:@default_matcher)
-          default_matcher = Endpoint::Matcher.new(**default_matcher)
+          # default_matcher = self.class.instance_variable_get(:@default_matcher)
+          default_matcher = default_matcher_for_endpoint() # DISCUSS: this dictates the existence of this method.
 
           Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
         end
@@ -112,37 +112,6 @@ module Trailblazer
       #     raise
       #   end
       # end
-
-      # module Rails
-      #   module Process
-      #     def send_action(action_name)
-      # puts "@@@@@>>>>>>> #{action_name.inspect}"
-
-      #       dsl = send(action_name) # call the actual controller action.
-
-      #       options, block_options = dsl.to_args(self.class.options_for(:options_for_block_options, controller: self)) # {success_block:, failure_block:, protocol_failure_block:}
-      #       # now we know the authorative blocks
-
-      #       Controller.advance_endpoint_for_controller(**options, block_options: block_options, config_source: self.class, controller: self)
-      #     end
-
-      #   end # Process
-
-      #   # The three default handlers for {Endpoint::with_or_etc}
-      #   # @experimental
-      #   module DefaultBlocks
-      #     def self.extended(extended)
-      #       extended.directive :options_for_block_options, Controller.method(:options_for_block_options)
-      #     end
-      #   end
-      #   # @experimental
-      #   module DefaultParams
-      #     def self.extended(extended)
-      #       extended.directive :options_for_domain_ctx, ->(ctx, controller:, **) { {params: controller.params} }
-      #     end
-      #   end
-
-      # end # Rails
 
       module X___DSL
         module Endpoint

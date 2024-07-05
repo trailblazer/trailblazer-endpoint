@@ -7,9 +7,7 @@ class ControllerTest < Minitest::Spec
         step :model
         step :validate
 
-        def validate(ctx, seq: [], **)
-          seq << :validate
-        end
+        include T.def_steps(:validate)
 
         def model(ctx, **)
           ctx[:model] = Module
@@ -51,8 +49,15 @@ class ControllerTest < Minitest::Spec
           success:        ->(*) { raise },
           not_found:      ->(ctx, model:, **) { render "404, #{model} not found" },
           not_authorized: ->(ctx, current_user:, **) { render "403, #{current_user}" },
+          not_authenticated: ->(*) { render "authentication failed" }
         }
       end
+      # self.instance_variable_get(:@default_matcher).merge!(default_matcher_for_endpoint)
+      def default_matcher_for_endpoint
+        self.class.default_matcher_for_endpoint
+      end
+
+
       # TODO: flow_options, kws
 
       #
@@ -62,7 +67,7 @@ class ControllerTest < Minitest::Spec
       def options_for_endpoint_ctx(**)
         {
           current_user: Object,
-          params: params,
+          **params,
           seq: [],
         }
       end
@@ -88,7 +93,7 @@ class ControllerTest < Minitest::Spec
         invoke Memo::Operation::Create do
           success         { |ctx, model:, **| render model.inspect }
           failure         { |*| render "failure" }
-          not_authorized  { |ctx, model:, **| render "not authorized: #{model}" }
+          not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
         end
       end
     end
@@ -96,9 +101,29 @@ class ControllerTest < Minitest::Spec
     #
     # Test
     #
+
+    # success
     controller = controller_class.new(params: {id: 1})
     controller.create
 
-    assert_equal controller.to_h, {render: %(aasdf)}
+    assert_equal controller.to_h, {render: %(Module)}
+
+    # not_authorized
+    controller = controller_class.new(params: {id: 1}, policy: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(not authorized: Object)}
+
+    # not_authenticated
+    controller = controller_class.new(params: {id: 1}, authenticate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(authentication failed)}
+
+    # failure
+    controller = controller_class.new(params: {id: 1}, validate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(failure)}
   end
 end
