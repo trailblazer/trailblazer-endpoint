@@ -30,7 +30,7 @@ class ProtocolTest < Minitest::Spec
       not_authorized: ->(*) { snippet },
     )
 
-    action_protocol = Trailblazer::Endpoint.build_protocol(Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
+    action_protocol = Trailblazer::Endpoint.build_protocol(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
     action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
 
     # this is usually in a controller action.
