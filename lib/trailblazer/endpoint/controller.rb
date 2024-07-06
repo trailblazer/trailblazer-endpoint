@@ -2,32 +2,34 @@ module Trailblazer
   class Endpoint
     module Controller
       module DSL # Controller.endpoint
-        # def initialize!(state)
-        #   @state = state
-        # end
 
-        # def inherited(inheriter)
-        #   super
+        module Inherited # FIXME: move one level up!
+          # This should only happen once.
+          def self.extended(base)
+            # base.extend(Inherited)
 
-        #   # Inherits the {State:sequencer} and other options without recomputing anything.
-        #   inheriter.initialize!(@state.copy)
-        # end
+            # base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
+            state = Declarative::State(
+              endpoints:        [Hash.new, {}],
+              default_matcher:  [Hash.new, {}],
+            )
+            base.initialize!(state)
+          end
 
+          def initialize!(state)
+            @state = state
+          end
 
-        def self.extended(base) # FIXME: move one level up!
-          base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
-            base.instance_variable_set(:@default_matcher, {})  # FIXME: implement inheritance!
-          base.extend(Inherited)
-        end
+          def inherited(inheriter) # FIXME: move one level up!
+            super
 
-        # TODO: improve inheritance, because there is none presently.
-        module Inherited
-          def inherited(base) # FIXME: move one level up!
-            base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
-            base.instance_variable_set(:@default_matcher, {})  # FIXME: implement inheritance!
+            inheriter.initialize!(@state.copy)
           end
         end
 
+
+
+# This DSL code is independent of State:
         # Builds and registers an endpoint in a controller class.
         def endpoint(name=nil, **options, &block)
           options = options.merge(protocol_block: block) if block_given?
@@ -40,20 +42,71 @@ module Trailblazer
 
           endpoint = Trailblazer::Endpoint.build(**build_options)
 
-          @endpoints[name.to_s] = endpoint
+          _endpoints[name.to_s] = endpoint
         end
       end # DSL
 
+      module Config
+        def _endpoints
+          self.class._endpoints
+        end
+
+        module ClassMethods
+          # def _update_endpoints!(name, endpoint)
+          #   instance_variable_get(:@state).update!(:endpoints) { |old_endpoints| old_endpoints.merge(name.to_s => endpoint) }
+          # end
+
+          def _endpoints
+            instance_variable_get(:@state).get(:endpoints)
+          end
+        end
+
+        def _default_matcher_for_endpoint
+          self.class.instance_variable_get(:@state).get(:default_matcher)
+        end
+
+
+        module DSL
+          class DSL
+            def initialize
+              @hash = {}
+            end
+
+            def default_matcher(matchers)
+              # TODO: complain if not hash
+              @hash[:default_matcher] = matchers
+            end
+
+            def self.call(&block)
+              dsl = new
+              dsl.instance_exec(&block)
+              dsl.instance_variable_get(:@hash)
+            end
+          end
+          # Controller DSL when used without a concrete endpoint constant.
+          def endpoint(*args, &block)
+            return super unless args.size == 0
+
+            options = DSL.call(&block)
+
+            # TODO: what other options keys do we support?
+            instance_variable_get(:@state).update!(:default_matcher) { |old_matchers| old_matchers.merge(options[:default_matcher]) }
+          end
+        end
+      end
+
+      # Runtime code uses instance methods from {Config} to retrieve necessary dependencies,
+      # nothing else.
       module Runtime
         def invoke(operation, **options, &matcher_block)
           options = options_for_endpoint_ctx.merge(options)
           ctx = options  # FIXME! add real Context!
 
-          action_adapter = self.class.instance_variable_get(:@endpoints).fetch(operation.to_s)
+          action_adapter = _endpoints.fetch(operation.to_s)
 
           # FIXME: do at compile time
           # default_matcher = self.class.instance_variable_get(:@default_matcher)
-          default_matcher = default_matcher_for_endpoint() # DISCUSS: this dictates the existence of this method.
+          default_matcher = _default_matcher_for_endpoint() # DISCUSS: this dictates the existence of this method.
 
           Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
         end
