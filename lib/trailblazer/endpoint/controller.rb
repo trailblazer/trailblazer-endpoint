@@ -12,6 +12,7 @@ module Trailblazer
             state = Declarative::State(
               endpoints:        [Hash.new, {}],
               default_matcher:  [Hash.new, {}],
+              ctx:              [Hash.new, {}],
             )
             base.initialize!(state)
           end
@@ -65,6 +66,10 @@ module Trailblazer
           self.class.instance_variable_get(:@state).get(:default_matcher)
         end
 
+        def _options_for_endpoint_ctx
+          instance_exec &self.class.instance_variable_get(:@state).get(:ctx)
+        end
+
 
         module DSL
           class DSL
@@ -75,6 +80,10 @@ module Trailblazer
             def default_matcher(matchers)
               # TODO: complain if not hash
               @hash[:default_matcher] = matchers
+            end
+
+            def ctx(&block)
+              @hash[:ctx] = block
             end
 
             def self.call(&block)
@@ -90,7 +99,8 @@ module Trailblazer
             options = DSL.call(&block)
 
             # TODO: what other options keys do we support?
-            instance_variable_get(:@state).update!(:default_matcher) { |old_matchers| old_matchers.merge(options[:default_matcher]) }
+            instance_variable_get(:@state).update!(:default_matcher)  { |old_matchers| old_matchers.merge(options[:default_matcher]) }
+            instance_variable_get(:@state).update!(:ctx)              { |old_ctx_options| options[:ctx] } if options[:ctx]
           end
         end
       end
@@ -99,7 +109,7 @@ module Trailblazer
       # nothing else.
       module Runtime
         def invoke(operation, **options, &matcher_block)
-          options = options_for_endpoint_ctx.merge(options)
+          options = _options_for_endpoint_ctx.merge(options)
           ctx = options  # FIXME! add real Context!
 
           action_adapter = _endpoints.fetch(operation.to_s)

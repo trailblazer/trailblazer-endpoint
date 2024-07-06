@@ -53,6 +53,7 @@ class ControllerTest < Minitest::Spec
       extend Trailblazer::Endpoint::Controller::Config::DSL # endpoint {}
 # /end
 
+      # TODO: allow {inherit: true} to override/add only particular keys.
       endpoint do
         default_matcher(
           success:        ->(*) { raise },
@@ -60,6 +61,14 @@ class ControllerTest < Minitest::Spec
           not_authorized: ->(ctx, current_user:, **) { render "403, #{current_user}" },
           not_authenticated: ->(*) { render "authentication failed" }
         )
+
+        ctx do
+          {
+            current_user: Object,
+            **params,
+            seq: [],
+          }
+        end
       end
 
       class Protocol < Trailblazer::Endpoint::Protocol
@@ -72,7 +81,7 @@ class ControllerTest < Minitest::Spec
       # Runtime
       #
       # Usually this would be done in the ApplicationController.
-      def options_for_endpoint_ctx(**)
+      def _________options_for_endpoint_ctx(**)
         {
           current_user: Object,
           **params,
@@ -162,6 +171,10 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
 
       def _default_matcher_for_endpoint
         self.class.default_matcher_for_endpoint
+      end
+
+      def _options_for_endpoint_ctx
+        options_for_endpoint_ctx
       end
 # /end
 
