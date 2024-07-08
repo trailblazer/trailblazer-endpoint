@@ -55,12 +55,14 @@ class ControllerTest < Minitest::Spec
 
       # TODO: allow {inherit: true} to override/add only particular keys.
       endpoint do
-        default_matcher(
-          success:        ->(*) { raise },
-          not_found:      ->(ctx, model:, **) { render "404, #{model} not found" },
-          not_authorized: ->(ctx, current_user:, **) { render "403, #{current_user}" },
-          not_authenticated: ->(*) { render "authentication failed" }
-        )
+        default_matcher do
+          {
+            success:        ->(*) { raise },
+            not_found:      ->(ctx, model:, **) { render "404, #{model} not found" },
+            not_authorized: ->(ctx, current_user:, **) { render "403, #{current_user}" },
+            not_authenticated: ->(*) { render "authentication failed" }
+          }
+        end
 
         ctx do
           {
@@ -136,11 +138,11 @@ class ControllerTest < Minitest::Spec
     overriding_matcher_sub_controller_class = Class.new(controller_class) do
       endpoint do
 
-        default_matcher(
+        default_matcher do
           {
             not_authenticated: ->(*) { render "absolutely no way, 401" },
           }
-        )
+        end
 
       end
     end

@@ -77,7 +77,8 @@ module Trailblazer
               @hash = {}
             end
 
-            def default_matcher(matchers)
+            def default_matcher(&block)
+              matchers = yield
               # TODO: complain if not hash
               @hash[:default_matcher] = matchers
             end
