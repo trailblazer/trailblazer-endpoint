@@ -81,7 +81,7 @@ class ControllerTest < Minitest::Spec
       # Runtime
       #
       # Usually this would be done in the ApplicationController.
-      def _________options_for_endpoint_ctx(**)
+      def FIXME_options_for_endpoint_ctx(**)
         {
           current_user: Object,
           **params,
@@ -115,6 +115,36 @@ class ControllerTest < Minitest::Spec
       end
     end
 
+    empty_sub_controller_class = Class.new(controller_class)
+
+    overriding_ctx_sub_controller_class = Class.new(controller_class) do
+      endpoint do
+        ctx do
+          {
+            seq: [1, 2, 3],
+          }
+        end
+      end
+
+      def create
+        invoke Memo::Operation::Create do
+          success         { |ctx, seq:, **| render seq.inspect }
+        end
+      end
+    end
+
+    overriding_matcher_sub_controller_class = Class.new(controller_class) do
+      endpoint do
+
+        default_matcher(
+          {
+            not_authenticated: ->(*) { render "absolutely no way, 401" },
+          }
+        )
+
+      end
+    end
+
     #
     # Test
     #
@@ -139,6 +169,66 @@ class ControllerTest < Minitest::Spec
 
     # failure
     controller = controller_class.new(params: {id: 1}, validate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(failure)}
+
+
+  # Simply inherit the behavior
+    # success
+    controller = empty_sub_controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(Module)}
+
+    # not_authorized
+    controller = empty_sub_controller_class.new(params: {id: 1}, policy: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(not authorized: Object)}
+
+    # not_authenticated
+    controller = empty_sub_controller_class.new(params: {id: 1}, authenticate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(authentication failed)}
+
+    # failure
+    controller = empty_sub_controller_class.new(params: {id: 1}, validate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(failure)}
+
+
+  # Override ctx
+    # success
+    controller = overriding_ctx_sub_controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %([1, 2, 3, :authenticate, :policy, :validate])}
+
+
+  # Override default_matcher
+    # success
+    controller = overriding_matcher_sub_controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(Module)}
+
+    # not_authorized
+    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, policy: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(not authorized: Object)}
+
+    # not_authenticated
+    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, authenticate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(absolutely no way, 401)}
+
+    # failure
+    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, validate: false)
     controller.create
 
     assert_equal controller.to_h, {render: %(failure)}
