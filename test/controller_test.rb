@@ -85,25 +85,6 @@ class ControllerTest < Minitest::Spec
       end
 
       # TODO: flow_options, kws
-
-      #
-      # Runtime
-      #
-      # Usually this would be done in the ApplicationController.
-      def FIXME_options_for_endpoint_ctx(**)
-        {
-          current_user: Object,
-          **params,
-          seq: [],
-        }
-      end
-
-      def self.FIXME_options_for_endpoint
-        {
-          protocol: Protocol,
-          adapter: Trailblazer::Endpoint::Adapter
-        }
-      end
     end
 
     controller_class = Class.new(application_controller) do
@@ -238,6 +219,104 @@ class ControllerTest < Minitest::Spec
 
     # failure
     controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, validate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(failure)}
+  end
+end
+
+class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
+  it do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+
+      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
+      include Trailblazer::Endpoint::Controller::Runtime # #invoke
+
+      extend Trailblazer::Endpoint::Controller::DSL::Inherited # ::endpoint
+
+
+# DISCUSS: necessary API to store/retrieve config values.
+      include Trailblazer::Endpoint::Controller::Config # #_endpoints
+      extend Trailblazer::Endpoint::Controller::Config::ClassMethods #_default_matcher_for_endpoint
+      extend Trailblazer::Endpoint::Controller::Config::DSL # endpoint {}
+# /end
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      # TODO: flow_options, kws
+
+      #
+      # Runtime
+      #
+      # Usually this would be done in the ApplicationController.
+      def _options_for_endpoint_ctx(**)
+        {
+          current_user: Object,
+          **params,
+          seq: [],
+        }
+      end
+
+      def self._options_for_endpoint
+        {
+          protocol: Protocol,
+          adapter: Trailblazer::Endpoint::Adapter
+        }
+      end
+
+      def _default_matcher_for_endpoint
+        {
+          success:        ->(*) { raise },
+          not_found:      ->(ctx, model:, **) { render "404, #{model} not found" },
+          not_authorized: ->(ctx, current_user:, **) { render "403, #{current_user}" },
+          not_authenticated: ->(*) { render "authentication failed" }
+        }
+      end
+    end
+
+    Memo = ControllerTest::Memo
+
+    controller_class = Class.new(application_controller) do
+      #
+      # Compile-time
+      #
+      endpoint Memo::Operation::Create # create "matcher adapter", use default_block
+
+      #
+      # Actions
+      #
+      def create
+        invoke Memo::Operation::Create do
+          success         { |ctx, model:, **| render model.inspect }
+          failure         { |*| render "failure" }
+          not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
+        end
+      end
+    end
+
+    # success
+    controller = controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(Module)}
+
+    # not_authorized
+    controller = controller_class.new(params: {id: 1}, policy: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(not authorized: Object)}
+
+    # not_authenticated
+    controller = controller_class.new(params: {id: 1}, authenticate: false)
+    controller.create
+
+    assert_equal controller.to_h, {render: %(authentication failed)}
+
+    # failure
+    controller = controller_class.new(params: {id: 1}, validate: false)
     controller.create
 
     assert_equal controller.to_h, {render: %(failure)}
