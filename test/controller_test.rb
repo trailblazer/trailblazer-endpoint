@@ -53,8 +53,19 @@ class ControllerTest < Minitest::Spec
       extend Trailblazer::Endpoint::Controller::Config::DSL # endpoint {}
 # /end
 
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
       # TODO: allow {inherit: true} to override/add only particular keys.
       endpoint do
+        options do
+          {
+            protocol: Protocol,
+            adapter: Trailblazer::Endpoint::Adapter,
+          }
+        end
+
         default_matcher do
           {
             success:        ->(*) { raise },
@@ -73,10 +84,6 @@ class ControllerTest < Minitest::Spec
         end
       end
 
-      class Protocol < Trailblazer::Endpoint::Protocol
-        include T.def_steps(:authenticate, :policy)
-      end
-
       # TODO: flow_options, kws
 
       #
@@ -91,7 +98,7 @@ class ControllerTest < Minitest::Spec
         }
       end
 
-      def self.options_for_endpoint
+      def self.FIXME_options_for_endpoint
         {
           protocol: Protocol,
           adapter: Trailblazer::Endpoint::Adapter
@@ -300,7 +307,7 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
         }
       end
 
-      def self.options_for_endpoint
+      def self._options_for_endpoint
         {
           protocol: Protocol,
           adapter: Trailblazer::Endpoint::Adapter

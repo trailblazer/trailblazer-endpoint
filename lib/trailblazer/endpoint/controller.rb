@@ -10,9 +10,10 @@ module Trailblazer
 
             # base.instance_variable_set(:@endpoints, {})  # FIXME: implement inheritance!
             state = Declarative::State(
-              endpoints:        [Hash.new, {}],
-              default_matcher:  [Hash.new, {}],
-              ctx:              [Hash.new, {}],
+              endpoints:            [Hash.new, {}],
+              default_matcher:      [Hash.new, {}],
+              ctx:                  [Hash.new, {}],
+              options_for_endpoint: [Hash.new, {}],
             )
             base.initialize!(state)
           end
@@ -39,7 +40,7 @@ module Trailblazer
         end
 
         def build_endpoint(name, domain_activity: name, **options)
-          build_options = options_for_endpoint.merge(domain_activity: domain_activity, **options) # FIXME: this means we must have #options_for_endpoint defined on this class!
+          build_options = _options_for_endpoint.merge(domain_activity: domain_activity, **options) # FIXME: this means we must have #_options_for_endpoint defined on this class!
 
           endpoint = Trailblazer::Endpoint.build(**build_options)
 
@@ -53,9 +54,9 @@ module Trailblazer
         end
 
         module ClassMethods
-          # def _update_endpoints!(name, endpoint)
-          #   instance_variable_get(:@state).update!(:endpoints) { |old_endpoints| old_endpoints.merge(name.to_s => endpoint) }
-          # end
+          def _options_for_endpoint
+            instance_variable_get(:@state).get(:options_for_endpoint)
+          end
 
           def _endpoints
             instance_variable_get(:@state).get(:endpoints)
@@ -87,6 +88,11 @@ module Trailblazer
               @hash[:ctx] = block
             end
 
+            def options(&block)
+              options_for_endpoint = yield
+              @hash[:options_for_endpoint] = options_for_endpoint
+            end
+
             def self.call(&block)
               dsl = new
               dsl.instance_exec(&block)
@@ -102,6 +108,7 @@ module Trailblazer
             # TODO: what other options keys do we support?
             instance_variable_get(:@state).update!(:default_matcher)  { |old_matchers| old_matchers.merge(options[:default_matcher]) } if options[:default_matcher]
             instance_variable_get(:@state).update!(:ctx)              { |old_ctx_options| options[:ctx] } if options[:ctx]
+            instance_variable_get(:@state).update!(:options_for_endpoint) { |old_options| options[:options_for_endpoint] } if options[:options_for_endpoint]
           end
         end
       end
