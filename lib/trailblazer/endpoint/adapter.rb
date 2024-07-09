@@ -12,7 +12,6 @@ module Trailblazer
       # terminus :fail_fast
       terminus :failure # DISCUSS: do we actually need that?
 
-# FIXME: what if we want to add our own Adapter class?
       # step Subprocess(Protocol), # this will get replaced
       #   id: :protocol,
       #   Output(:not_authorized)     => Track(:success), # Path(track_color: :not_authorized, connect_to: Id(:protocol_failure)),
@@ -41,6 +40,7 @@ module Trailblazer
       #
       # The point of running the protocol/business logic in a step, then the matcher block, and then still returning a signal is
       # so we can include this into another activity (e.g. workflow).
+# TODO: what if we want to add our own Adapter class? introduce {:adapter} option?
       def self.build(protocol)
         Class.new(Adapter) do
           step Subprocess(protocol, strict: true), # FIXME: are we connecting all outputs?

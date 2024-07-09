@@ -130,7 +130,7 @@ class ControllerTest < Minitest::Spec
 
       def create
         invoke Memo::Operation::Create do
-          success         { |ctx, seq:, **| render seq.inspect }
+          success         { |ctx, seq:, **| render "#{seq.inspect} #{ctx.keys}" }
         end
       end
     end
@@ -207,7 +207,7 @@ class ControllerTest < Minitest::Spec
     controller = overriding_ctx_sub_controller_class.new(params: {id: 1})
     controller.create
 
-    assert_equal controller.to_h, {render: %([1, 2, 3, :authenticate, :policy, :validate])}
+    assert_equal controller.to_h, {render: %([1, 2, 3, :authenticate, :policy, :validate] [:seq, :model])}
 
 
   # Override default_matcher
@@ -237,6 +237,7 @@ class ControllerTest < Minitest::Spec
   end
 end
 
+# NOTE: this is a private test making sure our internal API is feasible without inheritance logic.
 class ControllerWithoutInheritanceTest < Minitest::Spec
   Memo = ControllerTest::Memo
 
