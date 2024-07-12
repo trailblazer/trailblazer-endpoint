@@ -38,20 +38,7 @@ class ControllerTest < Minitest::Spec
     application_controller = Class.new do
       include Controller # Test module
 
-      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
-      # include Trailblazer::Endpoint::Controller::Config
-      # extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods
-      # include Trailblazer::Endpoint::Controller.module(run_method: :invoke)
-      include Trailblazer::Endpoint::Controller::Runtime # #invoke
-
-      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
-
-
-# DISCUSS: necessary API to store/retrieve config values.
-      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
-      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
-      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
-# /end
+      include Trailblazer::Endpoint::Controller.module
 
       class Protocol < Trailblazer::Endpoint::Protocol
         include T.def_steps(:authenticate, :policy)
@@ -230,17 +217,7 @@ class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
     application_controller = Class.new do
       include ControllerTest::Controller # Test module
 
-      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
-      include Trailblazer::Endpoint::Controller::Runtime # #invoke
-
-      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
-
-
-# DISCUSS: necessary API to store/retrieve config values.
-      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
-      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
-      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
-# /end
+      include Trailblazer::Endpoint::Controller.module
 
       class Protocol < Trailblazer::Endpoint::Protocol
         include T.def_steps(:authenticate, :policy)
@@ -467,17 +444,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     application_controller = Class.new do
       include ControllerTest::Controller # Test module
 
-      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
-      include Trailblazer::Endpoint::Controller::Runtime # #invoke
-
-      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
-
-
-# DISCUSS: necessary API to store/retrieve config values.
-      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
-      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
-      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
-# /end
+      include Trailblazer::Endpoint::Controller.module
 
       class Protocol < Trailblazer::Endpoint::Protocol
         include T.def_steps(:authenticate, :policy)
@@ -543,17 +510,7 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
     application_controller = Class.new do
       include ControllerTest::Controller # Test module
 
-      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
-      include Trailblazer::Endpoint::Controller::Runtime # #invoke
-
-      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
-
-
-# DISCUSS: necessary API to store/retrieve config values.
-      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
-      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
-      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
-# /end
+      include Trailblazer::Endpoint::Controller.module
 
       class Protocol < Trailblazer::Endpoint::Protocol
         include T.def_steps(:authenticate, :policy)

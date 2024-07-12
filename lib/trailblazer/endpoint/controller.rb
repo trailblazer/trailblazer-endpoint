@@ -1,6 +1,24 @@
 module Trailblazer
   class Endpoint
     module Controller
+      def self.module(framework: :rails)
+        Module.new do
+          def self.included(includer)
+            # TODO: this is  for Rails-style controllers with class-level configuration
+            #       and instance method-level runtime logic.
+            includer.extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
+            includer.include Trailblazer::Endpoint::Controller::Runtime # #invoke
+
+            includer.extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
+
+            # DISCUSS: necessary API to store/retrieve config values.
+            includer.include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
+            includer.extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
+            includer.extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
+          end
+        end
+      end
+
       module State
         module Inherited
           # This should only happen once.
