@@ -492,12 +492,6 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
           }
         end
 
-        # default_matcher do
-        #   {
-        #     success:        ->(*) { raise },
-        #   }
-        # end
-
         ctx do
           {
             current_user: Object,
@@ -508,7 +502,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
 
         flow_options do
           {
-            data: "special"
+            data: "special",
           }
         end
       end
@@ -539,23 +533,84 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller.create
 
     assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :matcher_value] special")}
+  end
+end
 
-    # # not_authorized
-    # controller = controller_class.new(params: {id: 1}, policy: false)
-    # controller.create
+class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
+  Memo = ControllerTest::Memo
 
-    # assert_equal controller.to_h, {render: %(not authorized: Object)}
+  it "provides {:id} option for {#endpoint}" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
 
-    # # not_authenticated
-    # controller = controller_class.new(params: {id: 1}, authenticate: false)
-    # controller.create
+      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
+      include Trailblazer::Endpoint::Controller::Runtime # #invoke
 
-    # assert_equal controller.to_h, {render: %(authentication failed)}
+      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
 
-    # # failure
-    # controller = controller_class.new(params: {id: 1}, validate: false)
-    # controller.create
 
-    # assert_equal controller.to_h, {render: %(failure)}
+# DISCUSS: necessary API to store/retrieve config values.
+      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
+      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
+      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
+# /end
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      # TODO: allow {inherit: true} to override/add only particular keys.
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+            adapter: Trailblazer::Endpoint::Adapter,
+          }
+        end
+
+        ctx do
+          {
+            current_user: Object,
+            **params,
+            seq: [],
+          }
+        end
+      end
+    end
+
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create # name: "Memo::Operation::Create"
+      endpoint "Create again", domain_activity: Memo::Operation::Create # this probably won't be used by anyone except {workflow}.
+
+      #
+      # Actions
+      #
+      def create
+        invoke Memo::Operation::Create do
+          success { |ctx, model:, **| render model.inspect }
+        end
+      end
+
+      def create_again
+        invoke "Create again" do
+          success { |ctx, model:, **| render "again: #{model.inspect}" }
+        end
+      end
+    end
+
+    #
+    # Test
+    #
+
+    # success
+    controller = controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(Module)}
+
+    controller = controller_class.new(params: {id: 1})
+    controller.create_again
+
+    assert_equal controller.to_h, {render: %(again: Module)}
   end
 end

@@ -61,8 +61,8 @@ module Trailblazer
           end
 
           # Controller DSL when used without a concrete endpoint constant.
-          def endpoint(*args, &block)
-            return super unless args.size == 0
+          def endpoint(name = nil, **options, &block)
+            return super if name
 
             options = DSL.call(&block)
 
@@ -107,6 +107,7 @@ module Trailblazer
         end
       end # State
 
+      # BUILD DSL
       # This DSL code is independent of State:
       module DSL # Controller.endpoint
         # Builds and registers an endpoint in a controller class.
@@ -135,11 +136,8 @@ module Trailblazer
 
           action_adapter = _endpoints.fetch(operation.to_s)
 
-          # FIXME: do at compile time
-          # default_matcher = self.class.instance_variable_get(:@default_matcher)
           default_matcher = _default_matcher_for_endpoint()
-
-          flow_options = _flow_options()
+          flow_options    = _flow_options()
 
           Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
         end
