@@ -355,6 +355,10 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
       def _options_for_endpoint_ctx
         options_for_endpoint_ctx
       end
+
+      def _flow_options
+        {}
+      end
 # /end
 
       class Protocol < Trailblazer::Endpoint::Protocol
@@ -441,5 +445,117 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
     controller.create
 
     assert_equal controller.to_h, {render: %(failure)}
+  end
+end
+
+class ControllerWithFlowOptionsTest < Minitest::Spec
+  module Memo
+    module Operation
+      class Create < Trailblazer::Activity::Railway
+        step task: :model
+
+        def model((ctx, flow_options),  **circuit_options)
+          ctx[:model] = flow_options.keys.inspect + " #{flow_options[:data]}"
+
+          return Trailblazer::Activity::Right, [ctx, flow_options]
+        end
+      end
+    end
+  end
+
+  it "Controller" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+
+      extend Trailblazer::Endpoint::Controller::DSL # ::endpoint
+      include Trailblazer::Endpoint::Controller::Runtime # #invoke
+
+      extend Trailblazer::Endpoint::Controller::State::Inherited # ::endpoint
+
+
+# DISCUSS: necessary API to store/retrieve config values.
+      include Trailblazer::Endpoint::Controller::State::Config # #_endpoints
+      extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods #_default_matcher_for_endpoint
+      extend Trailblazer::Endpoint::Controller::State::DSL # endpoint {}
+# /end
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      # TODO: allow {inherit: true} to override/add only particular keys.
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+            adapter: Trailblazer::Endpoint::Adapter,
+          }
+        end
+
+        # default_matcher do
+        #   {
+        #     success:        ->(*) { raise },
+        #   }
+        # end
+
+        ctx do
+          {
+            current_user: Object,
+            **params,
+            seq: [],
+          }
+        end
+
+        flow_options do
+          {
+            data: "special"
+          }
+        end
+      end
+
+    end
+
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create # create "matcher adapter", use default_block
+
+      #
+      # Actions
+      #
+      def create
+        invoke Memo::Operation::Create do
+          success         { |ctx, model:, **| render model.inspect }
+          # failure         { |*| render "failure" }
+          # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
+        end
+      end
+    end
+
+    #
+    # Test
+    #
+
+    # success
+    controller = controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :matcher_value] special")}
+
+    # # not_authorized
+    # controller = controller_class.new(params: {id: 1}, policy: false)
+    # controller.create
+
+    # assert_equal controller.to_h, {render: %(not authorized: Object)}
+
+    # # not_authenticated
+    # controller = controller_class.new(params: {id: 1}, authenticate: false)
+    # controller.create
+
+    # assert_equal controller.to_h, {render: %(authentication failed)}
+
+    # # failure
+    # controller = controller_class.new(params: {id: 1}, validate: false)
+    # controller.create
+
+    # assert_equal controller.to_h, {render: %(failure)}
   end
 end
