@@ -470,6 +470,11 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
         flow_options do
           {
             data: "special",
+
+            context_options: {
+              aliases: {"model": :object},
+              container_class: Trailblazer::Context::Container::WithAliases,
+            }
           }
         end
       end
@@ -484,7 +489,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       #
       def create
         invoke Memo::Operation::Create do
-          success         { |ctx, model:, **| render model.inspect }
+          success         { |ctx, model:, object:, **| render "#{model.inspect} #{object.inspect}" }
           # failure         { |*| render "failure" }
           # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
         end
@@ -499,7 +504,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller = controller_class.new(params: {id: 1})
     controller.create
 
-    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :matcher_value] special")}
+    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special")}
   end
 end
 
