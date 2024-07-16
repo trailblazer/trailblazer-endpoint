@@ -45,14 +45,22 @@ class ProtocolTest < Minitest::Spec
     Trailblazer::Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
 
+    ctx = {seq: [], model: {id: 1}}
+
     Trailblazer::Endpoint::Runtime.(ctx.merge(model: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(404, false not found)
+
+    ctx = {seq: [], model: {id: 1}}
 
     Trailblazer::Endpoint::Runtime.(ctx.merge(save: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(failure)
 
+    ctx = {seq: [], model: {id: 1}}
+
     Trailblazer::Endpoint::Runtime.(ctx.merge(policy: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
-    assert_equal @rendered, %(not authorized: Object)
+    assert_equal @rendered, %(not authorized: {:id=>1})
+
+    ctx = {seq: [], model: {id: 1}}
 
     assert_raises KeyError do
       Trailblazer::Endpoint::Runtime.(ctx.merge(authenticate: false), adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, &matcher_block)
@@ -76,6 +84,35 @@ class ProtocolTest < Minitest::Spec
     #   failure { |*| render "failure" }
     #   not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
     # end
+  end
+
+  it "returns a {Trailblazer::Context}, and allows {flow_options}" do
+    default_matcher = {}
+
+    action_protocol = Trailblazer::Endpoint.build_protocol(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {} })
+    action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
+
+    matcher_block = Proc.new do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    ctx = {seq: [], model: {id: 1}} # ordinary hash.
+
+    flow_options_with_aliasing = {
+      context_options: {
+        aliases: {"model": :object},
+        container_class: Trailblazer::Context::Container::WithAliases,
+      }
+    }
+
+    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
+
+    assert_equal ctx.class, Trailblazer::Context::Container::WithAliases
+    # assert_equal ctx.inspect, %(#<Trailblazer::Context::Container wrapped_options={:seq=>[:authenticate, :policy, :save], :model=>{:id=>1}} mutable_options={:model=>Object}>)
+    assert_equal ctx.keys.inspect, %([:seq, :model, :object])
+    assert_equal ctx[:seq].inspect, %([:authenticate, :policy, :save])
+    assert_equal ctx[:model].inspect, %(Object)
+    assert_equal ctx[:object].inspect, %(Object)
   end
 
   it "accepts {:flow_options} / USES  THE CORRECT ctx in TW and can access {:model} from the domain_activity" do # FIXME: two tests?

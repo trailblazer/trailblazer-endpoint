@@ -15,7 +15,8 @@ module Trailblazer
 
       # puts Trailblazer::Developer.render(app_protocol)
 
-      adapter_for_action = Adapter.build(protocol_with_domain_activity)
+      # FIXME: test {:adapter}
+      adapter_for_action = adapter.build(protocol_with_domain_activity)
       # Class.new(adapter) do
       #   step(Subprocess(protocol_with_domain_activity), {inherit: true, id: :protocol, replace: :protocol})
       # end

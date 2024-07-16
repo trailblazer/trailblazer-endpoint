@@ -27,7 +27,7 @@ module Trailblazer
               endpoints:            [Hash.new, {}],
               default_matcher:      [Hash.new, {}],
               ctx:                  [Hash.new, {}],
-              options_for_endpoint: [Hash.new, {}],
+              options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
               flow_options:         [Hash.new, {}],
             )
 
