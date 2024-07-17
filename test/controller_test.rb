@@ -505,6 +505,34 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller.create
 
     assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special")}
+
+  # Test overriding {Controller#_flow_options}
+  # Test that we have access to {**options} from {#invoke}.
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create # create "matcher adapter", use default_block
+
+      def _flow_options(**options)
+        # TODO: test {super}
+        {
+          data: "from _flow_options: #{options.keys}",
+        }
+      end
+      #
+      # Actions
+      #
+      def create
+        invoke Memo::Operation::Create, event: "create!" do
+          success         { |ctx, model:, object: nil, **| render "#{model.inspect} #{object.inspect}" }
+          # failure         { |*| render "failure" }
+          # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
+        end
+      end
+    end
+
+    controller = controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :matcher_value] from _flow_options: [:event]\" nil"}
   end
 end
 
@@ -574,5 +602,45 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
     controller.create_again
 
     assert_equal controller.to_h, {render: %(again: Module)}
+  end
+end
+
+class UnconfiguredControllerTest < Minitest::Spec
+  Memo = ControllerTest::Memo
+
+  it "no configuration" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+
+      include Trailblazer::Endpoint::Controller.module
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      # We omit any configuration.
+      #
+      endpoint do
+        options do
+          {protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter} # DISCUSS: currently you have to provide the Protocol, for "security" reasons.
+        end
+      end
+    end
+
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create # name: "Memo::Operation::Create"
+
+      def create
+        invoke Memo::Operation::Create, seq: [] do
+          success { |ctx, model:, **| render model.inspect }
+        end
+      end
+    end
+
+    # success
+    controller = controller_class.new(params: {id: 1})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(Module)}
   end
 end

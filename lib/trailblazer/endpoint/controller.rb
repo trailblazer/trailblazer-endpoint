@@ -26,7 +26,7 @@ module Trailblazer
             state = Declarative::State(
               endpoints:            [Hash.new, {}],
               default_matcher:      [Hash.new, {}],
-              ctx:                  [Hash.new, {}],
+              ctx:                  [->(*) { {} }, {}], # empty default hash for {ctx}.
               options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
               flow_options:         [Hash.new, {}],
             )
@@ -97,7 +97,7 @@ module Trailblazer
             self.class._endpoints
           end
 
-          def _flow_options
+          def _flow_options(**)
             self.class._flow_options
           end
 
@@ -149,13 +149,12 @@ module Trailblazer
       # nothing else.
       module Runtime
         def invoke(operation, **options, &matcher_block)
-          options = _options_for_endpoint_ctx.merge(options)
-          ctx = options  # FIXME! add real Context!
+          flow_options  = _flow_options(**options)
+          ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
 
           action_adapter = _endpoints.fetch(operation.to_s)
 
           default_matcher = _default_matcher_for_endpoint()
-          flow_options    = _flow_options()
 
           Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
         end
