@@ -28,7 +28,7 @@ module Trailblazer
               default_matcher:      [Hash.new, {}],
               ctx:                  [->(*) { {} }, {}], # empty default hash for {ctx}.
               options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
-              flow_options:         [Hash.new, {}],
+              flow_options:         [->(*) { {} }, {}],
             )
 
             base.initialize!(state)
@@ -67,8 +67,7 @@ module Trailblazer
             end
 
             def flow_options(&block)
-              flow_options = yield
-              @hash[:flow_options] = flow_options
+              @hash[:flow_options] = block
             end
 
             def self.call(&block)
@@ -86,8 +85,9 @@ module Trailblazer
 
             # TODO: what other options keys do we support?
             instance_variable_get(:@state).update!(:default_matcher)  { |old_matchers| old_matchers.merge(options[:default_matcher]) } if options[:default_matcher]
-            instance_variable_get(:@state).update!(:ctx)              { |old_ctx_options| options[:ctx] } if options[:ctx]
+            # instance_variable_get(:@state).update!(:default_matcher)  { |old_matchers| options[:default_matcher] } if options[:default_matcher]
             instance_variable_get(:@state).update!(:options_for_endpoint) { |old_options| options[:options_for_endpoint] } if options[:options_for_endpoint]
+            instance_variable_get(:@state).update!(:ctx)              { |old_ctx_options| options[:ctx] } if options[:ctx]
             instance_variable_get(:@state).update!(:flow_options) { |old_options| options[:flow_options] } if options[:flow_options]
           end
         end
@@ -97,17 +97,9 @@ module Trailblazer
             self.class._endpoints
           end
 
-          def _flow_options(**)
-            self.class._flow_options
-          end
-
           module ClassMethods
             def _options_for_endpoint
               instance_variable_get(:@state).get(:options_for_endpoint)
-            end
-
-            def _flow_options
-              instance_variable_get(:@state).get(:flow_options)
             end
 
             def _endpoints
@@ -119,8 +111,14 @@ module Trailblazer
             self.class.instance_variable_get(:@state).get(:default_matcher)
           end
 
+          # Evaluated at runtime.
           def _options_for_endpoint_ctx
             instance_exec &self.class.instance_variable_get(:@state).get(:ctx)
+          end
+
+          # Evaluated at runtime.
+          def _flow_options(**options)
+            instance_exec &self.class.instance_variable_get(:@state).get(:flow_options)
           end
         end
       end # State

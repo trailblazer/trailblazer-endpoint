@@ -118,7 +118,14 @@ class ControllerTest < Minitest::Spec
             not_authenticated: ->(*) { render "absolutely no way, 401" },
           }
         end
+      end
 
+      def create
+        invoke Memo::Operation::Create do
+          success         { |ctx, model:, **| render model.inspect }
+          failure         { |*| render "failure" } # inherit "failure"
+          # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" } # inherit "not_authorized"
+        end
       end
     end
 
@@ -196,7 +203,7 @@ class ControllerTest < Minitest::Spec
     controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, policy: false)
     controller.create
 
-    assert_equal controller.to_h, {render: %(not authorized: Object)}
+    assert_equal controller.to_h, {render: %(403, Object)}
 
     # not_authenticated
     controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, authenticate: false)
@@ -469,7 +476,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
 
         flow_options do
           {
-            data: "special",
+            data: params.keys,
 
             context_options: {
               aliases: {"model": :object},
@@ -504,18 +511,18 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller = controller_class.new(params: {id: 1})
     controller.create
 
-    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] special")}
+    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]")}
 
-  # Test overriding {Controller#_flow_options}
+  # Test overriding {Controller#_flow_options}.
+  # Test that we can call {super}.
   # Test that we have access to {**options} from {#invoke}.
     controller_class = Class.new(application_controller) do
       endpoint Memo::Operation::Create # create "matcher adapter", use default_block
 
       def _flow_options(**options)
-        # TODO: test {super}
-        {
+        super.merge(
           data: "from _flow_options: #{options.keys}",
-        }
+        )
       end
       #
       # Actions
@@ -532,7 +539,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller = controller_class.new(params: {id: 1})
     controller.create
 
-    assert_equal controller.to_h, {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :matcher_value] from _flow_options: [:event]\" nil"}
+    assert_equal controller.to_h, {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\""}
   end
 end
 
@@ -644,3 +651,4 @@ class UnconfiguredControllerTest < Minitest::Spec
     assert_equal controller.to_h, {render: %(Module)}
   end
 end
+
