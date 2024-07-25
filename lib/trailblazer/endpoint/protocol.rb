@@ -15,6 +15,16 @@ module Trailblazer
     #   not_authenticated: 401
     #   not_authorized: 403
     class Protocol < Trailblazer::Activity::Railway
+      # @private
+      def self.build(protocol:, domain_activity:, protocol_block:)
+        Class.new(protocol) do
+          step(Subprocess(domain_activity, strict: true), {inherit: true, replace: :domain_activity,}.
+            # merge(extensions_options).
+            merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
+          )
+        end
+      end
+
       class Noop < Trailblazer::Activity::Railway
       end
 
