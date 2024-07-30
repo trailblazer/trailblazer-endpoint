@@ -7,6 +7,25 @@ module Trailblazer
         exec_context.instance_exec(ctx, **kwargs, &block)
       end
 
+      def self.Extension
+        Activity::TaskWrap::Pipeline.Row("endpoint.run_matcher", method(:run_matcher)) # TODO: I don't like using this super low-level TW interface.
+      end
+
+      # TaskWrap extension that's run after the {domain_activity}. This used to sit in the Adapter,
+      # but for simplicity reasons we removed Adapter for the evaluation release time.
+      def self.run_matcher(wrap_ctx, original_args)
+        ctx, flow_options = wrap_ctx[:return_args]
+
+        matcher_value = flow_options[:matcher_value]
+
+        outcome = wrap_ctx[:return_signal].to_h[:semantic]
+
+        # Execute the literal block from the controller action.
+        matcher_value.call(outcome, [ctx, ctx.to_h]).inspect # DISCUSS: this shouldn't mutate anything.
+
+        return [wrap_ctx, original_args]
+      end
+
       # Object that collects user blocks to handle various outcomes.
       class DSL < Struct.new(:blocks)
         def initialize(*)

@@ -27,7 +27,8 @@ module Trailblazer
               endpoints:            [Hash.new, {}],
               default_matcher:      [Hash.new, {}],
               ctx:                  [->(*) { {} }, {}], # empty default hash for {ctx}.
-              options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
+              # options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
+              options_for_endpoint: [{}, {}],
               flow_options:         [->(*) { {} }, {}],
             )
 
@@ -150,11 +151,11 @@ module Trailblazer
           flow_options  = _flow_options(**options)
           ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
 
-          action_adapter = _endpoints.fetch(operation.to_s)
+          action_protocol = _endpoints.fetch(operation.to_s)
 
           default_matcher = _default_matcher_for_endpoint()
 
-          Endpoint::Runtime.(ctx, adapter: action_adapter, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
+          Endpoint::Runtime.(ctx, protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
         end
       end
 

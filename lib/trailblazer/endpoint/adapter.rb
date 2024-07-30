@@ -42,6 +42,8 @@ module Trailblazer
       # so we can include this into another activity (e.g. workflow).
 # TODO: what if we want to add our own Adapter class? introduce {:adapter} option?
       def self.build(protocol)
+        raise "adapters are not implmemented, yet"
+
         Class.new(Adapter) do
           step Subprocess(protocol, strict: true), # FIXME: are we connecting all outputs?
             Extension() => Trailblazer::Activity::TaskWrap::Extension::WrapStatic(

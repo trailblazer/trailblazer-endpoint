@@ -652,3 +652,90 @@ class UnconfiguredControllerTest < Minitest::Spec
   end
 end
 
+class ControllerWithOperationAndFastTrackTest < Minitest::Spec
+  module Memo
+    module Operation
+      class Create < Trailblazer::Activity::FastTrack
+        step :validate, fast_track: true
+
+        include T.def_steps(:validate)
+      end
+    end
+  end
+
+  it "Controller running an operation stopping on all four termini" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+
+      include Trailblazer::Endpoint::Controller.module
+
+      # we automatically wire fast tracks to conventional termini.
+      class Protocol < Trailblazer::Endpoint::Protocol::Operation # TODO: "TEST WITH ADDITIONAL domain_activity In()"
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      # TODO: allow {inherit: true} to override/add only particular keys.
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+          }
+        end
+
+        default_matcher do
+          {}
+        end
+
+        ctx do
+          {
+            **params,
+            seq: [],
+          }
+        end
+      end
+    end
+
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create # fast track outputs are wired to railway termini.
+
+      def create
+        invoke Memo::Operation::Create do
+          success   { |ctx, **| render "success" }
+          fail_fast { |*| render "yay, fast_track!" }
+          failure   { |*| render "failure" }
+          pass_fast { |*| render "hooray, pass_fast!" }
+        end
+      end
+    end
+
+
+
+    #
+    # Test
+    #
+
+    # success
+    controller = controller_class.new({})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(success)}
+
+    # failure
+    controller = controller_class.new({validate: false})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(yay, fast_track!)}
+
+    # pass_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(hooray, pass_fast!)}
+  end
+end

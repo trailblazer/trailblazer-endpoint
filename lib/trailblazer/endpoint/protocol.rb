@@ -15,6 +15,13 @@ module Trailblazer
     #   not_authenticated: 401
     #   not_authorized: 403
     class Protocol < Trailblazer::Activity::Railway
+
+      # extensions_options = {
+      #   Extension() => Trailblazer::Activity::TaskWrap::Extension::WrapStatic(
+      #     [method(:run_matcher), id: "endpoint.run_matcher", append: "task_wrap.call_task"],
+      #   ),
+      # }
+
       # @private
       def self.build(protocol:, domain_activity:, protocol_block:)
         Class.new(protocol) do
@@ -50,6 +57,11 @@ module Trailblazer
       # termini for the Adapter this is the only way to get it working right now.
       terminus :not_found
       terminus :invalid_data
+
+      class Operation < Protocol
+        terminus :fail_fast
+        terminus :pass_fast
+      end
     end # Protocol
   end
 end
