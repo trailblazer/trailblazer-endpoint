@@ -656,9 +656,10 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
   module Memo
     module Operation
       class Create < Trailblazer::Activity::FastTrack
+        step :model, Output(:failure) => End(:not_found)
         step :validate, fast_track: true
 
-        include T.def_steps(:validate)
+        include T.def_steps(:model, :validate)
       end
     end
   end
@@ -696,7 +697,8 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     end
 
     controller_class = Class.new(application_controller) do
-      endpoint Memo::Operation::Create # fast track outputs are wired to railway termini.
+      endpoint Memo::Operation::Create, fast_track: true
+      endpoint "binary", domain_activity: Memo::Operation::Create # fast track outputs are wired to railway termini.
 
       def create
         invoke Memo::Operation::Create do
@@ -704,15 +706,10 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           fail_fast { |*| render "yay, fast_track!" }
           failure   { |*| render "failure" }
           pass_fast { |*| render "hooray, pass_fast!" }
+          not_found { |*| render "404" }
         end
       end
     end
-
-
-
-    #
-    # Test
-    #
 
     # success
     controller = controller_class.new({})
@@ -737,5 +734,11 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     controller.create
 
     assert_equal controller.to_h, {render: %(hooray, pass_fast!)}
+
+    # not_found
+    controller = controller_class.new({model: false})
+    controller.create
+
+    assert_equal controller.to_h, {render: %(404)}
   end
 end
