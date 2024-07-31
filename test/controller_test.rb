@@ -700,7 +700,12 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       endpoint "explicit fast_track", domain_activity: Memo::Operation::Create
       endpoint "binary", domain_activity: Memo::Operation::Create, fast_track_to_railway: true # fast track outputs are wired to railway termini.
       endpoint "custom wiring", domain_activity: Memo::Operation::Create do
-        {Output(:fail_fast) => End(:failure), Output(:pass_fast) => End(:success), } # TODO: also test success=>failure etc
+        {
+          Output(:fail_fast) => End(:failure),
+          Output(:pass_fast) => End(:success),
+          Output(:success) => End(:failure),
+          Output(:not_found) => End(:fail_fast),
+        }
       end
 
       def create
@@ -718,6 +723,14 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           not_found { |*| render "404" }
+        end
+      end
+
+      def with_custom_wiring
+        invoke "custom wiring" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          fail_fast { |*| render "404" }
         end
       end
     end
@@ -782,6 +795,32 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     controller = controller_class.new({model: false})
     controller.with_binary
 
+    assert_equal controller.to_h, {render: %(404)}
+
+  # custom wiring
+    # success
+    controller = controller_class.new({})
+    controller.with_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # failure
+    controller = controller_class.new({validate: false})
+    controller.with_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # pass_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.with_custom_wiring
+    assert_equal controller.to_h, {render: %(success)}
+
+    # not_found
+    controller = controller_class.new({model: false})
+    controller.with_custom_wiring
     assert_equal controller.to_h, {render: %(404)}
   end
 end
