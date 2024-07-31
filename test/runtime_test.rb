@@ -30,7 +30,7 @@ class ProtocolTest < Minitest::Spec
       not_authorized: ->(*) { snippet },
     }
 
-    action_protocol = Trailblazer::Endpoint::Protocol.build(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
+    action_protocol = Trailblazer::Endpoint.build(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {Output(:not_found) => Track(:not_found)} })
     # action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
 
     # this is usually in a controller action.
@@ -89,7 +89,7 @@ class ProtocolTest < Minitest::Spec
   it "returns a {Trailblazer::Context}, and allows {flow_options}" do
     default_matcher = {}
 
-    action_protocol = Trailblazer::Endpoint::Protocol.build(protocol: Protocol, domain_activity: Create, protocol_block: ->(*) { {} })
+    action_protocol = Trailblazer::Endpoint.build(protocol: Protocol, domain_activity: Create)
     # action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
 
     matcher_block = Proc.new do

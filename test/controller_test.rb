@@ -697,11 +697,14 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     end
 
     controller_class = Class.new(application_controller) do
-      endpoint Memo::Operation::Create, fast_track: true
-      endpoint "binary", domain_activity: Memo::Operation::Create # fast track outputs are wired to railway termini.
+      endpoint "explicit fast_track", domain_activity: Memo::Operation::Create
+      endpoint "binary", domain_activity: Memo::Operation::Create, fast_track_to_railway: true # fast track outputs are wired to railway termini.
+      endpoint "custom wiring", domain_activity: Memo::Operation::Create do
+        {Output(:fail_fast) => End(:failure), Output(:pass_fast) => End(:success), } # TODO: also test success=>failure etc
+      end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke "explicit fast_track" do
           success   { |ctx, **| render "success" }
           fail_fast { |*| render "yay, fast_track!" }
           failure   { |*| render "failure" }
@@ -709,8 +712,17 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           not_found { |*| render "404" }
         end
       end
+
+      def with_binary
+        invoke "binary" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          not_found { |*| render "404" }
+        end
+      end
     end
 
+# explicit fast track
     # success
     controller = controller_class.new({})
     controller.create
@@ -738,6 +750,37 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     # not_found
     controller = controller_class.new({model: false})
     controller.create
+
+    assert_equal controller.to_h, {render: %(404)}
+
+# binary, fast_track gets routed to railway
+    # success
+    controller = controller_class.new({})
+    controller.with_binary
+
+    assert_equal controller.to_h, {render: %(success)}
+
+    # failure
+    controller = controller_class.new({validate: false})
+    controller.with_binary
+
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_binary
+
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # pass_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.with_binary
+
+    assert_equal controller.to_h, {render: %(success)}
+
+    # not_found
+    controller = controller_class.new({model: false})
+    controller.with_binary
 
     assert_equal controller.to_h, {render: %(404)}
   end

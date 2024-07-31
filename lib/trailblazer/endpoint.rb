@@ -2,7 +2,7 @@ module Trailblazer
   class Endpoint
     # Create an {Endpoint} class with the provided adapter and protocol.
     # This builder also sets up taskWrap filters around the {domain_activity} execution.
-    def self.build(protocol:, domain_activity:, protocol_block: ->(*) { Hash.new }, **) # FIXME: no **
+    def self.build(protocol:, domain_activity:, options_for_domain_activity: {}, protocol_block: nil, **) # FIXME: no **
       # special considerations around the {domain_activity} and its taskWrap:
       #
       #  1. domain_ctx_filter (e.g. to filter {current_user})
@@ -11,7 +11,14 @@ module Trailblazer
       #  4. :output
       #  5. save return signal
 
-      protocol_with_domain_activity = Protocol.build(protocol: protocol, domain_activity: domain_activity, protocol_block: protocol_block)
+      # DISCUSS: extract this high level DSL logic
+      if protocol_block
+        options_from_block = domain_activity.instance_exec(&protocol_block)
+        options_for_domain_activity = options_for_domain_activity.merge(options_from_block)
+      end
+
+
+      protocol_with_domain_activity = Protocol.build(protocol: protocol, domain_activity: domain_activity, options_for_domain_activity: options_for_domain_activity)
 
       puts Trailblazer::Developer.render(protocol_with_domain_activity)
 

@@ -23,11 +23,11 @@ module Trailblazer
       # }
 
       # @private
-      def self.build(protocol:, domain_activity:, protocol_block:)
+      def self.build(protocol:, domain_activity:, options_for_domain_activity:)
         Class.new(protocol) do
           step(Subprocess(domain_activity, strict: true), {inherit: true, replace: :domain_activity,}.
             # merge(extensions_options).
-            merge(instance_exec(&protocol_block)) # the block is evaluated in the {Protocol} context.
+            merge(options_for_domain_activity)
           )
         end
       end

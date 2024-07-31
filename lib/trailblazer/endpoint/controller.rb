@@ -129,17 +129,43 @@ module Trailblazer
       module DSL # Controller.endpoint
         # Builds and registers an endpoint in a controller class.
         def endpoint(name=nil, **options, &block) # TODO: test block
-          options = options.merge(protocol_block: block) if block_given?
+          options = options.merge(protocol_block: block)
+
+          # TODO: move this code somewhere else
+          options = DSL.process_fast_track_to_railway(name, **options)
+
 
           build_endpoint(name, **options)
         end
 
-        def build_endpoint(name, domain_activity: name, **options)
+        def build_endpoint(name, domain_activity: name, options_for_domain_activity: {}, **options)
+
+
+
           build_options = _options_for_endpoint.merge(domain_activity: domain_activity, **options) # FIXME: this means we must have #_options_for_endpoint defined on this class!
 
-          endpoint = Trailblazer::Endpoint.build(**build_options)
+          endpoint = Trailblazer::Endpoint.build(**build_options, options_for_domain_activity: options_for_domain_activity)
 
           _endpoints[name.to_s] = endpoint
+        end
+
+
+
+        # TODO: use Normalizer architecture.
+        def self.process_fast_track_to_railway(name, fast_track_to_railway: nil, **options)
+          return options unless fast_track_to_railway
+
+          options_for_domain_activity = {}
+
+          _protocol = Trailblazer::Activity::Railway # FIXME: take :protocol kw arg.
+
+          # wire fast track termini to railway termini
+          options_for_domain_activity = options_for_domain_activity.merge(
+            _protocol.Output(:fail_fast) =>  _protocol.End(:failure),
+            _protocol.Output(:pass_fast) =>  _protocol.End(:success),
+          )
+
+          options.merge(options_for_domain_activity: options_for_domain_activity)
         end
       end # DSL
 
