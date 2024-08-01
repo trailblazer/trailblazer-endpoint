@@ -707,6 +707,13 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           Output(:not_found) => End(:fail_fast),
         }
       end
+      # re-introduce the {fail_fast} outcome manuall,
+      # implying that we can mix and override wiring options.
+      endpoint "binary and custom wiring", domain_activity: Memo::Operation::Create, fast_track_to_railway: true do
+        {
+          Output(:not_found) => End(:fail_fast),
+        }
+      end
 
       def create
         invoke "explicit fast_track" do
@@ -731,6 +738,14 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           fail_fast { |*| render "404" }
+        end
+      end
+
+      def with_binary_and_custom_wiring
+        invoke "binary and custom wiring" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          fail_fast { |*| render "fail_fast" }
         end
       end
     end
@@ -822,5 +837,31 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     controller = controller_class.new({model: false})
     controller.with_custom_wiring
     assert_equal controller.to_h, {render: %(404)}
+
+  # binary and custom wiring
+    # success
+    controller = controller_class.new({})
+    controller.with_binary_and_custom_wiring
+    assert_equal controller.to_h, {render: %(success)}
+
+    # failure
+    controller = controller_class.new({validate: false})
+    controller.with_binary_and_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_binary_and_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # pass_fast
+    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.with_binary_and_custom_wiring
+    assert_equal controller.to_h, {render: %(success)}
+
+    # not_found
+    controller = controller_class.new({model: false})
+    controller.with_binary_and_custom_wiring
+    assert_equal controller.to_h, {render: %(fail_fast)}
   end
 end
