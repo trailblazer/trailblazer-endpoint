@@ -19,6 +19,23 @@ class ControllerTest < Minitest::Spec
     end
   end
 
+  module Assertion
+    def assert_runs(controller_class, method, **scenarios)
+      scenarios.collect do |outcome, input|
+        assert_render(controller_class, method, outcome: outcome, **input)
+      end
+    end
+
+    def assert_render(controller_class, method, render:, outcome:, **variables)
+      controller = controller_class.new(params: {id: 1}, **variables)
+      controller.send(method)
+
+      assert_equal controller.to_h, {render: render}, "Outcome #{outcome.inspect} isn't valid."
+    end
+  end
+
+  include Assertion
+
   module Memo
     module Operation
       class Create < Trailblazer::Activity::Railway
@@ -96,6 +113,7 @@ class ControllerTest < Minitest::Spec
 
     overriding_ctx_sub_controller_class = Class.new(controller_class) do
       endpoint do
+        # We override the entire {ctx} which will always lead to the same outcome.
         ctx do
           {
             seq: [1, 2, 3],
@@ -133,93 +151,53 @@ class ControllerTest < Minitest::Spec
     # Test
     #
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
 
-    assert_equal controller.to_h, {render: %(Module)}
+    assert_runs(
+      controller_class,
+      :create,
 
-    # not_authorized
-    controller = controller_class.new(params: {id: 1}, policy: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(not authorized: Object)}
-
-    # not_authenticated
-    controller = controller_class.new(params: {id: 1}, authenticate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(authentication failed)}
-
-    # failure
-    controller = controller_class.new(params: {id: 1}, validate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
-
+      success:            {render: %(Module)},
+      not_authorized:     {render: %(not authorized: Object), policy: false},
+      not_authenticated:  {render: %(authentication failed), authenticate: false},
+      failure:            {render: %(failure), validate: false}
+    )
 
   # Simply inherit the behavior
-    # success
-    controller = empty_sub_controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      empty_sub_controller_class,
+      :create,
 
-    assert_equal controller.to_h, {render: %(Module)}
-
-    # not_authorized
-    controller = empty_sub_controller_class.new(params: {id: 1}, policy: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(not authorized: Object)}
-
-    # not_authenticated
-    controller = empty_sub_controller_class.new(params: {id: 1}, authenticate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(authentication failed)}
-
-    # failure
-    controller = empty_sub_controller_class.new(params: {id: 1}, validate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
-
+      success:            {render: %(Module)},
+      not_authorized:     {render: %(not authorized: Object), policy: false},
+      not_authenticated:  {render: %(authentication failed), authenticate: false},
+      failure:            {render: %(failure), validate: false}
+    )
 
   # Override ctx
-    # success
-    controller = overriding_ctx_sub_controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      overriding_ctx_sub_controller_class,
+      :create,
 
-    assert_equal controller.to_h, {render: %([1, 2, 3, :authenticate, :policy, :validate] [:seq, :model])}
-
+      success:        {render: %([1, 2, 3, :authenticate, :policy, :validate] [:seq, :model])},
+      not_authorized: {render: %([1, 2, 3, :authenticate, :policy, :validate] [:seq, :model]), policy: false}, # the OP never sees {policy: false}
+    )
 
   # Override default_matcher
-    # success
-    controller = overriding_matcher_sub_controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      overriding_matcher_sub_controller_class,
+      :create,
 
-    assert_equal controller.to_h, {render: %(Module)}
-
-    # not_authorized
-    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, policy: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(403, Object)}
-
-    # not_authenticated
-    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, authenticate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(absolutely no way, 401)}
-
-    # failure
-    controller = overriding_matcher_sub_controller_class.new(params: {id: 1}, validate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
+      success:            {render: %(Module)},
+      not_authorized:     {render: %(403, Object), policy: false},
+      not_authenticated:  {render: %(absolutely no way, 401), authenticate: false},
+      failure:            {render: %(failure), validate: false}
+    )
   end
 end
 
 class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   it do
     application_controller = Class.new do
       include ControllerTest::Controller # Test module
@@ -281,34 +259,22 @@ class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
       end
     end
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      controller_class,
+      :create,
 
-    assert_equal controller.to_h, {render: %(Module)}
-
-    # not_authorized
-    controller = controller_class.new(params: {id: 1}, policy: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(not authorized: Object)}
-
-    # not_authenticated
-    controller = controller_class.new(params: {id: 1}, authenticate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(authentication failed)}
-
-    # failure
-    controller = controller_class.new(params: {id: 1}, validate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
+      success:            {render: %(Module)},
+      not_authorized:     {render: %(not authorized: Object), policy: false},
+      not_authenticated:  {render: %(authentication failed), authenticate: false},
+      failure:            {render: %(failure), validate: false}
+    )
   end
 end
 
 # NOTE: this is a private test making sure our internal API is feasible without inheritance logic.
 class ControllerWithoutInheritanceTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   Memo = ControllerTest::Memo
 
   it "Controller that's not using Declarative::State and doesn't implement inheritance" do
@@ -402,37 +368,21 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
       end
     end
 
-    #
-    # Test
-    #
+    assert_runs(
+      controller_class,
+      :create,
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
-
-    assert_equal controller.to_h, {render: %(Module)}
-
-    # not_authorized
-    controller = controller_class.new(params: {id: 1}, policy: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(not authorized: Object)}
-
-    # not_authenticated
-    controller = controller_class.new(params: {id: 1}, authenticate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(authentication failed)}
-
-    # failure
-    controller = controller_class.new(params: {id: 1}, validate: false)
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
+      success:            {render: %(Module)},
+      not_authorized:     {render: %(not authorized: Object), policy: false},
+      not_authenticated:  {render: %(authentication failed), authenticate: false},
+      failure:            {render: %(failure), validate: false}
+    )
   end
 end
 
 class ControllerWithFlowOptionsTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   module Memo
     module Operation
       class Create < Trailblazer::Activity::Railway
@@ -503,15 +453,12 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       end
     end
 
-    #
-    # Test
-    #
+    assert_runs(
+      controller_class,
+      :create,
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
-
-    assert_equal controller.to_h, {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]")}
+      success:            {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]")},
+    )
 
   # Test overriding {Controller#_flow_options}.
   # Test that we can call {super}.
@@ -536,17 +483,21 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       end
     end
 
-    controller = controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      controller_class,
+      :create,
 
-    assert_equal controller.to_h, {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\""}
+      success:            {render: "\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\""},
+    )
   end
 end
 
 class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   Memo = ControllerTest::Memo
 
-  it "provides {:id} option for {#endpoint}" do
+  it "provide an explicit name for {#endpoint}" do
     application_controller = Class.new do
       include ControllerTest::Controller # Test module
 
@@ -595,24 +546,23 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
       end
     end
 
-    #
-    # Test
-    #
+    assert_runs(
+      controller_class, :create,
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
+      success:            {render: %(Module)},
+    )
 
-    assert_equal controller.to_h, {render: %(Module)}
+    assert_runs(
+      controller_class, :create_again,
 
-    controller = controller_class.new(params: {id: 1})
-    controller.create_again
-
-    assert_equal controller.to_h, {render: %(again: Module)}
+      success:            {render: %(again: Module)},
+    )
   end
 end
 
 class UnconfiguredControllerTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   Memo = ControllerTest::Memo
 
   it "no configuration" do
@@ -644,15 +594,17 @@ class UnconfiguredControllerTest < Minitest::Spec
       end
     end
 
-    # success
-    controller = controller_class.new(params: {id: 1})
-    controller.create
+    assert_runs(
+      controller_class, :create,
 
-    assert_equal controller.to_h, {render: %(Module)}
+      success:            {render: %(Module)},
+    )
   end
 end
 
 class ControllerWithOperationAndFastTrackTest < Minitest::Spec
+  include ControllerTest::Assertion
+
   module Memo
     module Operation
       class Create < Trailblazer::Activity::FastTrack
@@ -801,183 +753,80 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     end
 
 # explicit fast track
-    # success
-    controller = controller_class.new({})
-    controller.create
+    assert_runs(
+      controller_class, :create,
 
-    assert_equal controller.to_h, {render: %(success)}
-
-    # failure
-    controller = controller_class.new({validate: false})
-    controller.create
-
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.create
-
-    assert_equal controller.to_h, {render: %(yay, fast_track!)}
-
-    # pass_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.create
-
-    assert_equal controller.to_h, {render: %(hooray, pass_fast!)}
-
-    # not_found
-    controller = controller_class.new({model: false})
-    controller.create
-
-    assert_equal controller.to_h, {render: %(404)}
+      success:            {render: %(success)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(yay, fast_track!), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(hooray, pass_fast!), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(404), model: false},
+    )
 
 # binary, fast_track gets routed to railway
-    # success
-    controller = controller_class.new({})
-    controller.with_binary
+    assert_runs(
+      controller_class, :with_binary,
 
-    assert_equal controller.to_h, {render: %(success)}
-
-    # failure
-    controller = controller_class.new({validate: false})
-    controller.with_binary
-
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_binary
-
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # pass_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.with_binary
-
-    assert_equal controller.to_h, {render: %(success)}
-
-    # not_found
-    controller = controller_class.new({model: false})
-    controller.with_binary
-
-    assert_equal controller.to_h, {render: %(404)}
+      success:            {render: %(success)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(404), model: false},
+    )
 
   # custom wiring
-    # success
-    controller = controller_class.new({})
-    controller.with_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
+  assert_runs(
+      controller_class, :with_custom_wiring,
 
-    # failure
-    controller = controller_class.new({validate: false})
-    controller.with_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # pass_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.with_custom_wiring
-    assert_equal controller.to_h, {render: %(success)}
-
-    # not_found
-    controller = controller_class.new({model: false})
-    controller.with_custom_wiring
-    assert_equal controller.to_h, {render: %(404)}
+      success:            {render: %(failure)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(404), model: false},
+    )
 
   # binary and custom wiring
-    # success
-    controller = controller_class.new({})
-    controller.with_binary_and_custom_wiring
-    assert_equal controller.to_h, {render: %(success)}
+    assert_runs(
+      controller_class, :with_binary_and_custom_wiring,
 
-    # failure
-    controller = controller_class.new({validate: false})
-    controller.with_binary_and_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_binary_and_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # pass_fast
-    controller = controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.with_binary_and_custom_wiring
-    assert_equal controller.to_h, {render: %(success)}
-
-    # not_found
-    controller = controller_class.new({model: false})
-    controller.with_binary_and_custom_wiring
-    assert_equal controller.to_h, {render: %(fail_fast)}
+      success:            {render: %(success)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(fail_fast), model: false},
+    )
 
   # fast track by default via ::endpoint
-    controller = defaulting_controller_class.new({})
-    controller.with_railway_by_default
-    assert_equal controller.to_h, {render: %(success)}
+    assert_runs(
+      defaulting_controller_class, :with_railway_by_default,
 
-    # failure
-    controller = defaulting_controller_class.new({validate: false})
-    controller.with_railway_by_default
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_railway_by_default
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # pass_fast
-    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.with_railway_by_default
-    assert_equal controller.to_h, {render: %(success)}
-
-    # not_found
-    controller = defaulting_controller_class.new({model: false})
-    controller.with_railway_by_default
-    assert_equal controller.to_h, {render: %(404)}
+      success:            {render: %(success)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(404), model: false},
+    )
 
   # with_railway_by_default_with_custom_wiring
-    controller = defaulting_controller_class.new({})
-    controller.with_railway_by_default_with_custom_wiring
-    assert_equal controller.to_h, {render: %(success)}
+    assert_runs(
+      defaulting_controller_class, :with_railway_by_default_with_custom_wiring,
 
-    # failure
-    controller = defaulting_controller_class.new({validate: false})
-    controller.with_railway_by_default_with_custom_wiring
-    assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_railway_by_default_with_custom_wiring
-    assert_equal controller.to_h, {render: %(fail_fast)}
-
-    # pass_fast
-    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
-    controller.with_railway_by_default_with_custom_wiring
-    assert_equal controller.to_h, {render: %(success)}
-
-    # not_found
-    controller = defaulting_controller_class.new({model: false})
-    controller.with_railway_by_default_with_custom_wiring
-    assert_equal controller.to_h, {render: %(404)}
+      success:            {render: %(success)},
+      failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(fail_fast), validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: %(404), model: false},
+    )
 
   # with_overriding_class_options
+    assert_runs(
+      defaulting_controller_class, :with_overriding_class_options,
 
-    controller = defaulting_controller_class.new({})
-    controller.with_overriding_class_options
-    assert_equal controller.to_h, {render: %(success [:seq, :my_protocol])}
-
-    # failure
-    # controller = defaulting_controller_class.new({validate: false})
-    # controller.with_overriding_class_options
-    # assert_equal controller.to_h, {render: %(failure)}
-
-    # fail_fast
-    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
-    controller.with_overriding_class_options
-    assert_equal controller.to_h, {render: %(fail_fast [:validate, :seq, :my_protocol])}
+      success:            {render: %(success [:params, :seq, :my_protocol])},
+      # failure:            {render: %(failure), validate: false},
+      fail_fast:          {render: %(fail_fast [:params, :validate, :seq, :my_protocol]), validate: Trailblazer::Activity::FastTrack::FailFast},
+      # pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+      # not_found:          {render: %(404), model: false},
+    )
   end
 end
