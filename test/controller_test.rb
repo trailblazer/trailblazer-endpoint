@@ -750,6 +750,56 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
     end
 
+    defaulting_controller_class = Class.new(application_controller) do
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+            fast_track_to_railway: true, # assume all endpoints are running operations/FastTrack.
+          }
+        end
+      end
+
+      endpoint "railway by default", domain_activity: Memo::Operation::Create
+      endpoint "railway by default with custom wiring", domain_activity: Memo::Operation::Create do
+        {
+          Output(:fail_fast) => End(:fail_fast) # we're overriding one of the two defaults.
+        }
+      end
+
+      # override class options via ::endpoint
+      my_protocol = Class.new(Trailblazer::Activity::FastTrack) do
+        step ->(ctx, **) { ctx[:my_protocol] = true }
+        step nil, id: :domain_activity
+      end
+      endpoint "railway by default, custom options", domain_activity: Memo::Operation::Create, fast_track_to_railway: false, protocol: my_protocol
+
+      def with_railway_by_default
+        invoke "railway by default" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          not_found { |*| render "404" }
+          # fail_fast { |*| render "fail_fast" }
+        end
+      end
+
+      def with_railway_by_default_with_custom_wiring
+        invoke "railway by default with custom wiring" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          not_found { |*| render "404" }
+          fail_fast { |*| render "fail_fast" }
+        end
+      end
+
+      def with_overriding_class_options
+        invoke "railway by default, custom options" do
+          success   { |ctx, **| render "success #{ctx.keys}" }
+          fail_fast { |ctx, **| render "fail_fast #{ctx.keys}" }
+        end
+      end
+    end
+
 # explicit fast track
     # success
     controller = controller_class.new({})
@@ -863,5 +913,71 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
     controller = controller_class.new({model: false})
     controller.with_binary_and_custom_wiring
     assert_equal controller.to_h, {render: %(fail_fast)}
+
+  # fast track by default via ::endpoint
+    controller = defaulting_controller_class.new({})
+    controller.with_railway_by_default
+    assert_equal controller.to_h, {render: %(success)}
+
+    # failure
+    controller = defaulting_controller_class.new({validate: false})
+    controller.with_railway_by_default
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_railway_by_default
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # pass_fast
+    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.with_railway_by_default
+    assert_equal controller.to_h, {render: %(success)}
+
+    # not_found
+    controller = defaulting_controller_class.new({model: false})
+    controller.with_railway_by_default
+    assert_equal controller.to_h, {render: %(404)}
+
+  # with_railway_by_default_with_custom_wiring
+    controller = defaulting_controller_class.new({})
+    controller.with_railway_by_default_with_custom_wiring
+    assert_equal controller.to_h, {render: %(success)}
+
+    # failure
+    controller = defaulting_controller_class.new({validate: false})
+    controller.with_railway_by_default_with_custom_wiring
+    assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_railway_by_default_with_custom_wiring
+    assert_equal controller.to_h, {render: %(fail_fast)}
+
+    # pass_fast
+    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::PassFast})
+    controller.with_railway_by_default_with_custom_wiring
+    assert_equal controller.to_h, {render: %(success)}
+
+    # not_found
+    controller = defaulting_controller_class.new({model: false})
+    controller.with_railway_by_default_with_custom_wiring
+    assert_equal controller.to_h, {render: %(404)}
+
+  # with_overriding_class_options
+
+    controller = defaulting_controller_class.new({})
+    controller.with_overriding_class_options
+    assert_equal controller.to_h, {render: %(success [:seq, :my_protocol])}
+
+    # failure
+    # controller = defaulting_controller_class.new({validate: false})
+    # controller.with_overriding_class_options
+    # assert_equal controller.to_h, {render: %(failure)}
+
+    # fail_fast
+    controller = defaulting_controller_class.new({validate: Trailblazer::Activity::FastTrack::FailFast})
+    controller.with_overriding_class_options
+    assert_equal controller.to_h, {render: %(fail_fast [:validate, :seq, :my_protocol])}
   end
 end

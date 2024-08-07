@@ -131,29 +131,37 @@ module Trailblazer
         def endpoint(name, domain_activity: name, **options, &block) # TODO: test block
 
           # TODO: move this code somewhere else
-          options_for_domain_activity = {}
-          options = DSL.process_fast_track_to_railway(name, options_for_domain_activity: options_for_domain_activity, domain_activity: domain_activity, **options)
+          options = DSL.merge_class_and_user_options(self, **options)
+
+          options_for_domain_activity, options = DSL.normalize_options(domain_activity: domain_activity, **options)
+
+          options_for_domain_activity = DSL.process_fast_track_to_railway(name, **options_for_domain_activity, domain_activity: domain_activity) # scope: {options_for_domain_activity}
+
           options = DSL.process_protocol_block(name, protocol_block: block, options_for_domain_activity: options_for_domain_activity, domain_activity: domain_activity, **options)
 
-          build_endpoint(name, domain_activity: domain_activity, **options)
+          build_endpoint(name, **options)
         end
 
-        def build_endpoint(name, **options)
-
-
-
-          build_options = _options_for_endpoint.merge(**options) # FIXME: this means we must have #_options_for_endpoint defined on this class!
-
+        def build_endpoint(name, **build_options)
           endpoint = Trailblazer::Endpoint.build(**build_options)
 
           _endpoints[name.to_s] = endpoint
         end
 
+        def self.merge_class_and_user_options(controller, **options)
+          _options = controller._options_for_endpoint.merge(**options) # DISCUSS: this means we must have #_options_for_endpoint defined on this class!
+        end
 
+        # Dissect build options and {options_for_domain_activity}.
+        def self.normalize_options(fast_track_to_railway: nil, **options)
+          return {fast_track_to_railway: fast_track_to_railway}, options
+        end
 
         # TODO: use Normalizer architecture.
         # If option is set, add Wiring API routings.
-        def self.process_fast_track_to_railway(name, fast_track_to_railway: nil, options_for_domain_activity:, **options)
+        #
+        # Scope: {options_for_domain_activity}.
+        def self.process_fast_track_to_railway(name, fast_track_to_railway:, **options)
           return options unless fast_track_to_railway
 
           _protocol = Trailblazer::Activity::Railway # FIXME: take :protocol kw arg.
@@ -162,9 +170,7 @@ module Trailblazer
           options_for_domain_activity = {
             _protocol.Output(:fail_fast) =>  _protocol.End(:failure),
             _protocol.Output(:pass_fast) =>  _protocol.End(:success),
-          }.merge(options_for_domain_activity)
-
-          options.merge(options_for_domain_activity: options_for_domain_activity)
+          }.merge(options)
         end
 
         def self.process_protocol_block(name, protocol_block: nil, domain_activity:, options_for_domain_activity:, **options)
