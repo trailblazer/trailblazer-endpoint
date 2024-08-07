@@ -49,6 +49,51 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  module C
+    Memo = Module.new
+    module Memo::Operation
+      class Update < Trailblazer::Operation
+        step :find_model, Output(:failure) => End(:not_found)
+
+        def find_model(ctx, params:, **)
+          params[:id]
+        end
+      end
+    end
+
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Update # has explicit {:not_found} terminus.
+
+      def update
+        invoke Memo::Operation::Update do
+          # failure is inherited
+          success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+          not_found { |ctx, **| head 404 }
+        end
+      end
+    end
+  end
+
+  module D
+    Memo = C::Memo
+
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Update do
+        {
+          Output(:not_found) => End(:failure)
+        }
+      end
+
+      def update
+        invoke Memo::Operation::Update do
+          # failure is inherited
+          success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+          # not_found { |ctx, **| head 404 } # this will never be hit.
+        end
+      end
+    end
+  end
+
 
   test "all possible outcomes with {Create}" do
 
@@ -69,8 +114,18 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     assert_response 401
   end
 
-    test "explicit {fail_fast} matcher in controller" do
+  test "explicit {fail_fast} matcher in controller" do
     post "/b", params: {} # fail_fast
     assert_response 500
+  end
+
+  test "{not_found} has explicit matcher" do
+    post "/c", params: {}
+    assert_response 404
+  end
+
+  test "{not_found} wired to {failure}" do
+    post "/d", params: {}
+    assert_response 401 # failure
   end
 end
