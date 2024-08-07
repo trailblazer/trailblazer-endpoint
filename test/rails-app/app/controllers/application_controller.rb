@@ -5,6 +5,9 @@ class ApplicationController < ActionController::Base
 
   module Endpoint
     class Protocol < Trailblazer::Endpoint::Protocol
+      terminus :fail_fast
+      terminus :pass_fast # TODO: introduce Protocol::Operation
+
       def authenticate(ctx, **)
         true
       end
@@ -19,7 +22,7 @@ class ApplicationController < ActionController::Base
     options do
       {
         protocol: Endpoint::Protocol,
-        adapter: Trailblazer::Endpoint::Adapter # TODO: make this optional!
+        fast_track_to_railway: true, # per default, wire fast track outputs to success/failure.
       }
     end
 
