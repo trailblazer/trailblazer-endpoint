@@ -12,16 +12,15 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         def validate(ctx, params:, **)
           params[:memo]
         end
+
+        def model(ctx, params:, **)
+          ctx[:model] = ::Memo.create(**params[:memo].permit!)
+        end
       end
     end
 
     class MemosController < ApplicationController
       endpoint Memo::Operation::Create # per default, wire {:fail_fast} to {:failure}.
-      #do
-      #   {
-      #     Output(:fail_fast) => Track(:failure)
-      #   }
-      # end
 
       def create
         invoke Memo::Operation::Create do
@@ -94,24 +93,16 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-
-  test "all possible outcomes with {Create}" do
-
-  # 401
-    post "/memos", params: {memo: {}}
-    assert_response 401
-    assert_equal "", response.body
-
-
-  # 201
-    post "/memos", params: {memo: {id: 1, text: "Remember that!"}}
-    assert_redirected_to "/memos/1"
-  end
-
   # fail_fast is wired to failure
   test "{fail_fast} wired to {failure}" do
+  # 201
+    post "/a", params: {memo: {id: 1, text: "Remember that!"}}
+    assert_redirected_to "/memos/1"
+
+  # 401
     post "/a", params: {} # fail_fast
     assert_response 401
+    assert_equal "", response.body
   end
 
   test "explicit {fail_fast} matcher in controller" do

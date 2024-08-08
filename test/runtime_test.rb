@@ -140,4 +140,20 @@ class ProtocolTest < Minitest::Spec
     Trailblazer::Endpoint::Runtime.({}, flow_options: {model: Object}, protocol: protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
   end
+
+  it "using {Runtime.call} without a Protocol" do
+    matcher_block = Proc.new do
+      success { |ctx, model:, **| render model.inspect }
+      failure { |*| render "failure" }
+      not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
+    end
+
+    ctx = {seq: [], model: {id: 1}}
+
+    Trailblazer::Endpoint::Runtime.(ctx, protocol: Create, default_matcher: {}, matcher_context: self) do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    assert_equal @rendered, %(Object)
+  end
 end

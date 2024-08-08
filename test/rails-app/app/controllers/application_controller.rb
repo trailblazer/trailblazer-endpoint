@@ -4,10 +4,7 @@ class ApplicationController < ActionController::Base
   include Trailblazer::Endpoint::Controller.module
 
   module Endpoint
-    class Protocol < Trailblazer::Endpoint::Protocol
-      terminus :fail_fast
-      terminus :pass_fast # TODO: introduce Protocol::Operation
-
+    class Protocol < Trailblazer::Endpoint::Protocol::Operation
       def authenticate(ctx, **)
         true
       end
