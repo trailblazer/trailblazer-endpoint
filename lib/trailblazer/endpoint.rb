@@ -11,33 +11,14 @@ module Trailblazer
       #  4. :output
       #  5. save return signal
 
-      # DISCUSS: extract this high level DSL logic
-
-
-
       protocol_with_domain_activity = Protocol.build(protocol: protocol, domain_activity: domain_activity, options_for_domain_activity: options_for_domain_activity)
-
-      puts Trailblazer::Developer.render(protocol_with_domain_activity)
-
-      return protocol_with_domain_activity
-
-      # FIXME: test {:adapter}
-      # FIXME: make this optional to reduce complexity.
-      adapter_for_action = adapter.build(protocol_with_domain_activity)
-      # Class.new(adapter) do
-      #   step(Subprocess(protocol_with_domain_activity), {inherit: true, id: :protocol, replace: :protocol})
-      # end
+      # puts Trailblazer::Developer.render(protocol_with_domain_activity)
     end
   end
 end
 
 require "trailblazer/endpoint/protocol"
-require "trailblazer/endpoint/adapter"
 require "trailblazer/endpoint/matcher"
 require "trailblazer/endpoint/runtime"
-# require "trailblazer/endpoint/dsl"
 require "trailblazer/endpoint/controller"
-# require "trailblazer/endpoint/options"
-# require "trailblazer/endpoint/protocol/controller"
-# require "trailblazer/endpoint/protocol/find_process_model"
-# require "trailblazer/endpoint/protocol/cipher"
+

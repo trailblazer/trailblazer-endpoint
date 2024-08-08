@@ -66,7 +66,6 @@ class ControllerTest < Minitest::Spec
         options do
           {
             protocol: Protocol,
-            adapter: Trailblazer::Endpoint::Adapter,
           }
         end
 
@@ -225,7 +224,6 @@ class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
       def self._options_for_endpoint
         {
           protocol: Protocol,
-          adapter: Trailblazer::Endpoint::Adapter
         }
       end
 
@@ -343,7 +341,6 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
       def self._options_for_endpoint
         {
           protocol: Protocol,
-          adapter: Trailblazer::Endpoint::Adapter
         }
       end
     end
@@ -412,7 +409,6 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
         options do
           {
             protocol: Protocol,
-            adapter: Trailblazer::Endpoint::Adapter,
           }
         end
 
@@ -512,7 +508,6 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
         options do
           {
             protocol: Protocol,
-            adapter: Trailblazer::Endpoint::Adapter,
           }
         end
 
@@ -579,7 +574,7 @@ class UnconfiguredControllerTest < Minitest::Spec
       #
       endpoint do
         options do
-          {protocol: Protocol, adapter: Trailblazer::Endpoint::Adapter} # DISCUSS: currently you have to provide the Protocol, for "security" reasons.
+          {protocol: Protocol} # DISCUSS: currently you have to provide the Protocol, for "security" reasons.
         end
       end
     end
