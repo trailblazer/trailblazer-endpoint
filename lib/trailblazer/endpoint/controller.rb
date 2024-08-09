@@ -27,7 +27,6 @@ module Trailblazer
               endpoints:            [Hash.new, {}],
               default_matcher:      [Hash.new, {}],
               ctx:                  [->(*) { {} }, {}], # empty default hash for {ctx}.
-              # options_for_endpoint: [{adapter: Trailblazer::Endpoint::Adapter}, {}],
               options_for_endpoint: [{}, {}],
               flow_options:         [->(*) { {} }, {}],
             )
@@ -132,12 +131,13 @@ module Trailblazer
 
           # TODO: move this code somewhere else
           options = DSL.merge_class_and_user_options(self, **options)
+          options = DSL.normalize_protocol_block(**options, block: block)
 
           options_for_domain_activity, options = DSL.normalize_options(domain_activity: domain_activity, **options)
 
           options_for_domain_activity = DSL.process_fast_track_to_railway(name, **options_for_domain_activity, domain_activity: domain_activity) # scope: {options_for_domain_activity}
 
-          options = DSL.process_protocol_block(name, protocol_block: block, options_for_domain_activity: options_for_domain_activity, domain_activity: domain_activity, **options)
+          options = DSL.process_protocol_block(name, options_for_domain_activity: options_for_domain_activity, domain_activity: domain_activity, **options)
 
           build_endpoint(name, **options)
         end
@@ -150,6 +150,12 @@ module Trailblazer
 
         def self.merge_class_and_user_options(controller, **options)
           _options = controller._options_for_endpoint.merge(**options) # DISCUSS: this means we must have #_options_for_endpoint defined on this class!
+        end
+
+        def self.normalize_protocol_block(block:, protocol_block: nil, **options)
+          options.merge(
+            protocol_block: block || protocol_block
+          )
         end
 
         # Dissect build options and {options_for_domain_activity}.

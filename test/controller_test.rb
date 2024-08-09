@@ -747,6 +747,76 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
     end
 
+    defaulting_protocol_block_controller_class = Class.new(application_controller) do
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+            # fast_track_to_railway: true, # assume all endpoints are running operations/FastTrack.
+            protocol_block: -> { {Output(:not_found) => End(:XXX)} }, # test that the defaulting works.
+            # TODO: add default matcher for 404
+          }
+        end
+
+        default_matcher do
+          {
+            # not_found:      ->(*) { render "404" },
+            XXX: ->(*) { render "XXX 404 not found" }
+          }
+        end
+      end
+
+      endpoint "4x fast_track + not_found", domain_activity: Memo::Operation::Create
+      endpoint "5 tracks, overriding 404", domain_activity: Memo::Operation::Create do
+        {Output(:not_found) => Track(:failure)} # overriding {:protocol_block}
+      end
+      # endpoint "railway by default with custom wiring", domain_activity: Memo::Operation::Create do
+      #   {
+      #     Output(:fail_fast) => End(:pass_fast) # FIXME: is that merged with the default protocol_block? what about default_matcher, e.g. for 404
+      #   }
+      # end
+
+      def create
+        invoke "4x fast_track + not_found" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure" }
+          fail_fast { |*| render "fail_fast" }
+          pass_fast { |*| render "pass_fast" }
+          # not_found { |*| render "404" } # from {default_matcher}.
+        end
+      end
+
+      def create_not_found
+        invoke "5 tracks, overriding 404" do
+          success   { |ctx, **| render "success" }
+          failure   { |*| render "failure or 404" }
+          fail_fast { |*| render "fail_fast" }
+          pass_fast { |*| render "pass_fast" }
+        end
+      end
+    end
+
+# defaulting with protocol_block # FIXME: move me.
+    assert_runs(
+      defaulting_protocol_block_controller_class, :create,
+
+      success:            {render: "success"},
+      failure:            {render: "failure", validate: false},
+      fail_fast:          {render: "fail_fast", validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: "pass_fast", validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: "XXX 404 not found", model: false},
+    )
+# defaulting with protocol_block, overriding 404
+    assert_runs(
+      defaulting_protocol_block_controller_class, :create_not_found,
+
+      success:            {render: "success"},
+      failure:            {render: "failure or 404", validate: false},
+      fail_fast:          {render: "fail_fast", validate: Trailblazer::Activity::FastTrack::FailFast},
+      pass_fast:          {render: "pass_fast", validate: Trailblazer::Activity::FastTrack::PassFast},
+      not_found:          {render: "failure or 404", model: false}, # FIXME: protocol block is not used from ::endpoint.
+    )
+
 # explicit fast track
     assert_runs(
       controller_class, :create,
