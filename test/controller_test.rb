@@ -488,6 +488,70 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
   end
 end
 
+class ControllerWithCtxVariablesTest < Minitest::Spec
+  include ControllerTest::Assertion
+
+  module Memo
+    module Operation
+      class Create < Trailblazer::Activity::Railway
+        step :model
+
+        def model(ctx, event:, current_user:, **)
+          ctx[:model] = "#{ctx.keys.inspect} #{event} #{current_user.inspect}"
+        end
+      end
+    end
+  end
+
+  it "Controller" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+      include Trailblazer::Endpoint::Controller.module
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      endpoint do
+        options do
+          {
+            protocol: Protocol,
+          }
+        end
+
+        ctx do
+          {
+            current_user: Object,
+            **params,
+          }
+        end
+      end
+
+    end
+
+  # Test that we can merge ApplicationController's {ctx} and {#invoke} options.
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create,
+            seq: [],
+            current_user: "override current user", # test that we can override default ctx options.
+            event: "!create" do
+          success         { |ctx, model:, **| render "#{model}" }
+        end
+      end
+    end
+
+    assert_runs(
+      controller_class,
+      :create,
+
+      success:            {render: %([:current_user, :params, :seq, :event] !create \"override current user\")},
+    )
+  end
+end
+
 class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
   include ControllerTest::Assertion
 
