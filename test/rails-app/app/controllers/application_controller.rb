@@ -1,7 +1,11 @@
 require "trailblazer/endpoint/controller"
 
+#:application-controller-include
+#:application-controller
 class ApplicationController < ActionController::Base
   include Trailblazer::Endpoint::Controller.module
+#:application-controller-include end
+  #~config
 
   module Endpoint
     class Protocol < Trailblazer::Endpoint::Protocol::Operation
@@ -15,7 +19,10 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  #~config end
+  #~endpoint
   endpoint do
+    #~config
     options do
       {
         protocol: Endpoint::Protocol,
@@ -29,10 +36,18 @@ class ApplicationController < ActionController::Base
       }
     end
 
+    #~config end
     default_matcher do
       {
-        failure: ->(ctx, **) { head 401 }
+
+        failure: ->(ctx, **) { head 401 }, # handles {failure} outcome.
+        not_found: ->(ctx, params:, **) do
+          render html: "ID #{params[:id]} not found.",
+                 status: 404
+        end
       }
     end
   end
+  #~endpoint end
 end
+#:application-controller end
