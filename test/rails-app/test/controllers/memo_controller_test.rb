@@ -19,11 +19,13 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    #:endpoint-controller
     #:endpoint-controller-head
+    #:endpoint-controller
     class MemosController < ApplicationController
     #:endpoint-controller-head end
+      #~define
       endpoint Memo::Operation::Create # define endpoint.
+      #~define end
 
       def create
         invoke Memo::Operation::Create do # call the endpoint, use matchers:
@@ -40,8 +42,11 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     Memo = Module.new
     Memo::Operation = A::Memo::Operation
 
+    #:b-controller
     class MemosController < ApplicationController
+      #~fast-track
       endpoint Memo::Operation::Create, fast_track_to_railway: false
+      #~fast-track end
 
       def create
         invoke Memo::Operation::Create do
@@ -51,6 +56,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         end
       end
     end
+    #:b-controller end
   end
 
   module C
@@ -88,6 +94,35 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
   module D
     Memo = C::Memo
 
+    #:d-controller
+    class ApplicationController < ActionController::Base
+      include Trailblazer::Endpoint::Controller.module
+
+      endpoint do
+        #~options
+        options do
+          {
+            #~protocol
+            protocol: ::ApplicationController::Endpoint::Protocol,
+            #~protocol end
+            fast_track_to_railway: true, # FIXME: test this!
+            # default wiring, applied to all endpoints:
+            protocol_block: -> do
+              {Output(:not_found) => End(:not_found)}
+            end
+          }
+        end
+        #~options end
+
+        ctx do # this block is executed in controller instance context.
+          {
+            params: params,
+          }
+        end
+      end
+    end
+    #:d-controller end
+
     class MemosController < ApplicationController
       endpoint Memo::Operation::Update do
         {
@@ -97,12 +132,86 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
 
       def update
         invoke Memo::Operation::Update do
-          # failure is inherited
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
-          # not_found { |ctx, **| head 404 } # this will never be hit.
+          failure   { |ctx, **| head 401 }
         end
       end
     end
+  end
+  module Dd
+    class ApplicationController < ActionController::Base
+      include Trailblazer::Endpoint::Controller.module
+
+      endpoint do
+        options do
+          {
+            protocol: ::ApplicationController::Endpoint::Protocol,
+            # default wiring, applied to all endpoints:
+            protocol_block: -> do
+              if to_h[:outputs].find { |output| output.semantic == :not_found }
+                {Output(:not_found) => End(:not_found)}
+              else
+                {}
+              end
+            end
+          }
+        end
+
+        ctx do # this block is executed in controller instance context.
+          {
+            params: params,
+          }
+        end
+      end
+    end
+
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create do
+          success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+          failure   { |*| head 401 }
+        end
+      end
+    end
+  end
+
+  module E
+    Memo = Module.new
+    Memo::Operation = A::Memo::Operation
+
+    Protocol = Class.new(ApplicationController::Endpoint::Protocol)
+    Protocol::Admin = Class.new(ApplicationController::Endpoint::Protocol) do
+      step ->(ctx, **) { ctx[:admin] = true }
+    end
+
+    #:e-controller
+    class MemosController < ApplicationController
+      #~domain_activity
+      endpoint "create", domain_activity: Memo::Operation::Create
+      endpoint "create/admin",
+        domain_activity: Memo::Operation::Create,
+        protocol: Protocol::Admin
+      #~domain_activity end
+
+      #~create
+      def create
+        invoke "create" do # endpoint name
+          #~action
+          success   { |ctx, **| render html: ctx.keys.inspect }
+          #~action end
+        end
+      end
+      #~create end
+
+      def create_with_admin
+        invoke "create/admin" do
+          success   { |ctx, admin:, **| render html: admin.inspect + ctx.keys.inspect }
+        end
+      end
+    end
+    #:e-controller end
   end
 
   # fail_fast is wired to failure
@@ -142,5 +251,18 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
   test "{not_found} wired to {failure}" do
     post "/d", params: {}
     assert_response 401 # failure
+  end
+
+  test "{not_found} not wired as {Create} doesn't have that output" do
+    post "/dd", params: {}
+    assert_response 401 # failure
+  end
+
+  test "two different endpoints but same constant" do
+    post "/e", params: {memo: {id: 1}} # DISCUSS: WTF Rails? If we omit {id: 1}, the entire params structure is not passed to the controller.
+    assert_equal response.body, %([:params, :current_user, :model])
+
+    post "/e_admin", params: {memo: {id: 1}}
+    assert_equal response.body, %(true[:params, :current_user, :model, :admin])
   end
 end
