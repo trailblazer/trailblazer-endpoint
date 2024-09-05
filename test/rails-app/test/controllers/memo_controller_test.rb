@@ -125,16 +125,21 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     end
     #:d-controller end
 
+    #:d-memo
     class MemosController < ApplicationController
+      #~endpoint
       endpoint Memo::Operation::Update do
         {
           Output(:not_found) => End(:failure)
         }
       end
+      #~endpoint end
 
+      #:empty
       endpoint Memo::Operation::Create do
         {} # override ApplicationController's wiring.
       end
+      #:empty end
 
       def update
         invoke Memo::Operation::Update do
@@ -150,6 +155,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         end
       end
     end
+    #:d-memo end
   end
   module Dd
     #:dd-controller
@@ -186,6 +192,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     #:dd-controller end
 
     class MemosController < ApplicationController
+      # TODO: add Update?
       endpoint Memo::Operation::Create
 
       def create
