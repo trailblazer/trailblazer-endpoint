@@ -91,8 +91,10 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # ApplicationController statically adds {not_found} wiring.
   module D
     Memo = C::Memo
+    Memo::Operation::Create = ::Memo::Operation::Create
 
     #:d-controller
     class ApplicationController < ActionController::Base
@@ -130,22 +132,37 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         }
       end
 
+      endpoint Memo::Operation::Create do
+        {} # override ApplicationController's wiring.
+      end
+
       def update
         invoke Memo::Operation::Update do
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
           failure   { |ctx, **| head 401 }
         end
       end
+
+      def create
+        invoke Memo::Operation::Create do
+          success   { |ctx, model:, **| head 201 }
+          failure   { |ctx, **| head 401 }
+        end
+      end
     end
   end
   module Dd
+    #:dd-controller
     class ApplicationController < ActionController::Base
       include Trailblazer::Endpoint::Controller.module
 
+      #~endpoint
       endpoint do
         options do
           {
+            #~misc
             protocol: ::ApplicationController::Endpoint::Protocol,
+            #~misc end
             # default wiring, applied to all endpoints:
             protocol_block: -> do
               if to_h[:outputs].find { |output| output.semantic == :not_found }
@@ -156,14 +173,17 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
             end
           }
         end
-
+        #~misc
         ctx do # this block is executed in controller instance context.
           {
             params: params,
           }
         end
+        #~misc end
       end
+      #~endpoint end
     end
+    #:dd-controller end
 
     class MemosController < ApplicationController
       endpoint Memo::Operation::Create
@@ -251,6 +271,11 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
   test "{not_found} wired to {failure}" do
     post "/d", params: {}
     assert_response 401 # failure
+  end
+
+  test "Create has default wirings" do
+    post "/d_create", params: {memo: {id: 1}}
+    assert_response 201 # failure
   end
 
   test "{not_found} not wired as {Create} doesn't have that output" do
