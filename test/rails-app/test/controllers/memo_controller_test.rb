@@ -27,6 +27,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       endpoint Memo::Operation::Create # define endpoint.
       #~define end
 
+      #~create
       def create
         invoke Memo::Operation::Create do # call the endpoint, use matchers:
           success { |ctx, model:, **| redirect_to memo_path(id: model.id) }
@@ -34,6 +35,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
           # not_found is inherited
         end
       end
+      #~create end
     end
     #:endpoint-controller end
   end # A
@@ -241,6 +243,52 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     #:e-controller end
   end
 
+  module F
+    Memo = Module.new
+    #:params-keys
+    module Memo::Operation
+      class Update < Trailblazer::Operation
+        step :find_model
+        #~misc
+        step :inspect_ctx
+        #~misc end
+        def find_model(ctx, **)
+          p ctx.keys.inspect # => [:params, :current_user]
+        end
+        #~misc
+        def inspect_ctx(ctx, **)
+          ctx[:variables] = ctx.keys.inspect
+        end
+        #~misc end
+      end
+    end
+    #:params-keys end
+
+    #:f-controller
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Update
+      endpoint "inherited 404 handler", domain_activity: Memo::Operation::Update
+
+      def update
+        invoke Memo::Operation::Update do
+          success { |ctx, variables:, **| render html: variables }
+        end
+      end
+
+      MyBucket = Object
+      #~runtime
+      def update_with_runtime_variables
+        invoke Memo::Operation::Update, storage: MyBucket do
+          #~misc
+          success { |ctx, variables:, **| render html: variables }
+          #~misc end
+        end
+      end
+      #~runtime end
+    end
+    #:f-controller end
+  end
+
   # fail_fast is wired to failure
   test "{fail_fast} wired to {failure}" do
   # 201
@@ -296,5 +344,15 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
 
     post "/e_admin", params: {memo: {id: 1}}
     assert_equal response.body, %(true[:params, :current_user, :model, :admin])
+  end
+
+  test "Update can see {ctx.keys}" do
+    post "/f", params: {}
+    assert_equal "[:params, :current_user]", response.body
+  end
+
+  test "we can pass ctx variables at runtime" do
+    post "/f_with_runtime_variables", params: {}
+    assert_equal "[:params, :current_user, :storage]", response.body
   end
 end
