@@ -251,18 +251,24 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         step :find_model
         #~misc
         step :inspect_ctx
-        #~misc end
-        def find_model(ctx, **)
-          p ctx.keys.inspect # => [:params, :current_user]
-        end
-        #~misc
         def inspect_ctx(ctx, **)
           ctx[:variables] = ctx.keys.inspect
         end
         #~misc end
+        def find_model(ctx, **)
+          p ctx.keys.inspect # => [:params, :current_user]
+        end
       end
     end
     #:params-keys end
+
+=begin
+#:storage
+def find_model(ctx, **)
+  p ctx.keys.inspect # => [:params, :current_user, :storage]
+end
+#:storage end
+=end
 
     #:f-controller
     class MemosController < ApplicationController
