@@ -273,7 +273,6 @@ end
     #:f-controller
     class MemosController < ApplicationController
       endpoint Memo::Operation::Update
-      endpoint "inherited 404 handler", domain_activity: Memo::Operation::Update
 
       def update
         invoke Memo::Operation::Update do
@@ -293,6 +292,40 @@ end
       #~runtime end
     end
     #:f-controller end
+  end
+
+  module G
+    Memo = Module.new
+    #:alias-op
+    module Memo::Operation
+      class Update < Trailblazer::Operation
+        # ...
+        step :build_contract
+        step :validate_contract
+
+        def build_contract(ctx, **)
+          ctx[:"contract.default"] = Object
+        end
+
+        def validate_contract(ctx, contract:, **)
+          # ...
+          true
+        end
+      end
+    end
+    #:alias-op end
+
+    #:g-controller
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Update
+
+      def update
+        invoke Memo::Operation::Update do
+          success { |ctx, contract:, **| render html: contract }
+        end
+      end
+    end
+    #:g-controller end
   end
 
   # fail_fast is wired to failure
@@ -360,5 +393,10 @@ end
   test "we can pass ctx variables at runtime" do
     post "/f_with_runtime_variables", params: {}
     assert_equal "[:params, :current_user, :storage]", response.body
+  end
+
+  test "we can set aliases through flow_options" do
+    post "/g", params: {}
+    assert_equal "Object", response.body
   end
 end

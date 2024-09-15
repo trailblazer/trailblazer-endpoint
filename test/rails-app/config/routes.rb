@@ -11,4 +11,7 @@ Rails.application.routes.draw do
   post "/dd", to: "memo_controller_test/dd/memos#create"
   post "/e", to: "memo_controller_test/e/memos#create"
   post "/e_admin", to: "memo_controller_test/e/memos#create_with_admin"
+  post "/f", to: "memo_controller_test/f/memos#update"
+  post "/f_with_runtime_variables", to: "memo_controller_test/f/memos#update_with_runtime_variables"
+  post "/g", to: "memo_controller_test/g/memos#update"
 end

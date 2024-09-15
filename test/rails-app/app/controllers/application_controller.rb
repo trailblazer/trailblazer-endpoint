@@ -49,6 +49,15 @@ class ApplicationController < ActionController::Base
     end
     #~ctx end
 
+    flow_options do
+      {
+        context_options: {
+          aliases: {"contract.default": :contract},
+          container_class: Trailblazer::Context::Container::WithAliases,
+        }
+      }
+    end
+
     #~config end
     #~default_matcher
     default_matcher do
@@ -60,6 +69,7 @@ class ApplicationController < ActionController::Base
       }
     end
     #~default_matcher end
+
   end
   #:endpoint end
   #~endpoint end
