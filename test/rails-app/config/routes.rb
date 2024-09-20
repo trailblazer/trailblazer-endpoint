@@ -14,4 +14,5 @@ Rails.application.routes.draw do
   post "/f", to: "memo_controller_test/f/memos#update"
   post "/f_with_runtime_variables", to: "memo_controller_test/f/memos#update_with_runtime_variables"
   post "/g", to: "memo_controller_test/g/memos#update"
+  post "/h", to: "memo_controller_test/h/memos#update"
 end

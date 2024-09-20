@@ -328,6 +328,23 @@ end
     #:g-controller end
   end
 
+  module H
+    Memo = Module.new
+    Memo::Operation = A::Memo::Operation
+
+    class MemosController < ApplicationController
+      # endpoint Memo::Operation::Update
+
+      def update
+        invoke Memo::Operation::Create, protocol: false do
+          success { |ctx, model:, **| render html: model }
+          failure { |ctx, **| head 404 } # never called with {Create}
+          fail_fast { |ctx, **| head 500 }
+        end
+      end
+    end
+  end
+
   # fail_fast is wired to failure
   test "{fail_fast} wired to {failure}" do
   # 201
@@ -398,5 +415,29 @@ end
   test "we can set aliases through flow_options" do
     post "/g", params: {}
     assert_equal "Object", response.body
+  end
+
+  test "{protocol: false} can run OPs without an endpoint" do
+    # success
+    post "/h", params: {memo: {id: 1}}
+    assert_equal "#&lt;struct Memo id=&quot;1&quot;, text=nil&gt;", response.body
+
+    # fail_fast
+    post "/h", params: {}
+    assert_response 500
+  end
+
+  test "high-level Runtime interface" do #  FIXME: move somewhere to unit test
+    fixme_controller = Class.new(ApplicationController) do
+      extend Trailblazer::Endpoint::Controller::State::Config
+    end
+
+    Trailblazer::Endpoint::Runtime.(
+      {
+        params: {memo: {}}
+      },
+      protocol: Memo::Operation::Create,
+      flow_options: fixme_controller._flow_options(),
+    )
   end
 end

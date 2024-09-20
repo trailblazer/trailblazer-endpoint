@@ -118,7 +118,7 @@ module Trailblazer
 
           # Evaluated at runtime.
           def _flow_options(**options)
-            instance_exec &self.class.instance_variable_get(:@state).get(:flow_options)
+            instance_exec &self.class.instance_variable_get(:@state).get(:flow_options) # TODO: pass options, {:domain_activity} etc.
           end
         end
       end # State
@@ -192,11 +192,15 @@ module Trailblazer
       # Runtime code uses instance methods from {Config} to retrieve necessary dependencies,
       # nothing else.
       module Runtime
-        def invoke(operation, **options, &matcher_block)
-          flow_options  = _flow_options(**options)
+        def invoke(operation, protocol: true, **options, &matcher_block)
+          flow_options  = _flow_options(**options) # FIXME: pass operation, so we can use it in the block?
           ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
 
-          action_protocol = _endpoints.fetch(operation.to_s)
+          if protocol
+            action_protocol = _endpoints.fetch(operation.to_s)
+          else
+            action_protocol = operation
+          end
 
           default_matcher = _default_matcher_for_endpoint()
 
