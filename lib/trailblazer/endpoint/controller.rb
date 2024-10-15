@@ -29,6 +29,7 @@ module Trailblazer
               ctx:                  [->(*) { {} }, {}], # empty default hash for {ctx}.
               options_for_endpoint: [{}, {}],
               flow_options:         [->(*) { {} }, {}],
+              invoke:               [->(*) { {} }, {}],
             )
 
             base.initialize!(state)
@@ -70,6 +71,10 @@ module Trailblazer
               @hash[:flow_options] = block
             end
 
+            def invoke(&block)
+              @hash[:invoke] = block
+            end
+
             def self.call(&block)
               dsl = new
               dsl.instance_exec(&block)
@@ -89,6 +94,7 @@ module Trailblazer
             instance_variable_get(:@state).update!(:options_for_endpoint) { |old_options| options[:options_for_endpoint] } if options[:options_for_endpoint]
             instance_variable_get(:@state).update!(:ctx)              { |old_ctx_options| options[:ctx] } if options[:ctx]
             instance_variable_get(:@state).update!(:flow_options) { |old_options| options[:flow_options] } if options[:flow_options]
+            instance_variable_get(:@state).update!(:invoke) { |old_options| options[:invoke] } if options[:invoke]
           end
         end
 
@@ -119,6 +125,10 @@ module Trailblazer
           # Evaluated at runtime.
           def _flow_options(**options)
             instance_exec &self.class.instance_variable_get(:@state).get(:flow_options) # TODO: pass options, {:domain_activity} etc.
+          end
+
+          def _invoke_options(**)
+            instance_exec &self.class.instance_variable_get(:@state).get(:invoke) # TODO: pass options, {:domain_activity} etc.
           end
         end
       end # State
@@ -192,15 +202,25 @@ module Trailblazer
       # Runtime code uses instance methods from {Config} to retrieve necessary dependencies,
       # nothing else.
       module Runtime
-        def invoke(operation, protocol: true, **options, &matcher_block)
-          flow_options  = _flow_options(**options) # FIXME: pass operation, so we can use it in the block?
-          ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
+        def normalize_invoke_options(operation, protocol: true, **options)
+          invoke_options =
+            {protocol: protocol}.
+              merge(_invoke_options) # TODO: pass options.
 
-          if protocol
+          return invoke_options, options
+        end
+
+        def invoke(operation, **options, &matcher_block)
+          invoke_options, options = normalize_invoke_options(operation, **options)
+
+          if invoke_options[:protocol]
             action_protocol = _endpoints.fetch(operation.to_s)
           else
             action_protocol = operation
           end
+
+          flow_options  = _flow_options(**options) # FIXME: pass operation, so we can use it in the block?
+          ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
 
           default_matcher = _default_matcher_for_endpoint()
 

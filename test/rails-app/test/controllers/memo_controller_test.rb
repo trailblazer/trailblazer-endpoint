@@ -335,8 +335,32 @@ end
     class MemosController < ApplicationController
       # endpoint Memo::Operation::Update
 
-      def update
+      def create
         invoke Memo::Operation::Create, protocol: false do
+          success { |ctx, model:, **| render html: model }
+          failure { |ctx, **| head 404 } # never called with {Create}
+          fail_fast { |ctx, **| head 500 }
+        end
+      end
+    end
+  end
+
+
+  # Invoke operation directly, {protocol: false} is configured statically.
+  module I
+    Memo = Module.new
+    Memo::Operation = A::Memo::Operation
+
+    class MemosController < ApplicationController
+      # endpoint Memo::Operation::Update
+      endpoint do
+        invoke do # DISCUSS: should we inject {:activity} here? question is, do we need it?
+          {protocol: false}
+        end
+      end
+
+      def create
+        invoke Memo::Operation::Create do
           success { |ctx, model:, **| render html: model }
           failure { |ctx, **| head 404 } # never called with {Create}
           fail_fast { |ctx, **| head 500 }
@@ -424,6 +448,16 @@ end
 
     # fail_fast
     post "/h", params: {}
+    assert_response 500
+  end
+
+  test "{protocol: false} can be set on controller level via {::invoke}" do
+    # success
+    post "/i", params: {memo: {id: 1}}
+    assert_equal "#&lt;struct Memo id=&quot;1&quot;, text=nil&gt;", response.body
+
+    # fail_fast
+    post "/i", params: {}
     assert_response 500
   end
 
