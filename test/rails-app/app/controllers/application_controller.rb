@@ -49,6 +49,7 @@ class ApplicationController < ActionController::Base
     end
     #~ctx end
 
+    #~flow_options
     flow_options do
       {
         context_options: {
@@ -57,6 +58,7 @@ class ApplicationController < ActionController::Base
         }
       }
     end
+    #~flow_options end
 
     #~config end
     #~default_matcher
