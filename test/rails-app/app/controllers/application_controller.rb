@@ -41,10 +41,10 @@ class ApplicationController < ActionController::Base
     #~options end
 
     #~ctx
-    ctx do # this block is executed in controller instance context.
+    ctx do |controller:, **| # this block is executed in controller instance context.
       {
-        params: params,
-        current_user: current_user,
+        params: controller.params,
+        current_user: controller.current_user,
       }
     end
     #~ctx end

@@ -118,9 +118,9 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
         end
         #~options end
 
-        ctx do # this block is executed in controller instance context.
+        ctx do |controller:, **|
           {
-            params: params,
+            params: controller.params,
           }
         end
       end
@@ -182,9 +182,9 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
           }
         end
         #~misc
-        ctx do # this block is executed in controller instance context.
+        ctx do |controller:, **|
           {
-            params: params,
+            params: controller.params,
           }
         end
         #~misc end
@@ -461,17 +461,25 @@ end
     assert_response 500
   end
 
-  test "high-level Runtime interface" do #  FIXME: move somewhere to unit test
-    fixme_controller = Class.new(ApplicationController) do
-      extend Trailblazer::Endpoint::Controller::State::Config
-    end
+  def render(value)
+    @render = value
+  end
 
+  test "high-level Runtime interface" do #  FIXME: move somewhere to unit test
     Trailblazer::Endpoint::Runtime.(
       {
-        params: {memo: {}}
+        params: ActionController::Parameters.new({memo: {}})
       },
-      protocol: Memo::Operation::Create,
-      flow_options: fixme_controller._flow_options(),
-    )
+      protocol: Memo::Operation::Create, # FIXME: move to first positional argument
+
+      flow_options: ApplicationController._flow_options(),
+
+      matcher_context: self,  # FIXME: default via abstraction
+      default_matcher: {},    # FIXME: default via abstraction
+    ) do
+      success { |ctx, **| render "success from API!!!" }
+    end
+
+    assert_equal @render, "success from API!!!"
   end
 end

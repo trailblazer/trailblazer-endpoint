@@ -105,30 +105,48 @@ module Trailblazer
 
           module ClassMethods
             def _options_for_endpoint
-              instance_variable_get(:@state).get(:options_for_endpoint)
+              @state.get(:options_for_endpoint)
             end
 
             def _endpoints
-              instance_variable_get(:@state).get(:endpoints)
+              @state.get(:endpoints)
+            end
+
+            def _default_matcher_for_endpoint
+              @state.get(:default_matcher)
+            end
+
+            def _options_for_endpoint_ctx(**options)
+              @state.get(:ctx).call(**options)
+            end
+
+            # Evaluated at runtime.
+            def _flow_options(**options)
+              @state.get(:flow_options).call() # TODO: pass options, {:domain_activity} etc.
+            end
+
+            def _invoke_options(**)
+              @state.get(:invoke).call() # TODO: pass options, {:domain_activity} etc.
             end
           end
 
           def _default_matcher_for_endpoint
-            self.class.instance_variable_get(:@state).get(:default_matcher)
+            self.class._default_matcher_for_endpoint
           end
 
           # Evaluated at runtime.
-          def _options_for_endpoint_ctx
-            instance_exec &self.class.instance_variable_get(:@state).get(:ctx)
+          def _options_for_endpoint_ctx(**options)
+            self.class._options_for_endpoint_ctx(**options)
           end
 
           # Evaluated at runtime.
           def _flow_options(**options)
-            instance_exec &self.class.instance_variable_get(:@state).get(:flow_options) # TODO: pass options, {:domain_activity} etc.
+            self.class._flow_options(**options) # TODO: pass options, {:domain_activity} etc.
           end
 
-          def _invoke_options(**)
-            instance_exec &self.class.instance_variable_get(:@state).get(:invoke) # TODO: pass options, {:domain_activity} etc.
+          # Evaluated at runtime.
+          def _invoke_options(**options)
+            self.class._invoke_options(**options)
           end
         end
       end # State
@@ -219,8 +237,12 @@ module Trailblazer
             action_protocol = operation
           end
 
+          options_for_block = {
+            controller: self,
+          }
+
           flow_options  = _flow_options(**options) # FIXME: pass operation, so we can use it in the block?
-          ctx           = _options_for_endpoint_ctx.merge(options)  # FIXME: pass **options
+          ctx           = _options_for_endpoint_ctx(**options_for_block).merge(options)  # FIXME: pass **options
 
           default_matcher = _default_matcher_for_endpoint()
 
