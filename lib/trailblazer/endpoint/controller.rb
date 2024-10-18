@@ -120,9 +120,8 @@ module Trailblazer
               @state.get(:ctx).call(**options)
             end
 
-            # Evaluated at runtime.
             def _flow_options(**options)
-              @state.get(:flow_options).call() # TODO: pass options, {:domain_activity} etc.
+              @state.get(:flow_options).call(**options)
             end
 
             def _invoke_options(**)
@@ -141,7 +140,7 @@ module Trailblazer
 
           # Evaluated at runtime.
           def _flow_options(**options)
-            self.class._flow_options(**options) # TODO: pass options, {:domain_activity} etc.
+            self.class._flow_options(**options)
           end
 
           # Evaluated at runtime.
@@ -238,11 +237,13 @@ module Trailblazer
           end
 
           options_for_block = {
-            controller: self,
+            controller:     self,
+            activity:       action_protocol, # TODO: test me for all receiving directives.
+            invoke_options: options,
           }
 
-          flow_options  = _flow_options(**options) # FIXME: pass operation, so we can use it in the block?
-          ctx           = _options_for_endpoint_ctx(**options_for_block).merge(options)  # FIXME: pass **options
+          flow_options  = _flow_options(**options_for_block) # FIXME: test {options_for_block}.
+          ctx           = _options_for_endpoint_ctx(**options_for_block).merge(options)
 
           default_matcher = _default_matcher_for_endpoint()
 

@@ -78,10 +78,10 @@ class ControllerTest < Minitest::Spec
           }
         end
 
-        ctx do
+        ctx do |controller:, **|
           {
             current_user: Object,
-            **params,
+            **controller.params,
             seq: [],
           }
         end
@@ -213,10 +213,10 @@ class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
       # Runtime
       #
       # Usually this would be done in the ApplicationController.
-      def _options_for_endpoint_ctx(**)
+      def _options_for_endpoint_ctx(controller:, **)
         {
           current_user: Object,
-          **params,
+          **controller.params,
           seq: [],
         }
       end
@@ -300,12 +300,16 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
         self.class.default_matcher_for_endpoint
       end
 
-      def _options_for_endpoint_ctx
-        options_for_endpoint_ctx
+      def _options_for_endpoint_ctx(**options)
+        options_for_endpoint_ctx(**options)
       end
 
-      def _flow_options
+      def _flow_options(**options)
         {}
+      end
+
+      def _invoke_options(**options)
+        options
       end
 # /end
 
@@ -330,10 +334,10 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
       # Runtime
       #
       # Usually this would be done in the ApplicationController.
-      def options_for_endpoint_ctx(**)
+      def options_for_endpoint_ctx(controller:, **)
         {
           current_user: Object,
-          **params,
+          **controller.params,
           seq: [],
         }
       end
@@ -412,17 +416,17 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
           }
         end
 
-        ctx do
+        ctx do |controller:, **|
           {
             current_user: Object,
-            **params,
+            **controller.params,
             seq: [],
           }
         end
 
-        flow_options do
+        flow_options do |controller:, **|
           {
-            data: params.keys,
+            data: controller.params.keys,
 
             context_options: {
               aliases: {"model": :object},
@@ -462,9 +466,10 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
     controller_class = Class.new(application_controller) do
       endpoint Memo::Operation::Create # create "matcher adapter", use default_block
 
+      # @test what options we can access in {#_flow_options}
       def _flow_options(**options)
         super.merge(
-          data: "from _flow_options: #{options.keys}",
+          data: "from _flow_options: #{options.keys} / #{options[:invoke_options].keys}",
         )
       end
       #
@@ -483,7 +488,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       controller_class,
       :create,
 
-      success:            {render: "\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:event]\""},
+      success:            {render: "\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\""},
     )
   end
 end
@@ -519,10 +524,10 @@ class ControllerWithCtxVariablesTest < Minitest::Spec
           }
         end
 
-        ctx do
+        ctx do |controller:, **|
           {
             current_user: Object,
-            **params,
+            **controller.params,
           }
         end
       end
@@ -575,10 +580,10 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
           }
         end
 
-        ctx do
+        ctx do |controller:, **|
           {
             current_user: Object,
-            **params,
+            **controller.params,
             seq: [],
           }
         end
@@ -698,9 +703,9 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
           {}
         end
 
-        ctx do
+        ctx do |controller:, **|
           {
-            **params,
+            **controller.params,
             seq: [],
           }
         end
@@ -956,6 +961,76 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       fail_fast:          {render: %(fail_fast [:params, :validate, :seq, :my_protocol]), validate: Trailblazer::Activity::FastTrack::FailFast},
       # pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
       # not_found:          {render: %(404), model: false},
+    )
+  end
+end
+
+class VariablesBeingPassedToEachDirectiveTest < Minitest::Spec
+  include ControllerTest::Assertion
+
+  module Memo
+    module Operation
+      class Create < Trailblazer::Activity::Railway
+        step task: :capture
+
+        def capture((ctx, flow_options), **circuit_options)
+          ctx[:capture] = %(#{ctx.keys} / #{ctx[:options_readable_in_ctx_block]}
+#{flow_options.keys} / #{flow_options[:options_readable_in_flow_options_block]})
+
+          return Trailblazer::Activity::Right, [ctx, flow_options]
+        end
+      end
+    end
+  end
+
+  it "Controller" do
+    application_controller = Class.new do
+      include ControllerTest::Controller # Test module
+      include Trailblazer::Endpoint::Controller.module
+
+      class Protocol < Trailblazer::Endpoint::Protocol
+        include T.def_steps(:authenticate, :policy)
+      end
+
+      endpoint do
+        options do  # FIXME: ADD options
+          {
+            protocol: Protocol,
+          }
+        end
+
+        ctx do |**options|
+          {
+            options_readable_in_ctx_block: options.keys
+          }
+        end
+
+        flow_options do |**options|
+          {
+            options_readable_in_flow_options_block: options.keys
+          }
+        end
+      end
+
+    end
+
+  # Test that we can merge ApplicationController's {ctx} and {#invoke} options.
+    controller_class = Class.new(application_controller) do
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create, seq: [] do
+          success         { |ctx, capture:, **| render capture }
+        end
+      end
+    end
+
+    assert_runs(
+      controller_class,
+      :create,
+
+      success:            {render: %([:options_readable_in_ctx_block, :seq] / [:controller, :activity, :invoke_options]
+[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :options_readable_in_flow_options_block, :matcher_value] / [:controller, :activity, :invoke_options])},
     )
   end
 end

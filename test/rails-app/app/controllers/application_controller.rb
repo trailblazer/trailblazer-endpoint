@@ -43,14 +43,14 @@ class ApplicationController < ActionController::Base
     #~ctx
     ctx do |controller:, **| # this block is executed in controller instance context.
       {
-        params: controller.params,
+        params:       controller.params,
         current_user: controller.current_user,
       }
     end
     #~ctx end
 
     #~flow_options
-    flow_options do
+    flow_options do |controller:, activity:, **|
       {
         context_options: {
           aliases: {"contract.default": :contract},
