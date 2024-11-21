@@ -247,7 +247,7 @@ module Trailblazer
 
           default_matcher = _default_matcher_for_endpoint()
 
-          Endpoint::Runtime.(ctx, protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
+          Endpoint::Runtime.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
         end
       end
 

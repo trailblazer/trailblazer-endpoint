@@ -5,7 +5,7 @@ module Trailblazer
 
       # We run the Adapter here, which in turn will run your business operation, then the matcher
       # or whatever you have configured.
-      def call(ctx, protocol:, flow_options: {}, matcher_context:, default_matcher:, matcher_extension: Matcher.Extension(), &block) # TODO: test {flow_options}
+      def call(protocol, ctx, flow_options: {}, matcher_context:, default_matcher:, matcher_extension: Matcher.Extension(), &block) # TODO: test {flow_options}
         matcher = Trailblazer::Endpoint::Matcher::DSL.new.instance_exec(&block)
 
         matcher_value = Trailblazer::Endpoint::Matcher::Value.new(default_matcher, matcher, matcher_context)

@@ -42,28 +42,28 @@ class ProtocolTest < Minitest::Spec
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(ctx, protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(ctx.merge(model: false), protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(model: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(404, false not found)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(ctx.merge(save: false), protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(save: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(failure)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(ctx.merge(policy: false), protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(policy: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(not authorized: {:id=>1})
 
     ctx = {seq: [], model: {id: 1}}
 
     assert_raises KeyError do
-      Trailblazer::Endpoint::Runtime.(ctx.merge(authenticate: false), protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+      Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(authenticate: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
       # assert_equal @rendered, %(404, false not found)
     end
 
@@ -105,7 +105,7 @@ class ProtocolTest < Minitest::Spec
       }
     }
 
-    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(ctx, protocol: action_protocol, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
+    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
 
     assert_equal ctx.class, Trailblazer::Context::Container::WithAliases
     # assert_equal ctx.inspect, %(#<Trailblazer::Context::Container wrapped_options={:seq=>[:authenticate, :policy, :save], :model=>{:id=>1}} mutable_options={:model=>Object}>)
@@ -137,7 +137,7 @@ class ProtocolTest < Minitest::Spec
     # adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
 
     # ctx doesn't contain {:model}, yet.
-    Trailblazer::Endpoint::Runtime.({}, flow_options: {model: Object}, protocol: protocol, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
   end
 
@@ -150,7 +150,7 @@ class ProtocolTest < Minitest::Spec
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(ctx, protocol: Create, default_matcher: {}, matcher_context: self) do
+    Trailblazer::Endpoint::Runtime.(Create, ctx, default_matcher: {}, matcher_context: self) do
       success { |ctx, model:, **| render model.inspect }
     end
 

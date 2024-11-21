@@ -467,10 +467,10 @@ end
 
   test "high-level Runtime interface" do #  FIXME: move somewhere to unit test
     Trailblazer::Endpoint::Runtime.(
+      Memo::Operation::Create,
       {
         params: ActionController::Parameters.new({memo: {}})
       },
-      protocol: Memo::Operation::Create, # FIXME: move to first positional argument
 
       flow_options: ApplicationController._flow_options(),
 
