@@ -242,7 +242,7 @@ module Trailblazer
             invoke_options: options,
           }
 
-          flow_options  = _flow_options(**options_for_block) # FIXME: test {options_for_block}.
+          flow_options  = _flow_options(**options_for_block)
           ctx           = _options_for_endpoint_ctx(**options_for_block).merge(options)
 
           default_matcher = _default_matcher_for_endpoint()
