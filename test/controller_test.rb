@@ -1,5 +1,7 @@
 require "test_helper"
 
+# These tests cover `Controller#invoke` and configuration DSL
+# such as `Controller.default_matcher {}`.
 class ControllerTest < Minitest::Spec
   module Controller
     attr_reader :params
@@ -424,9 +426,10 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
           }
         end
 
-        flow_options do |controller:, **|
+        # we can see {:controller} and {:activity}
+        flow_options do |controller:, activity:, **|
           {
-            data: controller.params.keys,
+            data: [controller.params.keys, activity.superclass.inspect],
 
             context_options: {
               aliases: {"model": :object},
@@ -457,7 +460,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       controller_class,
       :create,
 
-      success:            {render: %("[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]" "[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [:params]")},
+      success: {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\""},
     )
 
   # Test overriding {Controller#_flow_options}.
