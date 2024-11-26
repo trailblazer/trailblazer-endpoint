@@ -23,7 +23,7 @@ class ProtocolTest < Minitest::Spec
     include T.def_steps(:authenticate, :policy)
   end
 
-  it "{Runtime.call}" do
+  it "{Runtime.call} matcher block" do
     default_matcher = {
       success:    ->(*) { raise },
       not_found:  ->(ctx, model:, **) { render "404, #{model} not found" },
@@ -66,8 +66,6 @@ class ProtocolTest < Minitest::Spec
       Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(authenticate: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
       # assert_equal @rendered, %(404, false not found)
     end
-
-    #,mljnimh
 
     # endpoint "bla", ctx: {} do
     #   success do |ctx, model:, **|
