@@ -19,7 +19,7 @@ class OperationTest < Minitest::Spec
 
     ctx = {model: Object} # ordinary hash.
 
-    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(Create, ctx, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime::Matcher.(Create, ctx, default_matcher: default_matcher, matcher_context: self, &matcher_block)
 
     assert_equal ctx.class, Trailblazer::Context::Container
     assert_equal ctx.keys.inspect, %([:model])
@@ -37,7 +37,7 @@ class OperationTest < Minitest::Spec
       }
     }
 
-    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(Create, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
+    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime::Matcher.(Create, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
 
     assert_equal ctx.class, Trailblazer::Context::Container::WithAliases
     assert_equal ctx.keys.inspect, %([:model, :object])

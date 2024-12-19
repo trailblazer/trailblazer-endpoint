@@ -23,7 +23,7 @@ class ProtocolTest < Minitest::Spec
     include T.def_steps(:authenticate, :policy)
   end
 
-  it "{Runtime.call} matcher block" do
+  it "{Runtime::Matcher.call} matcher block" do
     default_matcher = {
       success:    ->(*) { raise },
       not_found:  ->(ctx, model:, **) { render "404, #{model} not found" },
@@ -42,28 +42,28 @@ class ProtocolTest < Minitest::Spec
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(model: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx.merge(model: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(404, false not found)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(save: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx.merge(save: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(failure)
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(policy: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx.merge(policy: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(not authorized: {:id=>1})
 
     ctx = {seq: [], model: {id: 1}}
 
     assert_raises KeyError do
-      Trailblazer::Endpoint::Runtime.(action_protocol, ctx.merge(authenticate: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
+      Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx.merge(authenticate: false), default_matcher: default_matcher, matcher_context: self, &matcher_block)
       # assert_equal @rendered, %(404, false not found)
     end
 
@@ -77,7 +77,7 @@ class ProtocolTest < Minitest::Spec
     #   render model.inspect
     # end
 
-    # Trailblazer::Endpoint::Runtime.call ctx, adapter: action_adapter do
+    # Trailblazer::Endpoint::Runtime::Matcher.call ctx, adapter: action_adapter do
     #   success { |ctx, model:, **| render model.inspect }
     #   failure { |*| render "failure" }
     #   not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
@@ -103,7 +103,7 @@ class ProtocolTest < Minitest::Spec
       }
     }
 
-    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
+    signal, ((ctx, flow_options), circuit_options) = Trailblazer::Endpoint::Runtime::Matcher.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options_with_aliasing, &matcher_block)
 
     assert_equal ctx.class, Trailblazer::Context::Container::WithAliases
     # assert_equal ctx.inspect, %(#<Trailblazer::Context::Container wrapped_options={:seq=>[:authenticate, :policy, :save], :model=>{:id=>1}} mutable_options={:model=>Object}>)
@@ -135,11 +135,11 @@ class ProtocolTest < Minitest::Spec
     # adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
 
     # ctx doesn't contain {:model}, yet.
-    Trailblazer::Endpoint::Runtime.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    Trailblazer::Endpoint::Runtime::Matcher.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
   end
 
-  it "using {Runtime.call} without a Protocol" do
+  it "using {Runtime::Matcher.call} without a Protocol" do
     matcher_block = Proc.new do
       success { |ctx, model:, **| render model.inspect }
       failure { |*| render "failure" }
@@ -148,7 +148,7 @@ class ProtocolTest < Minitest::Spec
 
     ctx = {seq: [], model: {id: 1}}
 
-    Trailblazer::Endpoint::Runtime.(Create, ctx, default_matcher: {}, matcher_context: self) do
+    Trailblazer::Endpoint::Runtime::Matcher.(Create, ctx, default_matcher: {}, matcher_context: self) do
       success { |ctx, model:, **| render model.inspect }
     end
 

@@ -466,7 +466,7 @@ end
   end
 
   test "high-level Runtime interface" do #  FIXME: move somewhere to unit test
-    Trailblazer::Endpoint::Runtime.(
+    Trailblazer::Endpoint::Runtime::Matcher.(
       Memo::Operation::Create,
       {
         params: ActionController::Parameters.new({memo: {}})
