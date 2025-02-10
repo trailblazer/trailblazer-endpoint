@@ -460,7 +460,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       controller_class,
       :create,
 
-      success: {:render=>"\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\""},
+      success: {:render=>"\"[:data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\" \"[:data, :context_options, :matcher_value] [[:params], \\\"ControllerWithFlowOptionsTest::Protocol\\\"]\""},
     )
 
   # Test overriding {Controller#_flow_options}.
@@ -491,7 +491,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       controller_class,
       :create,
 
-      success:            {render: "\"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\" \"[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\""},
+      success:            {render: "\"[:data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\" \"[:data, :context_options, :matcher_value] from _flow_options: [:controller, :activity, :invoke_options] / [:event]\""},
     )
   end
 end
@@ -1033,7 +1033,7 @@ class VariablesBeingPassedToEachDirectiveTest < Minitest::Spec
       :create,
 
       success:            {render: %([:options_readable_in_ctx_block, :seq] / [:controller, :activity, :invoke_options]
-[:stack, :before_snapshooter, :after_snapshooter, :value_snapshooter, :options_readable_in_flow_options_block, :matcher_value] / [:controller, :activity, :invoke_options])},
+[:options_readable_in_flow_options_block, :matcher_value] / [:controller, :activity, :invoke_options])},
     )
   end
 end
