@@ -42,7 +42,7 @@ module Trailblazer
 
           flow_options = flow_options.merge(matcher_value: matcher_value) # matchers will be executed in Adapter's taskWrap.
 
-          Runtime.(activity, ctx, flow_options: flow_options, extensions: [matcher_extension], &block)
+          Runtime.(activity, ctx, flow_options: flow_options, extensions: [matcher_extension])
         end
       end
     end # Runtime
