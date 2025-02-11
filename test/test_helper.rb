@@ -12,6 +12,9 @@ Minitest::Spec.class_eval do
     super(asserted, expected, *args)
   end
 
+  require "trailblazer/core"
+  CU = Trailblazer::Core::Utils
+
   def assert_route(endpoint, ctx_additions, *route, **ctx_assumptions)
     seq = route[0..-2]
     terminus = route[-1]

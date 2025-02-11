@@ -1,5 +1,50 @@
 require "test_helper"
 
+class RuntimeTest < Minitest::Spec
+  class Create < Trailblazer::Activity::FastTrack
+    include T.def_steps(:model)
+
+    step :model
+  end
+
+  def render(content)
+    @render = content
+  end
+
+  it "without block" do
+    ctx = {seq: [], model: Object}
+
+    signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx)
+
+    assert_equal signal.inspect, %(#<Trailblazer::Activity::End semantic=:success>)
+    assert_equal result.class, Trailblazer::Context::Container
+    assert_equal CU.inspect(result.to_h), %({:seq=>[:model], :model=>Object})
+  end
+
+  it "accepts a block" do
+    ctx = {seq: [], model: Object}
+
+    signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx, matcher_context: self) do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    assert_equal signal.inspect, %(#<Trailblazer::Activity::End semantic=:success>)
+    assert_equal result.class, Trailblazer::Context::Container
+    assert_equal CU.inspect(result.to_h), %({:seq=>[:model], :model=>Object})
+    assert_equal @render, %(Object)
+  end
+
+  it "using {Runtime::Matcher.call} without a Protocol" do
+    ctx = {seq: [], model: Object}
+
+    Trailblazer::Endpoint::Runtime::Matcher.(Create, ctx, default_matcher: {}, matcher_context: self) do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    assert_equal @render, %(Object)
+  end
+end
+
 class ProtocolTest < Minitest::Spec
   def render(text)
     @rendered = text
@@ -136,22 +181,6 @@ class ProtocolTest < Minitest::Spec
 
     # ctx doesn't contain {:model}, yet.
     Trailblazer::Endpoint::Runtime::Matcher.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
-    assert_equal @rendered, %(Object)
-  end
-
-  it "using {Runtime::Matcher.call} without a Protocol" do
-    matcher_block = Proc.new do
-      success { |ctx, model:, **| render model.inspect }
-      failure { |*| render "failure" }
-      not_authorized { |ctx, model:, **| render "not authorized: #{model}" }
-    end
-
-    ctx = {seq: [], model: {id: 1}}
-
-    Trailblazer::Endpoint::Runtime::Matcher.(Create, ctx, default_matcher: {}, matcher_context: self) do
-      success { |ctx, model:, **| render model.inspect }
-    end
-
     assert_equal @rendered, %(Object)
   end
 end
