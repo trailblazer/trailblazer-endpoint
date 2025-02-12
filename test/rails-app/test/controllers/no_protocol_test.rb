@@ -10,7 +10,7 @@ class NoProtocolTest < ActionDispatch::IntegrationTest
 
     endpoint do
       #~flow_options
-      flow_options do |controller:, activity:, **|
+      flow_options do |**|
         {
           context_options: {
             aliases: {"contract.default": :contract},
@@ -63,6 +63,60 @@ class NoProtocolTest < ActionDispatch::IntegrationTest
     assert_redirected_to "/memos/1"
 
     post "/no/a", params: {}
+    assert_equal "<form>\n  {:title=&gt;[&quot;must be filled&quot;]}\n</form>\n", response.body
+  end
+
+
+  # {endpoint.ctx} is defined.
+  # We don't need {params: params} being passed to {#invoke}.
+  module B
+    class ApplicationController < ActionController::Base
+      include Trailblazer::Endpoint::Controller.module
+
+      #:b-endpoint-dsl
+      endpoint do
+        flow_options do |**|
+          {
+            context_options: {
+              aliases: {"contract.default": :contract},
+              container_class: Trailblazer::Context::Container::WithAliases,
+            }
+          }
+        end
+        #~ctx
+        ctx do |controller:, **|
+          {
+            params: controller.params,
+          }
+        end
+        #~ctx end
+      end
+      #:b-endpoint-dsl end
+    end
+
+    Memo = A::Memo
+
+    class MemosController < ApplicationController
+      #:b-create
+      def create
+        invoke Memo::Operation::Create, protocol: false do
+          #~skip
+          success { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+          failure { |ctx, contract:, **|
+            render partial: "form", locals: {contract: contract}
+          }
+          #~skip end
+        end
+      end
+      #:b-create end
+    end
+  end # B
+
+  test "{endpoint.ctx} passes {params} to {#invoke}" do
+    post "/no/b", params: {memo: {id: 1, text: "Remember that!"}}
+    assert_redirected_to "/memos/1"
+
+    post "/no/b", params: {}
     assert_equal "<form>\n  {:title=&gt;[&quot;must be filled&quot;]}\n</form>\n", response.body
   end
 end
