@@ -1,24 +1,19 @@
 module Trailblazer
   class Endpoint
     module Runtime
-      # DISCUSS: allow kws here as public API?
-      def __(activity, options, **kws, &block) # TODO: move this to endpoint.
-        signal, (ctx, flow_options) = Trailblazer::Endpoint::Runtime.(
-          activity, options,
+      # This module implements the end user's top level entry point for running activities.
+      # By "overriding" **kws they can inject any {flow_options} or other {Runtime.call} options needed.
+      # See runtime_test.rb.
+      module TopLevel
+        def __(activity, options, **kws, &block)
+          signal, (ctx, _) = Trailblazer::Endpoint::Runtime.(activity, options, **kws, &block)
 
-          flow_options: ApplicationController._flow_options(activity: activity),
+          return signal, ctx # DISCUSS: should we provide a Result object here?
+        end
 
-          # matcher_context: self,  # FIXME: default via abstraction
-          # default_matcher: {},    # FIXME: default via abstraction
-          **kws,
-          &block
-        )
-
-        return signal, ctx # DISCUSS: should we provide a Result object here?
-      end
-
-      def __?(*args, &block) # TODO: move this to endpoint.
-        __(*args, invoke_method: Trailblazer::Developer::Wtf.method(:invoke), &block)
+        def __?(*args, &block) # TODO: move this to endpoint.
+          __(*args, invoke_method: Trailblazer::Developer::Wtf.method(:invoke), &block)
+        end
       end
 
 

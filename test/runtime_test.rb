@@ -14,7 +14,7 @@ class RuntimeTest < Minitest::Spec
 
   let(:ctx) { {seq: [], model: Object} }
 
-  it "without block" do
+  it "without block, accepts operation and {ctx}, and returns original returnset" do
     signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx)
 
     assert_equal signal.inspect, %(#<Trailblazer::Activity::End semantic=:success>)
@@ -38,6 +38,19 @@ class RuntimeTest < Minitest::Spec
     assert_equal result[:record], Object
   end
 
+  it "accepts {:default_matcher}" do # DISCUSS: we don't need the explicit block in this case.
+    default_matcher = {
+      success:    ->(ctx, model:, **) { render "201, #{model}" },
+      not_found:  ->(ctx, model:, **) { render "404, #{model} not found" },
+      not_authorized: ->(*) { snippet },
+    }
+
+    signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx, matcher_context: self, default_matcher: default_matcher) do
+    end
+
+    assert_equal @render, %(201, Object)
+  end
+
   it "accepts a block" do
     signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx, matcher_context: self) do
       success { |ctx, model:, **| render model.inspect }
@@ -47,6 +60,38 @@ class RuntimeTest < Minitest::Spec
     assert_equal result.class, Trailblazer::Context::Container
     assert_equal CU.inspect(result.to_h), %({:seq=>[:model], :model=>Object})
     assert_equal @render, %(Object)
+  end
+
+  it "can be invoked via {TopLevel#__()}" do
+    kernel = Class.new do
+      include Trailblazer::Endpoint::Runtime::TopLevel
+
+      def __(operation, ctx, flow_options: FLOW_OPTIONS, **, &block)
+        super
+      end
+
+      FLOW_OPTIONS = {
+        context_options: {
+          aliases: {"model": :record},
+          container_class: Trailblazer::Context::Container::WithAliases,
+        }
+      }
+    end
+
+    signal, (ctx,) = kernel.new.__(Create, self.ctx) # FLOW_OPTIONS are applied!
+
+    assert_equal ctx[:record], Object
+
+    stdout, _ = capture_io do
+      signal, (ctx,) = kernel.new.__?(Create, self.ctx) # FLOW_OPTIONS are applied!
+    end
+
+    assert_equal ctx[:record], Object
+    assert_equal stdout, %(RuntimeTest::Create
+|-- \e[32mStart.default\e[0m
+|-- \e[32mmodel\e[0m
+`-- End.success
+)
   end
 
 
