@@ -1,5 +1,6 @@
 require "test_helper"
 
+# This tests {Runtime.call}, the top-level entry point for end users.
 class RuntimeTest < Minitest::Spec
   class Create < Trailblazer::Activity::FastTrack
     include T.def_steps(:model)
@@ -11,9 +12,9 @@ class RuntimeTest < Minitest::Spec
     @render = content
   end
 
-  it "without block" do
-    ctx = {seq: [], model: Object}
+  let(:ctx) { {seq: [], model: Object} }
 
+  it "without block" do
     signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx)
 
     assert_equal signal.inspect, %(#<Trailblazer::Activity::End semantic=:success>)
@@ -21,9 +22,23 @@ class RuntimeTest < Minitest::Spec
     assert_equal CU.inspect(result.to_h), %({:seq=>[:model], :model=>Object})
   end
 
-  it "accepts a block" do
-    ctx = {seq: [], model: Object}
+  it "it accepts {:flow_options}" do
+    flow_options_with_aliasing = {
+      context_options: {
+        aliases: {"model": :record},
+        container_class: Trailblazer::Context::Container::WithAliases,
+      }
+    }
 
+    signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx, flow_options: flow_options_with_aliasing)
+
+    assert_equal signal.inspect, %(#<Trailblazer::Activity::End semantic=:success>)
+    assert_equal result.class, Trailblazer::Context::Container::WithAliases
+    assert_equal CU.inspect(result.to_h), %({:seq=>[:model], :model=>Object, :record=>Object})
+    assert_equal result[:record], Object
+  end
+
+  it "accepts a block" do
     signal, (result, _) = Trailblazer::Endpoint::Runtime.(Create, ctx, matcher_context: self) do
       success { |ctx, model:, **| render model.inspect }
     end
@@ -34,6 +49,10 @@ class RuntimeTest < Minitest::Spec
     assert_equal @render, %(Object)
   end
 
+
+
+
+  # FIXME: what is this test?
   it "using {Runtime::Matcher.call} without a Protocol" do
     ctx = {seq: [], model: Object}
 
