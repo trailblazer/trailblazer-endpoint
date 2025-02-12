@@ -90,6 +90,16 @@ class NoProtocolTest < ActionDispatch::IntegrationTest
           }
         end
         #~ctx end
+        #~default_matcher
+        default_matcher do
+          {
+            failure: ->(ctx, contract:, **) {
+              render partial: "form", locals: {contract: contract}
+            },
+            not_found: ->(ctx, **) { head 404 }
+          }
+        end
+        #~default_matcher end
       end
       #:b-endpoint-dsl end
     end
@@ -102,9 +112,6 @@ class NoProtocolTest < ActionDispatch::IntegrationTest
         invoke Memo::Operation::Create, protocol: false do
           #~skip
           success { |ctx, model:, **| redirect_to memo_path(id: model.id) }
-          failure { |ctx, contract:, **|
-            render partial: "form", locals: {contract: contract}
-          }
           #~skip end
         end
       end
@@ -118,5 +125,7 @@ class NoProtocolTest < ActionDispatch::IntegrationTest
 
     post "/no/b", params: {}
     assert_equal "<form>\n  {:title=&gt;[&quot;must be filled&quot;]}\n</form>\n", response.body
+
+    #  TODO: 404
   end
 end
