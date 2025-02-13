@@ -1,5 +1,6 @@
 require "test_helper"
 
+# TODO: check if we still need this test after we got {protocol_test}.
 class MemoControllerTest < ActionDispatch::IntegrationTest
 
   module A
