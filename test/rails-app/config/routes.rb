@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   post "/no/b", to: "no_protocol_test/b/memos#create"
 
   post "/a", to: "memo_controller_test/a/memos#create"
+  post "/aa", to: "memo_controller_test/aa/memos#create"
   post "/b", to: "memo_controller_test/b/memos#create"
   post "/c", to: "memo_controller_test/c/memos#update"
   post "/c_inherited", to: "memo_controller_test/c/memos#with_inherited_404_handler"

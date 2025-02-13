@@ -219,7 +219,7 @@ module Trailblazer
       # Runtime code uses instance methods from {Config} to retrieve necessary dependencies,
       # nothing else.
       module Runtime
-        def normalize_invoke_options(operation, protocol: true, **options)
+        def normalize_invoke_options(operation, protocol: false, **options)
           invoke_options =
             {protocol: protocol}.
               merge(_invoke_options) # TODO: pass options.

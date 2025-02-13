@@ -1,10 +1,10 @@
 require "trailblazer/endpoint/controller"
 
-#:application-controller-include
 #:application-controller
 class ApplicationController < ActionController::Base
+  #~include
   include Trailblazer::Endpoint::Controller.module
-#:application-controller-include end
+  #~include end
   #~config
 
   module Endpoint

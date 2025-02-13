@@ -1,6 +1,7 @@
 require "test_helper"
 
 class MemoControllerTest < ActionDispatch::IntegrationTest
+
   module A
     Memo = Module.new
 
@@ -27,6 +28,12 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       endpoint Memo::Operation::Create # define endpoint.
       #~define end
 
+      endpoint do
+        invoke do
+          {protocol: true}
+        end
+      end
+
       #~create
       def create
         invoke Memo::Operation::Create do # call the endpoint, use matchers:
@@ -40,6 +47,23 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
     #:endpoint-controller end
   end # A
 
+  # {protocol: true}
+  module Aa
+    Memo = A::Memo
+
+    class MemosController < ApplicationController
+      endpoint Memo::Operation::Create # define endpoint.
+
+      def create
+        invoke Memo::Operation::Create, protocol: true do # call the endpoint, use matchers:
+          success { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+          # failure is inherited
+          # not_found is inherited
+        end
+      end
+    end
+  end # AA
+
   module B
     Memo = Module.new
     Memo::Operation = A::Memo::Operation
@@ -51,7 +75,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       #~fast-track end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           # failure is inherited
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
           fail_fast { |ctx, **| head 500 }
@@ -78,7 +102,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       endpoint "inherited 404 handler", domain_activity: Memo::Operation::Update
 
       def update
-        invoke Memo::Operation::Update do
+        invoke Memo::Operation::Update, protocol: true do
           # failure is inherited
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
           not_found { |ctx, **| head 404 }
@@ -86,7 +110,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       end
 
       def with_inherited_404_handler
-        invoke "inherited 404 handler" do
+        invoke "inherited 404 handler", protocol: true do
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
         end
       end
@@ -144,14 +168,14 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       #:empty end
 
       def update
-        invoke Memo::Operation::Update do
+        invoke Memo::Operation::Update, protocol: true do
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
           failure   { |ctx, **| head 401 }
         end
       end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success   { |ctx, model:, **| head 201 }
           failure   { |ctx, **| head 401 }
         end
@@ -198,7 +222,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       endpoint Memo::Operation::Create
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
           failure   { |*| head 401 }
         end
@@ -226,7 +250,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
 
       #~create
       def create
-        invoke "create" do # endpoint name
+        invoke "create", protocol: true do # endpoint name
           #~action
           success   { |ctx, **| render html: ctx.keys.inspect }
           #~action end
@@ -235,7 +259,7 @@ class MemoControllerTest < ActionDispatch::IntegrationTest
       #~create end
 
       def create_with_admin
-        invoke "create/admin" do
+        invoke "create/admin", protocol: true do
           success   { |ctx, admin:, **| render html: admin.inspect + ctx.keys.inspect }
         end
       end
@@ -283,7 +307,7 @@ end
       MyBucket = Object
       #~runtime
       def update_with_runtime_variables
-        invoke Memo::Operation::Update, storage: MyBucket do
+        invoke Memo::Operation::Update, storage: MyBucket, protocol: true do
           #~misc
           success { |ctx, variables:, **| render html: variables }
           #~misc end
@@ -320,7 +344,7 @@ end
       endpoint Memo::Operation::Update
 
       def update
-        invoke Memo::Operation::Update do
+        invoke Memo::Operation::Update, protocol: true do
           success { |ctx, contract:, **| render html: contract }
         end
       end
@@ -360,7 +384,7 @@ end
       end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success { |ctx, model:, **| render html: model }
           failure { |ctx, **| head 404 } # never called with {Create}
           fail_fast { |ctx, **| head 500 }
@@ -377,6 +401,18 @@ end
 
   # 401
     post "/a", params: {} # fail_fast
+    assert_response 401
+    assert_equal "", response.body
+  end
+
+  # {protocol: true} works
+  test "{protocol: true} uses endpoint" do
+  # 201
+    post "/aa", params: {memo: {id: 1, text: "Remember that!"}}
+    assert_redirected_to "/memos/1"
+
+  # 401
+    post "/aa", params: {} # fail_fast
     assert_response 401
     assert_equal "", response.body
   end
@@ -472,7 +508,7 @@ end
         params: ActionController::Parameters.new({memo: {}})
       },
 
-      flow_options: ApplicationController._flow_options(),
+      flow_options: ApplicationController._flow_options(controller: nil, activity: nil),
 
       matcher_context: self,  # FIXME: default via abstraction
       default_matcher: {},    # FIXME: default via abstraction

@@ -102,7 +102,7 @@ class ControllerTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, model:, **| render model.inspect }
           failure         { |*| render "failure" }
           not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
@@ -123,7 +123,7 @@ class ControllerTest < Minitest::Spec
       end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, seq:, **| render "#{seq.inspect} #{ctx.keys}" }
         end
       end
@@ -140,7 +140,7 @@ class ControllerTest < Minitest::Spec
       end
 
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, model:, **| render model.inspect }
           failure         { |*| render "failure" } # inherit "failure"
           # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" } # inherit "not_authorized"
@@ -251,7 +251,7 @@ class ControllerWithInheritanceButOverridingViaMethodsTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, model:, **| render model.inspect }
           failure         { |*| render "failure" }
           not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
@@ -363,7 +363,7 @@ class ControllerWithoutInheritanceTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, model:, **| render model.inspect }
           failure         { |*| render "failure" }
           not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
@@ -448,7 +448,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success         { |ctx, model:, object:, **| render "#{model.inspect} #{object.inspect}" }
           # failure         { |*| render "failure" }
           # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
@@ -479,7 +479,7 @@ class ControllerWithFlowOptionsTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create, event: "create!" do
+        invoke Memo::Operation::Create, event: "create!", protocol: true do
           success         { |ctx, model:, object: nil, **| render "#{model.inspect} #{object.inspect}" }
           # failure         { |*| render "failure" }
           # not_authorized  { |ctx, current_user:, **| render "not authorized: #{current_user}" }
@@ -601,13 +601,13 @@ class ControllerWithSeveralIdenticalEndpointsTest < Minitest::Spec
       # Actions
       #
       def create
-        invoke Memo::Operation::Create do
+        invoke Memo::Operation::Create, protocol: true do
           success { |ctx, model:, **| render model.inspect }
         end
       end
 
       def create_again
-        invoke "Create again" do
+        invoke "Create again", protocol: true do
           success { |ctx, model:, **| render "again: #{model.inspect}" }
         end
       end
@@ -735,7 +735,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def create
-        invoke "explicit fast_track" do
+        invoke "explicit fast_track", protocol: true do
           success   { |ctx, **| render "success" }
           fail_fast { |*| render "yay, fast_track!" }
           failure   { |*| render "failure" }
@@ -745,7 +745,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def with_binary
-        invoke "binary" do
+        invoke "binary", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           not_found { |*| render "404" }
@@ -753,7 +753,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def with_custom_wiring
-        invoke "custom wiring" do
+        invoke "custom wiring", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           fail_fast { |*| render "404" }
@@ -761,7 +761,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def with_binary_and_custom_wiring
-        invoke "binary and custom wiring" do
+        invoke "binary and custom wiring", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           fail_fast { |*| render "fail_fast" }
@@ -794,7 +794,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       endpoint "railway by default, custom options", domain_activity: Memo::Operation::Create, fast_track_to_railway: false, protocol: my_protocol
 
       def with_railway_by_default
-        invoke "railway by default" do
+        invoke "railway by default", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           not_found { |*| render "404" }
@@ -803,7 +803,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def with_railway_by_default_with_custom_wiring
-        invoke "railway by default with custom wiring" do
+        invoke "railway by default with custom wiring", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           not_found { |*| render "404" }
@@ -812,7 +812,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def with_overriding_class_options
-        invoke "railway by default, custom options" do
+        invoke "railway by default, custom options", protocol: true do
           success   { |ctx, **| render "success #{ctx.keys}" }
           fail_fast { |ctx, **| render "fail_fast #{ctx.keys}" }
         end
@@ -849,7 +849,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       # end
 
       def create
-        invoke "4x fast_track + not_found" do
+        invoke "4x fast_track + not_found", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure" }
           fail_fast { |*| render "fail_fast" }
@@ -859,7 +859,7 @@ class ControllerWithOperationAndFastTrackTest < Minitest::Spec
       end
 
       def create_not_found
-        invoke "5 tracks, overriding 404" do
+        invoke "5 tracks, overriding 404", protocol: true do
           success   { |ctx, **| render "success" }
           failure   { |*| render "failure or 404" }
           fail_fast { |*| render "fail_fast" }
