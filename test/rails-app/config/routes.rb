@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   post "/no/b", to: "no_protocol_test/b/memos#create"
 
   post "/po/a", to: "protocol_test/a/memos#create"
+  post "/po/b", to: "protocol_test/b/memos#create"
+  post "/po/c", to: "protocol_test/c/memos#create"
+  post "/po/d", to: "protocol_test/d/memos#create"
+  post "/po/e", to: "protocol_test/e/memos#create"
 
   post "/a", to: "memo_controller_test/a/memos#create"
   post "/aa", to: "memo_controller_test/aa/memos#create"

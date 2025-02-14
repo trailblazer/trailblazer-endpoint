@@ -181,7 +181,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     assert_equal "", response.body
   end
 
-  # override {:fast_track_to_railway} with {endpoint Update}.
+  # override {:fast_track_to_railway} when defining {endpoint Update}.
   module D
     Memo = C::Memo
     class Protocol < Trailblazer::Activity::FastTrack
@@ -228,5 +228,147 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     assert_response 401
     assert_equal "", response.body
   end
+
+  # MyProtocol adds {not_found} and other termini.
+  module E
+    Memo = C::Memo
+
+    module Memo::Operation
+      class Create < Trailblazer::Operation
+        step :validate
+        step :model
+
+        def validate(ctx, params:, **)
+          ctx[:contract] = "Yo, contract."
+
+          params[:memo]
+        end
+
+        def model(ctx, params:, **)
+          ctx[:model] = ::Memo.create(**params[:memo].permit!)
+        end
+      end
+    end
+
+    #:protocol-terminus
+    class MyProtocol < Trailblazer::Activity::Railway
+      # add additional termini.
+      terminus :not_found
+      terminus :not_authenticated
+      terminus :not_authorized
+
+      step :authenticate, Output(:failure) => Track(:not_authenticated)
+      step nil, id: :domain_activity  # {Memo::Operation::Create} gets placed here.
+
+      def authenticate(ctx, params:, **)
+        #~skip
+        params[:authenticate] != "false"
+        #~skip end
+      end
+    end
+    #:protocol-terminus end
+
+    #:controller-protocol-block
+    class ApplicationController < ActionController::Base
+      include Trailblazer::Endpoint::Controller.module
+
+      endpoint do
+        #~options
+        options do
+          {
+            protocol: MyProtocol,
+            # default wiring, applied to all endpoints:
+            # protocol_block: -> do
+            #   {Output(:not_found) => End(:not_found)}
+            # end
+          }
+        end
+        #~options end
+      end
+    end
+    #:controller-protocol-block end
+
+    #:handler-controller
+    class MemosController < ApplicationController
+
+
+      #~handler-five
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create, protocol: true, params: params do
+          success   { |ctx, model:, **| redirect_to memo_path(model.id) }
+          failure   { |ctx, contract:, **| render partial: "form", object: contract }
+          not_authorized { |**| head 403 }
+          not_authenticated { |**| head 401 }
+          not_found { |ctx, **| render file: PAGE_404, status: :not_found }
+        end
+      end
+      #~handler-five end
+    end
+    #:handler-controller end
+  end
+
+  test "we cover five termini" do
+  # 200
+    post "/po/e", params: {memo: {id: 1}}
+    assert_redirected_to "/memos/1"
+
+  # failure/invalid
+    post "/po/e", params: {}
+    assert_response 200
+    assert_equal "<form>Yo, contract.</form>\n", response.body
+
+  # not_authenticated
+    post "/po/e", params: {authenticate: "false"}
+    assert_response 401
+    assert_equal "", response.body
+  end
+  # module Dd
+  #   #:dd-controller
+  #   class ApplicationController < ActionController::Base
+  #     include Trailblazer::Endpoint::Controller.module
+
+  #     #~endpoint
+  #     endpoint do
+  #       options do
+  #         {
+  #           #~misc
+  #           protocol: ::ApplicationController::Endpoint::Protocol,
+  #           #~misc end
+  #           # default wiring, applied to all endpoints:
+  #           protocol_block: -> do
+  #             if to_h[:outputs].find { |output| output.semantic == :not_found }
+  #               {Output(:not_found) => End(:not_found)}
+  #             else
+  #               {}
+  #             end
+  #           end
+  #         }
+  #       end
+  #       #~misc
+  #       ctx do |controller:, **|
+  #         {
+  #           params: controller.params,
+  #         }
+  #       end
+  #       #~misc end
+  #     end
+  #     #~endpoint end
+  #   end
+  #   #:dd-controller end
+
+  #   class MemosController < ApplicationController
+  #     # TODO: add Update?
+  #     endpoint Memo::Operation::Create
+
+  #     def create
+  #       invoke Memo::Operation::Create, protocol: true do
+  #         success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
+  #         failure   { |*| head 401 }
+  #       end
+  #     end
+  #   end
+  # end
 end
 
