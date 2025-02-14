@@ -231,7 +231,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
 
   # MyProtocol adds {not_found} and other termini.
   module E
-    Memo = C::Memo
+    module Memo; end
 
     module Memo::Operation
       class Create < Trailblazer::Operation
@@ -248,7 +248,18 @@ class ProtocolTest < ActionDispatch::IntegrationTest
           ctx[:model] = ::Memo.create(**params[:memo].permit!)
         end
       end
+
+      class Update < Trailblazer::Operation
+        terminus :not_found
+
+        step :find_model, Output(:failure) => Track(:not_found)
+
+        def find_model(ctx, **)
+          false
+        end
+      end
     end
+
 
     #:protocol-terminus
     class MyProtocol < Trailblazer::Activity::Railway
@@ -269,31 +280,31 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     #:protocol-terminus end
 
     #:controller-protocol-block
-    class ApplicationController < ActionController::Base
-      include Trailblazer::Endpoint::Controller.module
+    # class ApplicationController < ActionController::Base
+    #   include Trailblazer::Endpoint::Controller.module
 
-      endpoint do
-        #~options
-        options do
-          {
-            protocol: MyProtocol,
-            # default wiring, applied to all endpoints:
-            # protocol_block: -> do
-            #   {Output(:not_found) => End(:not_found)}
-            # end
-          }
-        end
-        #~options end
-      end
-    end
+      # endpoint do
+      #   #~options
+      #   options do
+      #     {
+      #       protocol: MyProtocol,
+      #       # default wiring, applied to all endpoints:
+      #       # protocol_block: -> do
+      #       #   {Output(:not_found) => End(:not_found)}
+      #       # end
+      #     }
+      #   end
+      #   #~options end
+      # end
+    # end
     #:controller-protocol-block end
 
     #:handler-controller
     class MemosController < ApplicationController
-
+      PAGE_404 = "404.html"
 
       #~handler-five
-      endpoint Memo::Operation::Create
+      endpoint Memo::Operation::Create, protocol: MyProtocol
 
       def create
         invoke Memo::Operation::Create, protocol: true, params: params do
@@ -305,6 +316,21 @@ class ProtocolTest < ActionDispatch::IntegrationTest
         end
       end
       #~handler-five end
+
+    # Update has {not_found} terminus, it's automatically wired.
+      #~update
+      endpoint Memo::Operation::Update, protocol: MyProtocol
+      #~update end
+
+      def update
+        invoke Memo::Operation::Update, protocol: true, params: params do
+          # success   { |ctx, model:, **| redirect_to memo_path(model.id) }
+          # failure   { |ctx, contract:, **| render partial: "form", object: contract }
+          # not_authorized { |**| head 403 }
+          # not_authenticated { |**| head 401 }
+          not_found { |ctx, **| render file: PAGE_404, status: :not_found }
+        end
+      end
     end
     #:handler-controller end
   end
@@ -323,6 +349,58 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     post "/po/e", params: {authenticate: "false"}
     assert_response 401
     assert_equal "", response.body
+
+  # not_found
+    post "/po/e/update", params: {}
+    assert_response 404
+    assert_equal "Nothing found!\n", response.body
+  end
+
+  # Update has {fail_fast} terminus, we need to wire it manually.
+  module F
+    module Memo; end
+
+    module Memo::Operation
+      class Update < Trailblazer::Operation
+        step :find_model, fail_fast: true
+
+        def find_model(ctx, **)
+          false
+        end
+      end
+    end
+
+    MyProtocol = E::MyProtocol
+    #:protocol-wiring
+    class MemosController < ApplicationController
+      PAGE_404 = "404.html"
+
+      #~update
+      endpoint Memo::Operation::Update, protocol: MyProtocol do
+        {
+          Output(:fail_fast) => Track(:not_found)
+        }
+      end
+      #~update end
+
+      def update
+        invoke Memo::Operation::Update, protocol: true, params: params do
+          # success   { |ctx, model:, **| redirect_to memo_path(model.id) }
+          # failure   { |ctx, contract:, **| render partial: "form", object: contract }
+          # not_authorized { |**| head 403 }
+          # not_authenticated { |**| head 401 }
+          not_found { |ctx, **| render file: PAGE_404, status: :not_found }
+        end
+      end
+    end
+    #:protocol-wiring end
+  end #F
+
+  test "{fail_fast} is wired to {not_found}" do
+  # not_found
+    post "/po/f/update", params: {}
+    assert_response 404
+    assert_equal "Nothing found!\n", response.body
   end
   # module Dd
   #   #:dd-controller
