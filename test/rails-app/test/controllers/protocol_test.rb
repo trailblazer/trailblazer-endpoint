@@ -32,7 +32,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     #:endpoint-controller
     class MemosController < ApplicationController
       #:protocol
-      class Protocol < Trailblazer::Activity::Railway # two termini.
+      class MyProtocol < Trailblazer::Activity::Railway # two termini.
         step :authenticate              # our imaginary logic to find {current_user}.
         step nil, id: :domain_activity  # {Memo::Operation::Create} gets placed here.
 
@@ -43,7 +43,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
       #:protocol end
 
       #~define
-      endpoint Memo::Operation::Create, protocol: Protocol # define endpoint.
+      endpoint Memo::Operation::Create, protocol: MyProtocol # define endpoint.
       #~define end
 
       # endpoint do
@@ -77,7 +77,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
 
   module B
     Memo = A::Memo
-    Protocol = A::MemosController::Protocol
+    MyProtocol = A::MemosController::MyProtocol
 
     #:controller-options
     class MemosController < ApplicationController
@@ -85,7 +85,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
       endpoint do
         options do
           {
-            protocol: Protocol,
+            protocol: MyProtocol,
           }
         end
       end
@@ -119,7 +119,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
 
   module C
     # Memo = A::Memo
-    Protocol = A::MemosController::Protocol
+    MyProtocol = A::MemosController::MyProtocol
 
     module Memo
       module Operation
@@ -147,7 +147,7 @@ class ProtocolTest < ActionDispatch::IntegrationTest
         options do
           {
             #~skip
-            protocol: Protocol,
+            protocol: MyProtocol,
             #~skip end
             fast_track_to_railway: true,
           }
