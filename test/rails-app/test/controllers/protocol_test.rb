@@ -9,6 +9,8 @@ class ProtocolTest < ActionDispatch::IntegrationTest
 
   class ApplicationController < ActionController::Base
     include Trailblazer::Endpoint::Controller.module
+
+    PAGE_404 = "404.html"
   end
 
   module A
@@ -301,8 +303,6 @@ class ProtocolTest < ActionDispatch::IntegrationTest
 
     #:handler-controller
     class MemosController < ApplicationController
-      PAGE_404 = "404.html"
-
       #~handler-five
       endpoint Memo::Operation::Create, protocol: MyProtocol
 
@@ -373,8 +373,6 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     MyProtocol = E::MyProtocol
     #:protocol-wiring
     class MemosController < ApplicationController
-      PAGE_404 = "404.html"
-
       #~update
       endpoint Memo::Operation::Update, protocol: MyProtocol do
         {
@@ -402,51 +400,94 @@ class ProtocolTest < ActionDispatch::IntegrationTest
     assert_response 404
     assert_equal "Nothing found!\n", response.body
   end
-  # module Dd
-  #   #:dd-controller
-  #   class ApplicationController < ActionController::Base
-  #     include Trailblazer::Endpoint::Controller.module
 
-  #     #~endpoint
-  #     endpoint do
-  #       options do
-  #         {
-  #           #~misc
-  #           protocol: ::ApplicationController::Endpoint::Protocol,
-  #           #~misc end
-  #           # default wiring, applied to all endpoints:
-  #           protocol_block: -> do
-  #             if to_h[:outputs].find { |output| output.semantic == :not_found }
-  #               {Output(:not_found) => End(:not_found)}
-  #             else
-  #               {}
-  #             end
-  #           end
-  #         }
-  #       end
-  #       #~misc
-  #       ctx do |controller:, **|
-  #         {
-  #           params: controller.params,
-  #         }
-  #       end
-  #       #~misc end
-  #     end
-  #     #~endpoint end
-  #   end
-  #   #:dd-controller end
+  # Use {:protocol_block}.
+  module G
+    module Memo
+      module Operation
+        class Update < Trailblazer::Operation
+          step ->(ctx, **) { false }, fail_fast: true
+        end
+      end
+    end
 
-  #   class MemosController < ApplicationController
-  #     # TODO: add Update?
-  #     endpoint Memo::Operation::Create
+    MyProtocol = E::MyProtocol
 
-  #     def create
-  #       invoke Memo::Operation::Create, protocol: true do
-  #         success   { |ctx, model:, **| redirect_to memo_path(id: model.id) }
-  #         failure   { |*| head 401 }
-  #       end
-  #     end
-  #   end
-  # end
+    #:protocol-block
+    class MemosController < ApplicationController
+      #~endpoint
+      endpoint do
+        options do
+          {
+            protocol_block: -> do
+              {Output(:fail_fast) => Track(:not_found)}
+            end,
+          }
+        end
+      end
+      #~endpoint end
+
+      #~compile
+      endpoint Memo::Operation::Update, protocol: MyProtocol # {fail_fast} => {not_found}
+      #~compile end
+
+      def update
+        invoke Memo::Operation::Update, protocol: true, params: params do
+          not_found { |ctx, **| render file: PAGE_404, status: :not_found }
+        end
+      end
+    end
+    #:protocol-block end
+  end
+
+  test "{not_found} is wired to {not_found} via {:protocol_block} default" do
+  # not_found
+    post "/po/g/update", params: {}
+    assert_response 404
+    assert_equal "Nothing found!\n", response.body
+  end
+
+  # dynamic {:protocol_block}
+  module H
+    Memo = E::Memo
+    MyProtocol = E::MyProtocol
+
+    #:protocol-block-dynamic
+    class MemosController < ApplicationController
+      #~endpoint
+      endpoint do
+        options do
+          {
+            protocol_block: -> do
+              if to_h[:outputs].find { |output| output.semantic == :not_found }
+                {Output(:not_found) => End(:not_found)}
+              else
+                {} # no custom wiring.
+              end
+            end,
+          }
+        end
+      end
+      #~endpoint end
+
+      #~compile
+      endpoint Memo::Operation::Update, protocol: MyProtocol # {not_found} gets wired.
+      #~compile end
+
+      def update
+        invoke Memo::Operation::Update, protocol: true, params: params do
+          not_found { |ctx, **| render file: PAGE_404, status: :not_found }
+        end
+      end
+    end
+    #:protocol-block-dynamic end
+  end
+
+  test "{not_found} is wired to {not_found} via {:protocol_block} default only if it's there" do
+  # not_found
+    post "/po/h/update", params: {}
+    assert_response 404
+    assert_equal "Nothing found!\n", response.body
+  end
 end
 

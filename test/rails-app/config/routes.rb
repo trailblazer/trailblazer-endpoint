@@ -12,6 +12,8 @@ Rails.application.routes.draw do
   post "/po/e", to: "protocol_test/e/memos#create"
   post "/po/e/update", to: "protocol_test/e/memos#update"
   post "/po/f/update", to: "protocol_test/f/memos#update"
+  post "/po/g/update", to: "protocol_test/g/memos#update"
+  post "/po/h/update", to: "protocol_test/h/memos#update"
 
   post "/a", to: "memo_controller_test/a/memos#create"
   post "/aa", to: "memo_controller_test/aa/memos#create"
