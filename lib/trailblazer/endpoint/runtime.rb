@@ -37,7 +37,9 @@ module Trailblazer
         # or whatever you have configured.
         #
         # This method is basically replacing {Operation.call_with_public_interface}, from a logic perspective.
-        def call(activity, ctx, flow_options: {}, extensions: [], invoke_method: Trailblazer::Activity::TaskWrap.method(:invoke), &block) # TODO: test {flow_options} # TODO: test {invoke_method}
+        #
+        # NOTE: {:invoke_method} is *not* activity API, that's us here using it.
+        def call(activity, ctx, flow_options: {}, extensions: [], invoke_method: Trailblazer::Activity::TaskWrap.method(:invoke), circuit_options: {}, &block) # TODO: test {flow_options} # TODO: test {invoke_method}
           # Instead of creating the {ctx} manually, use an In() filter for the outermost activity.
           # Currently, the interface is a bit awkward, but we're going to fix this.
           in_extension = Class.new(Activity::Railway) do
@@ -60,6 +62,7 @@ module Trailblazer
             container_activity: container_activity,
             exec_context: self,
             # wrap_runtime: {activity => ->(*) { snippet }} # TODO: use wrap_runtime once https://github.com/trailblazer/trailblazer-developer/issues/46 is fixed.
+            **circuit_options
           )
         end
 

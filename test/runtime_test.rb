@@ -236,7 +236,23 @@ class ProtocolTest < Minitest::Spec
   end
 
   it "accepts {:circuit_options}" do
+    stdout, _ = capture_io do
+      Trailblazer::Endpoint::Runtime.(
+        Create, {seq: []},
 
+        circuit_options: {start_task: Trailblazer::Activity::Introspect.Nodes(Create, id: :model).task},
+        invoke_method: Trailblazer::Developer::Wtf.method(:invoke), # needed for this test to see the trace.
+
+        default_matcher: default_matcher, matcher_context: self, &matcher_block
+      )
+    end
+
+    assert_equal @rendered, %(Object)
+    assert_equal stdout, %(ProtocolTest::Create
+|-- \e[32mmodel\e[0m
+|-- \e[32msave\e[0m
+`-- End.success
+)
   end
 
   let(:matcher_block) do
@@ -268,15 +284,15 @@ class ProtocolTest < Minitest::Spec
       invoke_method_option = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
 
       circuit_options_option = {
-        present_options: {render_method: ->(*) { snippet },}
+        circuit_options: {
+          present_options: {render_method: ->(renderer:, **) { renderer.inspect },}
+        }
       }
 
-      [
-        {
-          **invoke_method_option,
-        },
-        circuit_options_option, # TODO: test if this is working.
-      ]
+      {
+        **invoke_method_option,
+        **circuit_options_option,
+      }
     }
 
     stdout, _ = capture_io do
@@ -289,11 +305,7 @@ class ProtocolTest < Minitest::Spec
     end
 
     assert_equal @rendered, %(Object)
-    assert_equal stdout, %(ProtocolTest::Create
-|-- \e[32mStart.default\e[0m
-|-- \e[32mmodel\e[0m
-|-- \e[32msave\e[0m
-`-- End.success
+    assert_equal stdout, %(Trailblazer::Developer::Wtf::Renderer
 )
 
     # Test that the "decider" for {:invoke_method} really works.
