@@ -272,7 +272,7 @@ class ProtocolTest < Minitest::Spec
 )
   end
 
-  it "accepts {:invoke_method}" do
+  it "PROTOTYPING canonical invoke" do
     # decisions = {
     #   ->(activity, ctx) {  }
     # }
@@ -317,5 +317,20 @@ class ProtocolTest < Minitest::Spec
 |-- \e[32msave\e[0m
 `-- End.success
 )
+
+    # Test that the "decider" for {:invoke_method} really works.
+    update_operation = Class.new(Trailblazer::Activity::Railway)
+
+    stdout, _ = capture_io do
+      Trailblazer::Endpoint::Runtime.(
+        activity = update_operation, options = {model: "Yes!"},
+        flow_options: {bla: 1}, # DISCUSS: from dynamic, too?
+        **my_dynamic_arguments.(activity, options), # represents {:invoke_method} and {:present_options}
+        default_matcher: default_matcher, matcher_context: self, &matcher_block
+      )
+    end
+
+    assert_equal @rendered, %("Yes!")
+    assert_equal stdout, ""
   end
 end
