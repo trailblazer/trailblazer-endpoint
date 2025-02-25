@@ -195,14 +195,8 @@ class ProtocolTest < Minitest::Spec
   end
 
   it "returns a {Trailblazer::Context}, and allows {flow_options}" do
-    default_matcher = {}
-
     action_protocol = Trailblazer::Endpoint.build(protocol: Protocol, domain_activity: Create)
     # action_adapter  = Trailblazer::Endpoint::Adapter.build(action_protocol) # build the simplest Adapter we got.
-
-    matcher_block = Proc.new do
-      success { |ctx, model:, **| render model.inspect }
-    end
 
     ctx = {seq: [], model: {id: 1}} # ordinary hash.
 
@@ -236,28 +230,25 @@ class ProtocolTest < Minitest::Spec
       end
     end
 
-    # this is usually in a controller action.
-    matcher_block = Proc.new do
-      success { |ctx, model:, **| render model.inspect }
-    end
-
-    default_matcher = {}
-    # adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
-
     # ctx doesn't contain {:model}, yet.
     Trailblazer::Endpoint::Runtime::Matcher.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
   end
 
-  it "Matcher.() allows other keyword arguments such as {:invoke_method}" do
+  it "accepts {:circuit_options}" do
+
+  end
+
+  let(:matcher_block) do
     # this is usually in a controller action.
     matcher_block = Proc.new do
       success { |ctx, model:, **| render model.inspect }
     end
+  end
 
-    default_matcher = {}
-    # adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
+  let(:default_matcher) { {} }
 
+  it "Matcher.() allows other keyword arguments such as {:invoke_method}" do
     # ctx doesn't contain {:model}, yet.
     stdout, _ = capture_io do
       Trailblazer::Endpoint::Runtime::Matcher.(Create, {seq: []}, invoke_method: Trailblazer::Developer::Wtf.method(:invoke), default_matcher: default_matcher, matcher_context: self, &matcher_block)
@@ -273,33 +264,20 @@ class ProtocolTest < Minitest::Spec
   end
 
   it "PROTOTYPING canonical invoke" do
-    # decisions = {
-    #   ->(activity, ctx) {  }
-    # }
-    # decisions = Trace::Decision.new(decisions)
-
-
-    # MY_TRACE_GUARDS = ->(activity, ctx) do
-
-    # end
-
-
     my_dynamic_arguments = ->(activity, options) {
       invoke_method_option = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
 
-      present_options_option = {}
-
-      {
-        **invoke_method_option,
-        **present_options_option, # TODO: test if this is working.
+      circuit_options_option = {
+        present_options: {render_method: ->(*) { snippet },}
       }
+
+      [
+        {
+          **invoke_method_option,
+        },
+        circuit_options_option, # TODO: test if this is working.
+      ]
     }
-
-    matcher_block = Proc.new do
-      success { |ctx, model:, **| render model.inspect }
-    end
-
-    default_matcher = {}
 
     stdout, _ = capture_io do
       Trailblazer::Endpoint::Runtime.(
