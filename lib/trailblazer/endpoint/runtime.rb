@@ -5,6 +5,9 @@ module Trailblazer
       # By "overriding" **kws they can inject any {flow_options} or other {Runtime.call} options needed.
       # See runtime_test.rb.
       module TopLevel
+        # TODO: we should also aggregate flow_options here?
+        # TODO: {:invoke_method} and {:present_options}.
+        # TODO: allow different Runtime::Matcher etc.
         def __(activity, options, **kws, &block)
           signal, (ctx, _) = Trailblazer::Endpoint::Runtime.(activity, options, **kws, &block)
 
@@ -45,6 +48,7 @@ module Trailblazer
 
           container_activity = Activity::TaskWrap.container_activity_for(activity, wrap_static: pipeline)
 
+# invoke_method = Trailblazer::Developer::Wtf.method(:invoke)
           invoke_method.( # FIXME: run Advance using this, not its own wtf?/call invocation.
           # Trailblazer::Developer.wtf?( # FIXME: run Advance using this, not its own wtf?/call invocation.
             activity,
@@ -65,14 +69,14 @@ module Trailblazer
         module_function
 
         # Adds the matcher logic to invoking an activity via an "endpoint" (actually, this is not related to endpoints at all).
-        def call(activity, ctx, flow_options: {}, matcher_context:, default_matcher:, matcher_extension: Endpoint::Matcher.Extension(), &block)
+        def call(activity, ctx, flow_options: {}, matcher_context:, default_matcher:, matcher_extension: Endpoint::Matcher.Extension(), **kws, &block)
           matcher = Trailblazer::Endpoint::Matcher::DSL.new.instance_exec(&block)
 
           matcher_value = Trailblazer::Endpoint::Matcher::Value.new(default_matcher, matcher, matcher_context)
 
           flow_options = flow_options.merge(matcher_value: matcher_value) # matchers will be executed in Adapter's taskWrap.
 
-          Invoke.(activity, ctx, flow_options: flow_options, extensions: [matcher_extension])
+          Invoke.(activity, ctx, flow_options: flow_options, extensions: [matcher_extension], **kws) # TODO: we *might* be overriding {:extensions} here.
         end
       end
     end # Runtime

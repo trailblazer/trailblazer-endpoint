@@ -62,7 +62,8 @@ class RuntimeTest < Minitest::Spec
     assert_equal @render, %(Object)
   end
 
-  it "can be invoked via {TopLevel#__()}" do
+
+  it "Activity can be invoked via {TopLevel#__()}" do
     kernel = Class.new do
       include Trailblazer::Endpoint::Runtime::TopLevel
 
@@ -246,5 +247,75 @@ class ProtocolTest < Minitest::Spec
     # ctx doesn't contain {:model}, yet.
     Trailblazer::Endpoint::Runtime::Matcher.(protocol,  {}, flow_options: {model: Object}, default_matcher: default_matcher, matcher_context: self, &matcher_block)
     assert_equal @rendered, %(Object)
+  end
+
+  it "Matcher.() allows other keyword arguments such as {:invoke_method}" do
+    # this is usually in a controller action.
+    matcher_block = Proc.new do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    default_matcher = {}
+    # adapter  = Trailblazer::Endpoint::Adapter.build(protocol)
+
+    # ctx doesn't contain {:model}, yet.
+    stdout, _ = capture_io do
+      Trailblazer::Endpoint::Runtime::Matcher.(Create, {seq: []}, invoke_method: Trailblazer::Developer::Wtf.method(:invoke), default_matcher: default_matcher, matcher_context: self, &matcher_block)
+    end
+
+    assert_equal @rendered, %(Object)
+    assert_equal stdout, %(ProtocolTest::Create
+|-- \e[32mStart.default\e[0m
+|-- \e[32mmodel\e[0m
+|-- \e[32msave\e[0m
+`-- End.success
+)
+  end
+
+  it "accepts {:invoke_method}" do
+    # decisions = {
+    #   ->(activity, ctx) {  }
+    # }
+    # decisions = Trace::Decision.new(decisions)
+
+
+    # MY_TRACE_GUARDS = ->(activity, ctx) do
+
+    # end
+
+
+    my_dynamic_arguments = ->(activity, options) {
+      invoke_method_option = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
+
+      present_options_option = {}
+
+      {
+        **invoke_method_option,
+        **present_options_option, # TODO: test if this is working.
+      }
+    }
+
+    matcher_block = Proc.new do
+      success { |ctx, model:, **| render model.inspect }
+    end
+
+    default_matcher = {}
+
+    stdout, _ = capture_io do
+      Trailblazer::Endpoint::Runtime.(
+        activity = Create, options = {seq: []},
+        flow_options: {bla: 1}, # DISCUSS: from dynamic, too?
+        **my_dynamic_arguments.(activity, options), # represents {:invoke_method} and {:present_options}
+        default_matcher: default_matcher, matcher_context: self, &matcher_block
+      )
+    end
+
+    assert_equal @rendered, %(Object)
+    assert_equal stdout, %(ProtocolTest::Create
+|-- \e[32mStart.default\e[0m
+|-- \e[32mmodel\e[0m
+|-- \e[32msave\e[0m
+`-- End.success
+)
   end
 end
