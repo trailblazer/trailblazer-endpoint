@@ -1,5 +1,7 @@
 require "trailblazer/activity/dsl/linear"
 
+# TODO: 2BRM? It's probably harder to explain what goes on here than to just let people write their own Protocol?
+
 module Trailblazer
   class Endpoint
     # The {Protocol} implements auth*, and calls the domain OP/WF.
