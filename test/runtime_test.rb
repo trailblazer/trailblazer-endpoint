@@ -332,5 +332,20 @@ class ProtocolTest < Minitest::Spec
 
     assert_equal @rendered, %("Yes!")
     assert_equal stdout, ""
+
+  # We can override {:invoke_method}:
+    stdout, _ = capture_io do
+      __(
+        update_operation, {model: "Yes!"},
+        default_matcher: default_matcher, matcher_context: self,
+
+        invoke_method: Trailblazer::Developer::Wtf.method(:invoke),
+        &matcher_block
+      )
+    end
+
+    assert_equal @rendered, %("Yes!")
+    assert_equal stdout, %(Trailblazer::Developer::Wtf::Renderer
+)
   end
 end
