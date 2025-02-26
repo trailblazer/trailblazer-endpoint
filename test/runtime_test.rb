@@ -280,8 +280,9 @@ class ProtocolTest < Minitest::Spec
   end
 
   it "PROTOTYPING canonical invoke" do
-    my_dynamic_arguments = ->(activity, options) {
-      invoke_method_option = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
+    # Must produce hash with :invoke_method, :circuit_options, :flow_options
+    My_dynamic_arguments = ->(activity, options) {
+      runtime_call_keywords = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
 
       circuit_options_option = {
         circuit_options: {
@@ -289,17 +290,28 @@ class ProtocolTest < Minitest::Spec
         }
       }
 
+      flow_options = {bla: 1}
+      flow_options_option = {flow_options: flow_options}
+
       {
-        **invoke_method_option,
+        **runtime_call_keywords,
+        **flow_options_option,
         **circuit_options_option,
       }
     }
 
-    stdout, _ = capture_io do
+    def __(activity, options, my_dynamic_arguments: My_dynamic_arguments, **kws, &block)
       Trailblazer::Endpoint::Runtime.(
-        activity = Create, options = {seq: []},
-        flow_options: {bla: 1}, # DISCUSS: from dynamic, too?
+        activity, options,
         **my_dynamic_arguments.(activity, options), # represents {:invoke_method} and {:present_options}
+        **kws,
+        &block
+      )
+    end
+
+    stdout, _ = capture_io do
+      __(
+        Create, {seq: []},
         default_matcher: default_matcher, matcher_context: self, &matcher_block
       )
     end
@@ -312,10 +324,8 @@ class ProtocolTest < Minitest::Spec
     update_operation = Class.new(Trailblazer::Activity::Railway)
 
     stdout, _ = capture_io do
-      Trailblazer::Endpoint::Runtime.(
-        activity = update_operation, options = {model: "Yes!"},
-        flow_options: {bla: 1}, # DISCUSS: from dynamic, too?
-        **my_dynamic_arguments.(activity, options), # represents {:invoke_method} and {:present_options}
+      __(
+        update_operation, {model: "Yes!"},
         default_matcher: default_matcher, matcher_context: self, &matcher_block
       )
     end
