@@ -1,6 +1,24 @@
 module Trailblazer
   class Endpoint
     module Runtime
+      def self.module!(target, canonical_invoke_name: :__,  &arguments_block)
+        target.include Trailblazer::Endpoint::Runtime::Canonical # #__
+
+        # DISCUSS: store arguments_block in a class instance variable and refrain from using {define_method}?
+
+        target.define_method(canonical_invoke_name) do |*args, **kws, &block|
+          Runtime::Canonical.__(*args, my_dynamic_arguments: arguments_block, **kws, &block)
+        end
+
+        # class_eval do
+        #   arguments_block = arguments_block
+
+        #   def __(*args, **kws, &block)
+        #     super(*args, my_dynamic_arguments: arguments_block, **kws, &block)
+        #   end
+        # end
+      end
+
       # This module implements the end user's top level entry point for running activities.
       # By "overriding" **kws they can inject any {flow_options} or other {Runtime.call} options needed.
       # See runtime_test.rb.
@@ -19,6 +37,31 @@ module Trailblazer
         end
       end
 
+      # Currently, "Canonical" implies that some options-compiler is executed to
+      # aggregate flow_options, Runtime.call options like :invoke_method, circuit_options,
+      # etc.
+      module Canonical # DISCUSS: remove TopLevel?
+        module_function
+
+        def __(activity, options, my_dynamic_arguments:, **kws, &block)
+          Trailblazer::Endpoint::Runtime.(
+            activity, options,
+            **my_dynamic_arguments.(activity, options, **kws), # represents {:invoke_method} and {:present_options}
+            **kws,
+            &block
+          )
+        end
+
+        def __?(activity, options, my_dynamic_arguments:, **kws, &block)
+          Trailblazer::Endpoint::Runtime.(
+            activity, options,
+            **my_dynamic_arguments.(activity, options, **kws), # represents {:invoke_method} and {:present_options}
+            invoke_method: Trailblazer::Developer::Wtf.method(:invoke),
+            **kws,
+            &block
+          )
+        end
+      end
 
       module_function
 
@@ -39,7 +82,7 @@ module Trailblazer
         # This method is basically replacing {Operation.call_with_public_interface}, from a logic perspective.
         #
         # NOTE: {:invoke_method} is *not* activity API, that's us here using it.
-        def call(activity, ctx, flow_options: {}, extensions: [], invoke_method: Trailblazer::Activity::TaskWrap.method(:invoke), circuit_options: {}, &block) # TODO: test {flow_options} # TODO: test {invoke_method}
+        def call(activity, ctx, flow_options: {}, extensions: [], invoke_method: Trailblazer::Activity::TaskWrap.method(:invoke), circuit_options: {}, **, &block) # TODO: test {flow_options} # TODO: test {invoke_method}
           # Instead of creating the {ctx} manually, use an In() filter for the outermost activity.
           # Currently, the interface is a bit awkward, but we're going to fix this.
           in_extension = Class.new(Activity::Railway) do

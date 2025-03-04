@@ -281,7 +281,7 @@ class ProtocolTest < Minitest::Spec
 
   it "PROTOTYPING canonical invoke" do
     # Must produce hash with :invoke_method, :circuit_options, :flow_options
-    My_dynamic_arguments = ->(activity, options) {
+    my_dynamic_arguments = ->(activity, options, flow_options_merge:, **) {
       runtime_call_keywords = [Create].include?(activity) ? {invoke_method: Trailblazer::Developer::Wtf.method(:invoke)} : {}
 
       circuit_options_option = {
@@ -290,7 +290,7 @@ class ProtocolTest < Minitest::Spec
         }
       }
 
-      flow_options = {bla: 1}
+      flow_options = flow_options_merge # this is to test that we can pass arbitrary data inside this block.
       flow_options_option = {flow_options: flow_options}
 
       {
@@ -300,19 +300,19 @@ class ProtocolTest < Minitest::Spec
       }
     }
 
-    def __(activity, options, my_dynamic_arguments: My_dynamic_arguments, **kws, &block)
-      Trailblazer::Endpoint::Runtime.(
-        activity, options,
-        **my_dynamic_arguments.(activity, options), # represents {:invoke_method} and {:present_options}
-        **kws,
-        &block
-      )
+    my_kernel = Class.new do
+      Trailblazer::Endpoint::Runtime.module!(self, &my_dynamic_arguments)
     end
 
+    my_kernel = my_kernel.new
+
     stdout, _ = capture_io do
-      __(
+      my_kernel.__(
         Create, {seq: []},
-        default_matcher: default_matcher, matcher_context: self, &matcher_block
+        default_matcher: default_matcher, matcher_context: self,
+
+        flow_options_merge: {bla: 1}, # TODO: test that bla is there.
+        &matcher_block
       )
     end
 
@@ -324,9 +324,12 @@ class ProtocolTest < Minitest::Spec
     update_operation = Class.new(Trailblazer::Activity::Railway)
 
     stdout, _ = capture_io do
-      __(
+      my_kernel.__(
         update_operation, {model: "Yes!"},
-        default_matcher: default_matcher, matcher_context: self, &matcher_block
+        default_matcher: default_matcher, matcher_context: self,
+
+        flow_options_merge: {bla: 1}, # TODO: test that bla is there.
+        &matcher_block
       )
     end
 
@@ -335,11 +338,13 @@ class ProtocolTest < Minitest::Spec
 
   # We can override {:invoke_method}:
     stdout, _ = capture_io do
-      __(
+      my_kernel.__(
         update_operation, {model: "Yes!"},
         default_matcher: default_matcher, matcher_context: self,
 
         invoke_method: Trailblazer::Developer::Wtf.method(:invoke),
+
+        flow_options_merge: {bla: 1}, # TODO: test that bla is there.
         &matcher_block
       )
     end
