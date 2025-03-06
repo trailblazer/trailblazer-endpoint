@@ -18,7 +18,6 @@ module Trailblazer
 end
 
 require "trailblazer/endpoint/protocol"
-require "trailblazer/endpoint/matcher"
-require "trailblazer/endpoint/runtime"
+require "trailblazer/invoke"
 require "trailblazer/endpoint/controller"
 

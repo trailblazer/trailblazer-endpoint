@@ -19,6 +19,14 @@ module Trailblazer
         end
       end
 
+      def self.module!(target, canonical_invoke:, **options) # TODO: use {Kernel#__} as a default {canonical_invoke}.
+        target.include(self.module(**options))
+
+        target.define_method(:invoke) do |*args,  **kws, &block|
+          super(*args, runtime_call: canonical_invoke, **kws, &block)
+        end
+      end
+
       module State
         module Inherited
           # This should only happen once.
@@ -227,7 +235,8 @@ module Trailblazer
           return invoke_options, options
         end
 
-        def invoke(operation, **options, &matcher_block)
+        # TODO: allow setting {runtime_call} as a "global" via endpoint{}
+        def invoke(operation, runtime_call: Trailblazer::Invoke, **options, &matcher_block)
           invoke_options, options = normalize_invoke_options(operation, **options)
 
           if invoke_options[:protocol]
@@ -242,12 +251,14 @@ module Trailblazer
             invoke_options: options,
           }
 
-          flow_options  = _flow_options(**options_for_block)
+          flow_options_from_controller = _flow_options(**options_for_block)
           ctx           = _options_for_endpoint_ctx(**options_for_block).merge(options)
 
           default_matcher = _default_matcher_for_endpoint()
 
-          Endpoint::Runtime::Matcher.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self, flow_options: flow_options, &matcher_block)
+          runtime_call.(action_protocol, ctx, default_matcher: default_matcher, matcher_context: self,
+             flow_options_from_controller: flow_options_from_controller,
+            &matcher_block)
         end
       end
 
