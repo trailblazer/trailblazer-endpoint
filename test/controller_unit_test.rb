@@ -120,7 +120,7 @@ class ControllerWithoutProtocolTest < Minitest::Spec
         end
       end
 
-      # Override ctx variables via {#invoke}.
+      # Override {:seq} ctx variable via {#invoke}.
       def create_with_explicit_variables
         invoke Memo::Operation::Create, seq: [:start] do
           success { |ctx, seq:, **| render seq.inspect }
@@ -129,9 +129,62 @@ class ControllerWithoutProtocolTest < Minitest::Spec
       end
     end
 
+    assert_runs(controller_class, :create,
+      success:   {render: %([:validate])},
+      failure: {render: %(500 [:validate]), validate: false}
+    )
+
     assert_runs(controller_class, :create_with_explicit_variables,
       success:   {render: %([:start, :validate])},
       failure: {render: %(500 [:start, :validate]), validate: false}
+    )
+  end
+
+  it "allows setting a default matcher via {endpoint.default_matcher}" do
+    controller_class = controller do
+      endpoint do
+        ctx do |controller:, **|
+          {seq: [], **controller.input}
+        end
+
+        default_matcher do
+          {
+            success: ->(ctx, seq:, **) { render seq.inspect },
+            failure: ->(ctx, seq:, **) { render "500 #{seq.inspect}" },
+          }
+        end
+      end
+
+      def create_without_block
+        invoke Memo::Operation::Create do end # FIXME: allow no block at all.
+      end
+
+      def create_with_partly_overriding_block
+        invoke Memo::Operation::Create do
+          failure { |ctx, seq:, **| render "failure! #{seq.inspect}" }
+        end
+      end
+
+      def update_with_additional_handler
+        invoke Memo::Operation::Update do
+          not_found { |ctx, seq:, **| render "404! #{seq.inspect}" }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create_without_block,
+      success:   {render: %([:validate])},
+      failure: {render: %(500 [:validate]), validate: false}
+    )
+
+    assert_runs(controller_class, :create_with_partly_overriding_block,
+      success:   {render: %([:validate])},
+      failure: {render: %(failure! [:validate]), validate: false}
+    )
+
+    assert_runs(controller_class, :update_with_additional_handler,
+      success:   {render: %([:model])},
+      not_found: {render: %(404! [:model]), model: false}
     )
   end
 end
