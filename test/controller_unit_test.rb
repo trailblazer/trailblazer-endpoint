@@ -1,75 +1,6 @@
 require "test_helper"
 
-class ControllerWithoutProtocolTest < Minitest::Spec
-  class Controller
-    attr_reader :input
-
-    def initialize(input)
-      @input = input
-    end
-
-    def render(string)
-      @render = string
-    end
-
-    def to_h
-      {
-        render: @render,
-      }
-    end
-  end
-
-  module Assertion
-    def assert_runs(controller_class, method, **scenarios)
-      scenarios.collect do |outcome, input|
-        assert_render(controller_class, method, outcome: outcome, **input)
-      end
-    end
-
-    def assert_render(controller_class, method, render:, outcome:, **variables)
-      controller = controller_class.new(variables)
-      controller.send(method)
-
-      assert_equal controller.to_h, {render: render}, "Outcome #{outcome.inspect} isn't valid."
-    end
-  end
-
-  include Assertion
-
-  module Memo
-    module Operation
-      class Create < Trailblazer::Activity::Railway
-        step :model
-        step :validate
-
-        include T.def_steps(:validate)
-
-        def model(ctx, **)
-          ctx[:model] = Module
-        end
-      end
-
-      class Update < Trailblazer::Activity::Railway
-        step :model, Output(:failure) => End(:not_found)
-
-        include T.def_steps(:model)
-      end
-    end
-  end
-
-  let(:kernel) { # DISCUSS: you *always* have to set a canonical invoke in a Rails app.
-    Class.new do
-      Trailblazer::Invoke.module!(self)
-    end.new
-  }
-
-  def controller(kernel = self.kernel, &block)
-    Class.new(Controller) do
-      Trailblazer::Endpoint::Controller.module!(self, canonical_invoke: kernel.method(:__)) # DISCUSS: we always call via circuit interface (for matchers) so this is fine.
-      class_eval(&block)
-    end
-  end
-
+class ControllerWithoutProtocolTest < ControllerTest
   it "invoke can call an activity without any endpoint logic involved, and no directive configured" do
     controller_class = controller do
       def create
@@ -98,7 +29,7 @@ class ControllerWithoutProtocolTest < Minitest::Spec
     end
 
     assert_runs(controller_class, :update,
-      success:   {render: %([:model])},
+      success:   {render: %([:model, :save])},
       not_found: {render: %(404 [:model]), model: false}
     )
   end
@@ -181,7 +112,7 @@ class ControllerWithoutProtocolTest < Minitest::Spec
     )
 
     assert_runs(controller_class, :update_with_additional_handler,
-      success:   {render: %([:model])},
+      success:   {render: %([:model, :save])},
       not_found: {render: %(404! [:model]), model: false}
     )
   end
@@ -231,6 +162,41 @@ class ControllerWithoutProtocolTest < Minitest::Spec
             },
           }
         end
+      end
+
+      def create
+        invoke Memo::Operation::Create, sequence: [] do
+          success { |ctx, seq:, **| render "200 #{seq.inspect} #{ctx[:sequence].inspect}" }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create,
+      success: {render: %(200 [:validate] [:validate])}
+    )
+  end
+
+  it "you can also override controller's flow_options by overriding {#_flow_options}" do
+    kernel = Class.new do
+      Trailblazer::Invoke.module!(self) do |controller, activity, flow_options_from_controller:, **|
+        {
+          flow_options: flow_options_from_controller,
+        }
+      end
+    end.new
+
+    # Test overriding {Controller#_flow_options}.
+    # Test that we can call {super}.
+    # Test that we have access to {**options} from {#invoke}.
+    controller_class = controller(kernel) do
+      # @test what options we can access in {#_flow_options}
+      def _flow_options(**options)
+        super.merge(
+          context_options: {
+            aliases: {:sequence => :seq},
+            container_class: Trailblazer::Context::Container::WithAliases,
+          },
+        )
       end
 
       def create

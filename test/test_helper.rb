@@ -34,4 +34,76 @@ Minitest::Spec.class_eval do
       include T.def_steps(:validate, :model)
     end
   end
+
+  class ControllerTest < Minitest::Spec
+    class Controller
+      attr_reader :input
+
+      def initialize(input)
+        @input = input
+      end
+
+      def render(string)
+        @render = string
+      end
+
+      def to_h
+        {
+          render: @render,
+        }
+      end
+    end
+
+    module Assertion
+      def assert_runs(controller_class, method, **scenarios)
+        scenarios.collect do |outcome, input|
+          assert_render(controller_class, method, outcome: outcome, **input)
+        end
+      end
+
+      def assert_render(controller_class, method, render:, outcome:, **variables)
+        controller = controller_class.new(variables)
+        controller.send(method)
+
+        assert_equal controller.to_h, {render: render}, "Outcome #{outcome.inspect} isn't valid."
+      end
+    end
+
+    include Assertion
+
+    module Memo
+      module Operation
+        class Create < Trailblazer::Activity::Railway
+          step :model
+          step :validate
+
+          include T.def_steps(:validate)
+
+          def model(ctx, **)
+            ctx[:model] = Module
+          end
+        end
+
+        class Update < Trailblazer::Activity::Railway
+          step :model, Output(:failure) => End(:not_found)
+          step :save
+
+          include T.def_steps(:model, :save)
+        end
+      end
+    end
+
+    let(:kernel) { # DISCUSS: you *always* have to set a canonical invoke in a Rails app.
+      Class.new do
+        Trailblazer::Invoke.module!(self)
+      end.new
+    }
+
+    def controller(kernel = self.kernel, &block)
+      Class.new(Controller) do
+        Trailblazer::Endpoint::Controller.module!(self, canonical_invoke: kernel.method(:__)) # DISCUSS: we always call via circuit interface (for matchers) so this is fine.
+        class_eval(&block)
+      end
+    end
+  end
 end
