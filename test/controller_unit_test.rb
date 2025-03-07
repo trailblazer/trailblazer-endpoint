@@ -63,9 +63,7 @@ class ControllerWithoutProtocolTest < Minitest::Spec
     end.new
   }
 
-  def controller(&block)
-    kernel = self.kernel
-
+  def controller(kernel = self.kernel, &block)
     Class.new(Controller) do
       Trailblazer::Endpoint::Controller.module!(self, canonical_invoke: kernel.method(:__)) # DISCUSS: we always call via circuit interface (for matchers) so this is fine.
       class_eval(&block)
@@ -185,6 +183,65 @@ class ControllerWithoutProtocolTest < Minitest::Spec
     assert_runs(controller_class, :update_with_additional_handler,
       success:   {render: %([:model])},
       not_found: {render: %(404! [:model]), model: false}
+    )
+  end
+
+  it "allows defining a {flow_options} hash, but it's not used unless canonical_invoke merges it" do
+    controller_class = controller do
+      endpoint do
+        flow_options do ||
+          {
+            context_options: {
+              aliases: {"seq": :sequence},
+              container_class: Trailblazer::Context::Container::WithAliases,
+            },
+          }
+        end
+      end
+
+      def create
+        # There's no ctx[:sequence] as the aliasing is not merged.
+        invoke Memo::Operation::Create, seq: [] do
+          success { |ctx, seq:, **| render "200 #{seq.inspect} #{ctx[:sequence].inspect}" }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create,
+      success: {render: %(200 [:validate] nil)}
+    )
+  end
+
+  it "allows defining a {flow_options} hash, but it's up to the canonical_invoke block to use or merge it" do
+    kernel = Class.new do
+      Trailblazer::Invoke.module!(self) do |controller, activity, flow_options_from_controller:, **|
+        {
+          flow_options: flow_options_from_controller,
+        }
+      end
+    end.new
+
+    controller_class = controller(kernel) do
+      endpoint do
+        flow_options do ||
+          {
+            context_options: {
+              aliases: {:sequence => :seq},
+              container_class: Trailblazer::Context::Container::WithAliases,
+            },
+          }
+        end
+      end
+
+      def create
+        invoke Memo::Operation::Create, sequence: [] do
+          success { |ctx, seq:, **| render "200 #{seq.inspect} #{ctx[:sequence].inspect}" }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create,
+      success: {render: %(200 [:validate] [:validate])}
     )
   end
 end
