@@ -223,7 +223,7 @@ class ControllerWithoutProtocolTest < Minitest::Spec
 
     controller_class = controller(kernel) do
       endpoint do
-        flow_options do ||
+        flow_options do || # FIXME: test block arguments.
           {
             context_options: {
               aliases: {:sequence => :seq},
