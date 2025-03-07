@@ -104,4 +104,34 @@ class ControllerWithoutProtocolTest < Minitest::Spec
       not_found: {render: %(404 [:model]), model: false}
     )
   end
+
+  it "allows setting default {ctx} variables via {endpoint.ctx}, but allows overriding those in {#invoke}" do
+    controller_class = controller do
+      endpoint do
+        ctx do |controller:, **|
+          {seq: [], **controller.input}
+        end
+      end
+
+      def create
+        invoke Memo::Operation::Create do
+          success { |ctx, seq:, **| render seq.inspect }
+          failure { |ctx, seq:, **| render "500 #{seq.inspect}" }
+        end
+      end
+
+      # Override ctx variables via {#invoke}.
+      def create_with_explicit_variables
+        invoke Memo::Operation::Create, seq: [:start] do
+          success { |ctx, seq:, **| render seq.inspect }
+          failure { |ctx, seq:, **| render "500 #{seq.inspect}" }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create_with_explicit_variables,
+      success:   {render: %([:start, :validate])},
+      failure: {render: %(500 [:start, :validate]), validate: false}
+    )
+  end
 end
