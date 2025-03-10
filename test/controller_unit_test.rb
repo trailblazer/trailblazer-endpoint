@@ -210,4 +210,28 @@ class ControllerWithoutProtocolTest < ControllerTest
       success: {render: %(200 [:validate] [:validate])}
     )
   end
+
+  it "is possible to use #invoke and configure it using instance methods instead of the {endpoint} DSL" do
+    controller_class = controller do
+      def _options_for_endpoint_ctx(controller:, **)
+        {seq: [], **controller.input}
+      end
+
+      def _default_matcher_for_endpoint
+        {
+          success: ->(ctx, seq:, **) { render seq.inspect },
+          failure: ->(ctx, seq:, **) { render "500 #{seq.inspect}" },
+        }
+      end
+
+      def create
+        invoke Memo::Operation::Create do end # FIXME: allow no block at all.
+      end
+    end
+
+    assert_runs(controller_class, :create,
+      success:   {render: %([:validate])},
+      failure: {render: %(500 [:validate]), validate: false}
+    )
+  end
 end
