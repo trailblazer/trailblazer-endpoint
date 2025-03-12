@@ -77,7 +77,7 @@ class EndpointTest < ControllerTest
     assert_runs(controller_class, :create_again, **expected_outcomes)
   end
 
-  describe "activity stopping on all four termini" do
+  describe "with Activity::FastTrack protocol" do
     class Create < Trailblazer::Activity::FastTrack
       step :model, Output(:failure) => End(:not_found)
       step :validate, fast_track: true
@@ -85,31 +85,18 @@ class EndpointTest < ControllerTest
       include T.def_steps(:model, :validate)
     end
 
-    it "can be configured using {fast_track_to_railway}, {protocol_block}" do
-      protocol = Class.new(self.protocol) do
+    let(:fast_track_protocol) do
+      Class.new(self.protocol) do
         terminus :fail_fast
         terminus :pass_fast
       end
+    end
+
+    it "wires OP's fast_track termini automatically to protocol's fast_track" do
+      protocol = self.fast_track_protocol
 
       controller_class = Class.new(application_controller) do
         endpoint "explicit fast_track", domain_activity: Create, protocol: protocol
-        endpoint "binary", domain_activity: Create, fast_track_to_railway: true, protocol: protocol # fast track outputs are wired to railway termini.
-        endpoint "custom wiring", domain_activity: Create, protocol: protocol do
-          {
-            Output(:fail_fast) => End(:failure),
-            Output(:pass_fast) => End(:success),
-            Output(:success) => End(:failure),
-            Output(:not_found) => End(:fail_fast),
-          }
-        end
-        # re-introduce the {fail_fast} outcome manually,
-        # after using {fast_track_to_railway},
-        # implying that we can mix and override wiring options.
-        endpoint "binary and custom wiring", domain_activity: Create, fast_track_to_railway: true, protocol: protocol do
-          {
-            Output(:not_found) => End(:fail_fast),
-          }
-        end
 
         def create
           invoke "explicit fast_track", protocol: true do
@@ -118,30 +105,6 @@ class EndpointTest < ControllerTest
             failure   { |*| render "failure" }
             pass_fast { |*| render "hooray, pass_fast!" }
             not_found { |*| render "404" }
-          end
-        end
-
-        def with_binary
-          invoke "binary", protocol: true do
-            success   { |ctx, **| render "success" }
-            failure   { |*| render "failure" }
-            not_found { |*| render "404" }
-          end
-        end
-
-        def with_custom_wiring
-          invoke "custom wiring", protocol: true do
-            success   { |ctx, **| render "success" }
-            failure   { |*| render "failure" }
-            fail_fast { |*| render "404" }
-          end
-        end
-
-        def with_binary_and_custom_wiring
-          invoke "binary and custom wiring", protocol: true do
-            success   { |ctx, **| render "success" }
-            failure   { |*| render "failure" }
-            fail_fast { |*| render "fail_fast" }
           end
         end
       end
@@ -156,6 +119,22 @@ class EndpointTest < ControllerTest
         pass_fast:          {render: %(hooray, pass_fast!), validate: Trailblazer::Activity::FastTrack::PassFast},
         not_found:          {render: %(404), model: false},
       )
+    end
+
+    it "{Controller.endpoint} provides {:fast_track_to_railway}" do
+      protocol = self.fast_track_protocol
+
+      controller_class = Class.new(application_controller) do
+        endpoint "binary", domain_activity: Create, fast_track_to_railway: true, protocol: protocol # fast track outputs are wired to railway termini.
+
+        def with_binary
+          invoke "binary", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            not_found { |*| render "404" }
+          end
+        end
+      end
 
         # binary, fast_track gets routed to railway
       assert_runs(
@@ -167,17 +146,63 @@ class EndpointTest < ControllerTest
         pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
         not_found:          {render: %(404), model: false},
       )
+    end
 
-    # custom wiring
-    assert_runs(
-        controller_class, :with_custom_wiring,
+    it "{Controller.endpoint} provides protocol block to wire the {domain_activity} manually" do
+      protocol = self.fast_track_protocol
 
-        success:            {render: %(failure)},
-        failure:            {render: %(failure), validate: false},
-        fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
-        pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
-        not_found:          {render: %(404), model: false},
-      )
+      controller_class = Class.new(application_controller) do
+        endpoint "custom wiring", domain_activity: Create, protocol: protocol do
+          {
+            Output(:fail_fast) => End(:failure),
+            Output(:pass_fast) => End(:success),
+            Output(:success) => End(:failure),
+            Output(:not_found) => End(:fail_fast),
+          }
+        end
+
+        def with_custom_wiring
+          invoke "custom wiring", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            fail_fast { |*| render "404" }
+          end
+        end
+      end
+
+      # custom wiring
+      assert_runs(
+          controller_class, :with_custom_wiring,
+
+          success:            {render: %(failure)},
+          failure:            {render: %(failure), validate: false},
+          fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+          pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+          not_found:          {render: %(404), model: false},
+        )
+    end
+
+    it "{:fast_track_to_railway} and protocol block can be mixed" do
+      protocol = self.fast_track_protocol
+
+      controller_class = Class.new(application_controller) do
+        # re-introduce the {fail_fast} outcome manually,
+        # after using {fast_track_to_railway},
+        # implying that we can mix and override wiring options.
+        endpoint "binary and custom wiring", domain_activity: Create, fast_track_to_railway: true, protocol: protocol do
+          {
+            Output(:not_found) => End(:fail_fast),
+          }
+        end
+
+        def with_binary_and_custom_wiring
+          invoke "binary and custom wiring", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            fail_fast { |*| render "fail_fast" }
+          end
+        end
+      end
 
     # binary and custom wiring
       assert_runs(
