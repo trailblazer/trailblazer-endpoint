@@ -77,19 +77,19 @@ class EndpointTest < ControllerTest
     assert_runs(controller_class, :create_again, **expected_outcomes)
   end
 
-  describe "with Activity::FastTrack protocol" do
+  let(:fast_track_protocol) do
+    Class.new(self.protocol) do
+      terminus :fail_fast
+      terminus :pass_fast
+    end
+  end
+
+  describe "with Activity::FastTrack protocol, fast_track_to_railway and protocol block" do
     class Create < Trailblazer::Activity::FastTrack
       step :model, Output(:failure) => End(:not_found)
       step :validate, fast_track: true
 
       include T.def_steps(:model, :validate)
-    end
-
-    let(:fast_track_protocol) do
-      Class.new(self.protocol) do
-        terminus :fail_fast
-        terminus :pass_fast
-      end
     end
 
     it "wires OP's fast_track termini automatically to protocol's fast_track" do
@@ -213,6 +213,108 @@ class EndpointTest < ControllerTest
         fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
         pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
         not_found:          {render: %(fail_fast), model: false},
+      )
+    end
+  end
+
+  describe "Controller.options sets default for {:protocol} and {:fast_track_to_railway}" do
+
+    # defaulting
+    let(:preconfigured_controller_class) do
+      protocol = self.fast_track_protocol
+
+      Class.new(application_controller) do
+        endpoint do
+          options do
+            {
+              protocol: protocol,
+              fast_track_to_railway: true, # assume all endpoints are running operations/FastTrack.
+            }
+          end
+        end
+      end
+    end
+
+    it "because of {fast_track_to_railway: true}, fast track gets rerouted to railway termini" do
+      controller_class = Class.new(preconfigured_controller_class) do
+        endpoint "railway by default", domain_activity: Create
+
+        def with_railway_by_default
+          invoke "railway by default", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            not_found { |*| render "404" }
+            # fail_fast { |*| render "fail_fast" }
+          end
+        end
+      end
+
+      assert_runs(
+        controller_class, :with_railway_by_default,
+
+        success:            {render: %(success)},
+        failure:            {render: %(failure), validate: false},
+        fail_fast:          {render: %(failure), validate: Trailblazer::Activity::FastTrack::FailFast},
+        pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+        not_found:          {render: %(404), model: false},
+      )
+    end
+
+    it "allows overriding in the {protocol_block}, so we can actually utilize the {:fail_fast} terminus" do
+      controller_class = Class.new(preconfigured_controller_class) do
+        endpoint "railway by default with custom wiring", domain_activity: Create do
+          {
+            Output(:fail_fast) => End(:fail_fast) # we're overriding one of the two defaults.
+          }
+        end
+
+        def with_railway_by_default_with_custom_wiring
+          invoke "railway by default with custom wiring", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            not_found { |*| render "404" }
+            fail_fast { |*| render "fail_fast" }
+          end
+        end
+      end
+
+      assert_runs(
+        controller_class, :with_railway_by_default_with_custom_wiring,
+
+        success:            {render: %(success)},
+        failure:            {render: %(failure), validate: false},
+        fail_fast:          {render: %(fail_fast), validate: Trailblazer::Activity::FastTrack::FailFast},
+        pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+        not_found:          {render: %(404), model: false},
+      )
+    end
+
+    it "allows overriding in the {protocol_block}, so we can actually utilize the {:fail_fast} terminus" do
+      # override class options via ::endpoint
+      my_protocol = Class.new(Trailblazer::Activity::FastTrack) do
+        step ->(ctx, **) { ctx[:my_protocol] = true }
+        step nil, id: :domain_activity
+      end
+
+      controller_class = Class.new(preconfigured_controller_class) do
+        endpoint "railway by default, custom options", domain_activity: Create, fast_track_to_railway: false, protocol: my_protocol
+
+        def with_overriding_class_options
+          invoke "railway by default, custom options", protocol: true do
+            success   { |ctx, **| render "success #{ctx.keys}" }
+            fail_fast { |ctx, **| render "fail_fast #{ctx.keys}" }
+          end
+        end
+      end
+
+      assert_runs(
+        controller_class, :with_overriding_class_options,
+
+        success:            {render: %(success [:seq, :my_protocol])},
+        # failure:            {render: %(failure), validate: false},
+        fail_fast:          {render: %(fail_fast [:seq, :validate, :my_protocol]), validate: Trailblazer::Activity::FastTrack::FailFast},
+        # pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
+        # not_found:          {render: %(404), model: false},
       )
     end
   end
