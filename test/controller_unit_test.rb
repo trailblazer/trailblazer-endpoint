@@ -117,6 +117,28 @@ class ControllerWithoutProtocolTest < ControllerTest
     )
   end
 
+  it "{endpoint.ctx} receives block arguments" do
+    controller_class = controller do
+      endpoint do
+        ctx do |controller:, activity:, invoke_options:|
+          {
+            options_readable_in_ctx_block: [activity, controller.class, invoke_options]
+          }
+        end
+      end
+
+      def create
+        invoke Trailblazer::Activity::Railway do
+          success { |ctx, options_readable_in_ctx_block:, **| render options_readable_in_ctx_block }
+        end
+      end
+    end
+
+    assert_runs(controller_class, :create,
+      success: {render: [Trailblazer::Activity::Railway, controller_class, {}]}
+    )
+  end
+
   it "allows defining a {flow_options} hash, but it's not used unless canonical_invoke merges it" do
     controller_class = controller do
       endpoint do
@@ -170,8 +192,6 @@ class ControllerWithoutProtocolTest < ControllerTest
       end
 
       def create
-
-        # There's no ctx[:sequence] as the aliasing is not merged.
         invoke Activity do
           success { |ctx, options_readable_in_flow_options_block:, **| render options_readable_in_flow_options_block }
         end
