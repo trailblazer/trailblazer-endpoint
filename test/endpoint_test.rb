@@ -218,7 +218,6 @@ class EndpointTest < ControllerTest
   end
 
   describe "Controller.options sets default for {:protocol} and {:fast_track_to_railway}" do
-
     # defaulting
     let(:preconfigured_controller_class) do
       protocol = self.fast_track_protocol
@@ -315,6 +314,86 @@ class EndpointTest < ControllerTest
         fail_fast:          {render: %(fail_fast [:seq, :validate, :my_protocol]), validate: Trailblazer::Activity::FastTrack::FailFast},
         # pass_fast:          {render: %(success), validate: Trailblazer::Activity::FastTrack::PassFast},
         # not_found:          {render: %(404), model: false},
+      )
+    end
+  end
+
+  describe "{endpoint.options.protocol_block}" do
+    # defaulting
+    let(:preconfigured_controller_class) do
+      protocol = self.fast_track_protocol
+
+      Class.new(application_controller) do
+        endpoint do
+          options do
+            {
+              protocol: protocol,
+              # fast_track_to_railway: true, # assume all endpoints are running operations/FastTrack.
+              protocol_block: -> { {Output(:not_found) => End(:XXX)} }, # test that the defaulting works.
+              # TODO: add default matcher for 404
+            }
+          end
+
+          default_matcher do
+            {
+              # not_found:      ->(*) { render "404" },
+              XXX: ->(*) { render "XXX 404 not found" }
+            }
+          end
+        end
+      end
+    end
+
+    it "because of {fast_track_to_railway: true}, fast track gets rerouted to railway termini" do
+      controller_class = Class.new(preconfigured_controller_class) do
+        endpoint "4x fast_track + not_found", domain_activity: Create
+
+        def create
+          invoke "4x fast_track + not_found", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure" }
+            fail_fast { |*| render "fail_fast" }
+            pass_fast { |*| render "pass_fast" }
+            # not_found { |*| render "404" } # from {default_matcher}.
+          end
+        end
+      end
+
+      assert_runs(
+        controller_class, :create,
+
+        success:            {render: "success"},
+        failure:            {render: "failure", validate: false},
+        fail_fast:          {render: "fail_fast", validate: Trailblazer::Activity::FastTrack::FailFast},
+        pass_fast:          {render: "pass_fast", validate: Trailblazer::Activity::FastTrack::PassFast},
+        not_found:          {render: "XXX 404 not found", model: false},
+      )
+    end
+
+    it "overriding {:protocol_block} in endpoint block" do
+      controller_class = Class.new(preconfigured_controller_class) do
+        endpoint "5 tracks, overriding 404", domain_activity: Create do
+          {Output(:not_found) => Track(:failure)} # overriding {:protocol_block}
+        end
+
+        def create_not_found
+          invoke "5 tracks, overriding 404", protocol: true do
+            success   { |ctx, **| render "success" }
+            failure   { |*| render "failure or 404" }
+            fail_fast { |*| render "fail_fast" }
+            pass_fast { |*| render "pass_fast" }
+          end
+        end
+      end
+
+      assert_runs(
+        controller_class, :create_not_found,
+
+        success:            {render: "success"},
+        failure:            {render: "failure or 404", validate: false},
+        fail_fast:          {render: "fail_fast", validate: Trailblazer::Activity::FastTrack::FailFast},
+        pass_fast:          {render: "pass_fast", validate: Trailblazer::Activity::FastTrack::PassFast},
+        not_found:          {render: "failure or 404", model: false}, # FIXME: protocol block is not used from ::endpoint.
       )
     end
   end
