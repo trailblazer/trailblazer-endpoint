@@ -397,4 +397,139 @@ class EndpointTest < ControllerTest
       )
     end
   end
+
+  it "instead of using the DSL to default options, you can override internal methods" do
+    controller_class = controller do
+      def _options_for_endpoint_ctx(controller:, **)
+        {
+          current_user: Object,
+          **controller.input,
+          seq: [],
+        }
+      end
+
+      def self._options_for_endpoint
+        {
+          protocol: Class.new(Trailblazer::Activity::Railway) {
+            step :my_authenticate, Output(:failure) => End(:not_authenticated)
+            step nil, id: :domain_activity
+            include T.def_steps(:my_authenticate)
+          },
+        }
+      end
+
+      def _default_matcher_for_endpoint
+        {
+          success:        ->(ctx, seq:, **) { raise },
+          not_authenticated: ->(ctx, seq:, **) { render "authentication failed #{seq.inspect}" }
+        }
+      end
+
+      # TODO: test _flow_options
+
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create, protocol: true do
+          success         { |ctx, seq:, **| render seq.inspect }
+          failure         { |ctx, seq:, **| render "failure #{seq.inspect}" }
+        end
+      end
+    end
+
+    assert_runs(
+      controller_class,
+      :create,
+
+      success:            {render: %([:my_authenticate, :validate])},
+      not_authenticated:  {render: %(authentication failed [:my_authenticate]), my_authenticate: false},
+      failure:            {render: %(failure [:my_authenticate, :validate]), validate: false}
+    )
+  end
+
+  # NOTE: this is a private test making sure our internal API is feasible without inheritance logic.
+  it "Controller that's not using Declarative::State and doesn't implement inheritance" do
+    controller_class = Class.new(Controller) do
+      extend Trailblazer::Endpoint::Controller::DSL
+      # include Trailblazer::Endpoint::Controller::Config
+      # extend Trailblazer::Endpoint::Controller::State::Config::ClassMethods
+      # include Trailblazer::Endpoint::Controller.module(run_method: :invoke)
+      include Trailblazer::Endpoint::Controller::Runtime
+
+
+# DISCUSS: necessary API to store/retrieve config values.
+      def self._endpoints
+        instance_variable_get(:@endpoints)
+      end
+
+      # readonly
+      def _endpoints
+        self.class._endpoints
+      end
+
+      def _default_matcher_for_endpoint
+        self.class.default_matcher_for_endpoint
+      end
+
+      def _options_for_endpoint_ctx(**options)
+        options_for_endpoint_ctx(**options)
+      end
+
+      def _flow_options(**options)
+        {}
+      end
+
+      def _invoke_options(**options)
+        options
+      end
+  # /end
+
+      def _options_for_endpoint_ctx(controller:, **)
+        {
+          current_user: Object,
+          **controller.input,
+          seq: [],
+        }
+      end
+
+      def self._options_for_endpoint
+        {
+          protocol: Class.new(Trailblazer::Activity::Railway) {
+            step :my_authenticate, Output(:failure) => End(:not_authenticated)
+            step nil, id: :domain_activity
+            include T.def_steps(:my_authenticate)
+          },
+        }
+      end
+
+      def _default_matcher_for_endpoint
+        {
+          success:        ->(ctx, seq:, **) { raise },
+          not_authenticated: ->(ctx, seq:, **) { render "authentication failed #{seq.inspect}" }
+        }
+      end
+
+      # TODO: test _flow_options
+
+      instance_variable_set(:@endpoints, {})
+
+      endpoint Memo::Operation::Create
+
+      def create
+        invoke Memo::Operation::Create, protocol: true do
+          success         { |ctx, seq:, **| render seq.inspect }
+          failure         { |ctx, seq:, **| render "failure #{seq.inspect}" }
+        end
+      end
+    end
+
+    assert_runs(
+      controller_class,
+      :create,
+
+      success:            {render: %([:my_authenticate, :validate])},
+      not_authenticated:  {render: %(authentication failed [:my_authenticate]), my_authenticate: false},
+      failure:            {render: %(failure [:my_authenticate, :validate]), validate: false}
+    )
+  end
 end
